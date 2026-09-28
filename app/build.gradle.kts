@@ -33,6 +33,9 @@ android {
     kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
     buildFeatures { compose = true }
+
+    // Compose UI tests run on the JVM (Robolectric) so CI can check accessibility without a device/emulator.
+    testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
 // Crashlytics is wired only when app/google-services.json is present (added when the Firebase project exists),
@@ -73,4 +76,8 @@ dependencies {
     implementation(libs.firebase.crashlytics)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
