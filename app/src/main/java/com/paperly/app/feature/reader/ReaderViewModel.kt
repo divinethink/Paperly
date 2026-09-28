@@ -3,6 +3,7 @@ package com.paperly.app.feature.reader
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,8 @@ class ReaderViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _uiState.value = ReaderUiState(loading = false, document = repository.getDocument(documentId))
+            val document = PerfTrace.span("reader.open") { repository.getDocument(documentId) }
+            _uiState.value = ReaderUiState(loading = false, document = document)
         }
     }
 }
