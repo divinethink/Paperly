@@ -1,12 +1,12 @@
 package com.paperly.app.core.crash
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 
 class CrashMarkerTest {
     @get:Rule
