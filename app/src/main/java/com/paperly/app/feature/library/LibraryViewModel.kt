@@ -2,6 +2,7 @@ package com.paperly.app.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
@@ -41,7 +42,7 @@ class LibraryViewModel @Inject constructor(
         error.value = null
         viewModelScope.launch {
             try {
-                error.value = when (repository.importDocument(uri)) {
+                error.value = when (PerfTrace.span("library.import") { repository.importDocument(uri) }) {
                     is ImportResult.Success -> null
                     ImportResult.UnsupportedType -> ImportError.Unsupported
                     ImportResult.Failed -> ImportError.Failed
