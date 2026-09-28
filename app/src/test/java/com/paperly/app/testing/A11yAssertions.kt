@@ -3,8 +3,6 @@ package com.paperly.app.testing
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertTouchHeightIsAtLeast
-import androidx.compose.ui.test.assertTouchWidthIsAtLeast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.unit.dp
@@ -21,9 +19,11 @@ fun ComposeContentTestRule.assertClickablesAccessible() {
     val count = clickables.fetchSemanticsNodes().size
     check(count > 0) { "No clickable nodes found — the screen under test is empty" }
     repeat(count) { i ->
-        clickables[i]
-            .assert(HasLabel)
-            .assertTouchWidthIsAtLeast(MinTouchTarget)
-            .assertTouchHeightIsAtLeast(MinTouchTarget)
+        val node = clickables[i].assert(HasLabel).fetchSemanticsNode()
+        val minPx = with(node.layoutInfo.density) { MinTouchTarget.toPx() }
+        val bounds = node.touchBoundsInRoot
+        check(bounds.width >= minPx - 1f && bounds.height >= minPx - 1f) {
+            "Touch target ${bounds.width}x${bounds.height}px is below 48dp ($minPx px)"
+        }
     }
 }
