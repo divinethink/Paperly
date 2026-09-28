@@ -24,6 +24,12 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+        // Measurement-only build for :benchmark (release-like, debug-signed, never shipped).
+        create("benchmark") {
+            initWith(buildTypes.getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {
