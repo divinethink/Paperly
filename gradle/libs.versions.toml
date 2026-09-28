@@ -1,7 +1,7 @@
 # Versions: implementation-time compatible set. Verify with a real build (Checklist: Implemented != Verified).
 [versions]
 agp = "8.13.0"
-kotlin = "2.2.20"
+kotlin = "2.4.20"
 ksp = "2.2.20-2.0.3"
 hilt = "2.57.1"
 hiltNavCompose = "1.3.0"
