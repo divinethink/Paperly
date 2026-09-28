@@ -17,4 +17,8 @@
 
     <string name="reader_back">Back</string>
     <string name="reader_missing">Document not found</string>
+
+    <string name="crash_notice_title">Paperly closed unexpectedly</string>
+    <string name="crash_notice_body">Paperly stopped working last time. We're sorry for the interruption.</string>
+    <string name="crash_notice_ok">OK</string>
 </resources>
