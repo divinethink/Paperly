@@ -26,7 +26,9 @@ class MainActivity : ComponentActivity() {
             PaperlyTheme {
                 PaperlyRoot()
                 // consume() runs once per fresh process; rememberSaveable keeps the notice across rotation.
-                var showCrashNotice by rememberSaveable { mutableStateOf(CrashMarker.forApp(noBackupFilesDir).consume() != null) }
+                var showCrashNotice by rememberSaveable {
+                    mutableStateOf(CrashMarker.forApp(noBackupFilesDir).consume() != null)
+                }
                 if (showCrashNotice) CrashNoticeDialog(onDismiss = { showCrashNotice = false })
                 // Marks first usable frame: feeds system startup metrics (logcat "Fully drawn", Play vitals).
                 LaunchedEffect(Unit) { reportFullyDrawn() }
