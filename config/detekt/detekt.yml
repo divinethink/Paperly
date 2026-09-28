@@ -1,0 +1,18 @@
+# Overrides only; base = detekt default config (--build-upon-default-config).
+style:
+  ReturnCount:
+    max: 3
+  MagicNumber:
+    ignorePropertyDeclaration: true   # colour hex constants (Color.kt)
+    ignoreNumbers: ['-1', '0', '1', '2', '5000', '600', '840']   # 5000 = Flow timeout; 600/840 = screen breakpoints
+naming:
+  MatchingDeclarationName:
+    active: false          # feature files hold a screen + small helpers
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+exceptions:
+  # Data/file layers intentionally map any failure to a typed result (Failed) instead of crashing the UI.
+  TooGenericExceptionCaught:
+    excludes: ['**/data/**', '**/core/file/**']
+  SwallowedException:
+    excludes: ['**/data/**', '**/core/file/**']
