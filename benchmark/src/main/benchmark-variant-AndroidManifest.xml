@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Lets Macrobenchmark profile the release-like build; exists only in the benchmark variant. -->
+        <profileable android:shell="true" />
+    </application>
+</manifest>
