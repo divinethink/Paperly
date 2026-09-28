@@ -54,7 +54,7 @@ jobs:
       - name: Unit tests + debug APK
         run: gradle testDebugUnitTest assembleDebug --stacktrace
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: paperly-debug-apk
           path: app/build/outputs/apk/debug/*.apk
