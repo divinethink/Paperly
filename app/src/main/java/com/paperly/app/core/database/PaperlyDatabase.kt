@@ -44,6 +44,14 @@ data class DocumentEntity(
     val schemaVersion: Int = 1,
 )
 
+/** Aggregate over ALL rows (deliberately no LIMIT — a truncated sum would be wrong). */
+data class StorageUsageRow(
+    val activeBytes: Long,
+    val activeCount: Int,
+    val trashBytes: Long,
+    val trashCount: Int,
+)
+
 class Converters {
     @TypeConverter
     fun fromTags(value: List<String>?): String? = value?.joinToString(TAG_SEPARATOR)
@@ -84,6 +92,14 @@ interface DocumentDao {
 
     @Query("UPDATE documents SET tags = :tags WHERE documentId = :id AND deletedAt IS NULL")
     suspend fun updateTags(id: String, tags: String?): Int
+
+    @Query(
+        "SELECT COALESCE(SUM(CASE WHEN deletedAt IS NULL THEN sizeBytes END), 0) AS activeBytes, " +
+            "COUNT(CASE WHEN deletedAt IS NULL THEN 1 END) AS activeCount, " +
+            "COALESCE(SUM(CASE WHEN deletedAt IS NOT NULL THEN sizeBytes END), 0) AS trashBytes, " +
+            "COUNT(CASE WHEN deletedAt IS NOT NULL THEN 1 END) AS trashCount FROM documents",
+    )
+    fun observeStorageUsage(): Flow<StorageUsageRow>
 
     /** IGNORE = idempotent: a retry/double-tap never overwrites an existing row. Returns -1 if ignored. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)

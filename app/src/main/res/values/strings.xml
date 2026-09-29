@@ -63,7 +63,16 @@
     <string name="action_save">Save</string>
 
     <string name="scan_placeholder">Scanner arrives in a later phase</string>
-    <string name="settings_placeholder">Settings</string>
+    <string name="settings_storage_header">Storage</string>
+    <string name="settings_storage_total">Total</string>
+    <plurals name="settings_storage_documents">
+        <item quantity="one">%d document</item>
+        <item quantity="other">%d documents</item>
+    </plurals>
+    <plurals name="settings_storage_trash">
+        <item quantity="one">%d item in Trash</item>
+        <item quantity="other">%d items in Trash</item>
+    </plurals>
 
     <string name="reader_back">Back</string>
     <string name="reader_missing">Document not found</string>
