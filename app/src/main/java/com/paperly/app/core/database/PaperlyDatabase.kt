@@ -70,6 +70,10 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY updatedAt DESC")
     fun observeActive(): Flow<List<DocumentEntity>>
 
+    /** Backup source: complete list on purpose (no LIMIT — a truncated backup would be silent data loss). */
+    @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt")
+    suspend fun getAllActive(): List<DocumentEntity>
+
     @Query("SELECT * FROM documents WHERE documentId = :id")
     suspend fun getById(id: String): DocumentEntity?
 

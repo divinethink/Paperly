@@ -23,6 +23,9 @@ abstract class FolderDao {
     @Query("SELECT * FROM folders ORDER BY name COLLATE NOCASE")
     abstract fun observeFolders(): Flow<List<FolderEntity>>
 
+    @Query("SELECT * FROM folders")
+    abstract suspend fun getAll(): List<FolderEntity>
+
     /** IGNORE = idempotent retry; returns -1 if the id already exists. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insert(entity: FolderEntity): Long

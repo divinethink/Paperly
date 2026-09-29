@@ -5,12 +5,16 @@ import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+
+/** documentId doubles as the on-disk file name, so anything else (e.g. "../x" from a backup) is rejected. */
+val SAFE_DOCUMENT_ID = Regex("[A-Za-z0-9_-]{1,64}")
 
 data class StoredFile(val path: String, val sizeBytes: Long, val checksum: String)
 
@@ -20,6 +24,9 @@ data class StoredFile(val path: String, val sizeBytes: Long, val checksum: Strin
  */
 interface DocumentFileStore {
     suspend fun store(source: Uri, documentId: String): StoredFile
+
+    /** Same guarantees as [store] for an arbitrary stream (used by Restore). The caller closes [input]. */
+    suspend fun storeFrom(input: InputStream, documentId: String): StoredFile
     fun resolve(documentId: String): File?
     suspend fun delete(documentId: String): Boolean
 }
@@ -32,27 +39,30 @@ class AppPrivateDocumentFileStore @Inject constructor(
 
     private val dir: File by lazy { File(context.filesDir, "documents").apply { mkdirs() } }
 
-    override suspend fun store(source: Uri, documentId: String): StoredFile =
+    override suspend fun store(source: Uri, documentId: String): StoredFile {
+        val input = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(source) }
+            ?: throw IOException("Cannot open source")
+        return input.use { storeFrom(it, documentId) }
+    }
+
+    override suspend fun storeFrom(input: InputStream, documentId: String): StoredFile =
         withContext(Dispatchers.IO) {
+            require(SAFE_DOCUMENT_ID.matches(documentId)) { "Unsafe document id" }
             val target = File(dir, documentId)
             if (target.exists()) throw IOException("Document file already exists: $documentId")
             val tmp = File(dir, "$documentId.tmp")
             val digest = MessageDigest.getInstance("SHA-256")
             var size = 0L
             try {
-                val input = context.contentResolver.openInputStream(source)
-                    ?: throw IOException("Cannot open source")
-                input.use { ins ->
-                    tmp.outputStream().buffered().use { out ->
-                        val buf = ByteArray(BUFFER_SIZE)
-                        while (true) {
-                            ensureActive()
-                            val n = ins.read(buf)
-                            if (n < 0) break
-                            out.write(buf, 0, n)
-                            digest.update(buf, 0, n)
-                            size += n
-                        }
+                tmp.outputStream().buffered().use { out ->
+                    val buf = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        ensureActive()
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        digest.update(buf, 0, n)
+                        size += n
                     }
                 }
                 if (tmp.length() != size) throw IOException("Size verification failed")

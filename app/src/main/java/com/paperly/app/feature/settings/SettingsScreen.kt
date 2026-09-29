@@ -1,11 +1,14 @@
 package com.paperly.app.feature.settings
 
 import android.text.format.Formatter
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,12 +21,25 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /** Sections (Reading/Scanner/Sync/...) are added with their phases; Storage arrives in P1. */
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    backupViewModel: BackupViewModel = hiltViewModel(),
+) {
     val usage by viewModel.usage.collectAsStateWithLifecycle()
+    val backup by backupViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
+        it?.let(backupViewModel::export)
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+        it?.let(backupViewModel::restore)
+    }
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
         Text(
             stringResource(R.string.settings_storage_header),
@@ -44,7 +60,41 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 Formatter.formatShortFileSize(context, u.totalBytes),
             )
         }
+        BackupSection(
+            state = backup,
+            onExport = { exportLauncher.launch(backupFileName()) },
+            onRestore = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
+        )
     }
+}
+
+private fun backupFileName(): String =
+    "paperly-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".zip"
+
+@Composable
+private fun BackupSection(state: BackupUiState, onExport: () -> Unit, onRestore: () -> Unit) {
+    Text(
+        stringResource(R.string.settings_backup_header),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+    )
+    Text(stringResource(R.string.settings_backup_hint), style = MaterialTheme.typography.bodyMedium)
+    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onExport, enabled = !state.busy) { Text(stringResource(R.string.settings_backup_export)) }
+        Button(onClick = onRestore, enabled = !state.busy) { Text(stringResource(R.string.settings_backup_restore)) }
+    }
+    if (state.busy) Text(stringResource(R.string.settings_backup_working), Modifier.padding(top = 8.dp))
+    state.message?.let { Text(backupMessageText(it), Modifier.padding(top = 8.dp)) }
+}
+
+@Composable
+private fun backupMessageText(m: BackupMessage): String = when (m) {
+    is BackupMessage.ExportOk -> stringResource(R.string.settings_backup_export_ok, m.count, m.skipped)
+    BackupMessage.ExportFailed -> stringResource(R.string.settings_backup_export_failed)
+    is BackupMessage.RestoreOk -> stringResource(R.string.settings_backup_restore_ok, m.restored, m.present, m.failed)
+    BackupMessage.RestoreInvalid -> stringResource(R.string.settings_backup_restore_invalid)
+    BackupMessage.RestoreNewer -> stringResource(R.string.settings_backup_restore_newer)
+    BackupMessage.RestoreFailed -> stringResource(R.string.settings_backup_restore_failed)
 }
 
 @Composable

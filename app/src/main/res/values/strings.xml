@@ -63,6 +63,17 @@
     <string name="action_save">Save</string>
 
     <string name="scan_placeholder">Scanner arrives in a later phase</string>
+    <string name="settings_backup_header">Backup</string>
+    <string name="settings_backup_hint">Export saves all documents to one ZIP file. Restore only adds what is missing; nothing is overwritten or deleted.</string>
+    <string name="settings_backup_export">Export backup</string>
+    <string name="settings_backup_restore">Restore from backup</string>
+    <string name="settings_backup_working">Working… please keep the app open.</string>
+    <string name="settings_backup_export_ok">Backup saved and verified: %1$d documents (%2$d skipped because the file was missing).</string>
+    <string name="settings_backup_export_failed">Backup failed and was not saved. Please try again.</string>
+    <string name="settings_backup_restore_ok">Restored %1$d, already in Library %2$d, failed %3$d.</string>
+    <string name="settings_backup_restore_invalid">This is not a valid Paperly backup.</string>
+    <string name="settings_backup_restore_newer">This backup was made by a newer version of Paperly. Please update the app.</string>
+    <string name="settings_backup_restore_failed">Restore failed. Nothing was changed except any documents already listed as restored.</string>
     <string name="settings_storage_header">Storage</string>
     <string name="settings_storage_total">Total</string>
     <plurals name="settings_storage_documents">
