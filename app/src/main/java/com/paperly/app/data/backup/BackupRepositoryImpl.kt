@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.DocumentsContract
+import com.paperly.app.core.database.AggregateDao
 import com.paperly.app.core.database.DATABASE_VERSION
 import com.paperly.app.core.database.DocumentDao
 import com.paperly.app.core.database.DocumentEntity
@@ -38,6 +39,7 @@ import kotlinx.coroutines.withContext
 class BackupRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val documentDao: DocumentDao,
+    private val aggregateDao: AggregateDao,
     private val folderDao: FolderDao,
     private val fileStore: DocumentFileStore,
 ) : BackupRepository {
@@ -61,7 +63,7 @@ class BackupRepositoryImpl @Inject constructor(
     }
 
     private suspend fun doExport(uri: Uri): BackupResult {
-        val entities = documentDao.getAllActive().filter { DocumentType.isValid(it.type) }
+        val entities = aggregateDao.getAllActive().filter { DocumentType.isValid(it.type) }
         val sources = entities.mapNotNull { e ->
             fileStore.resolve(e.documentId)?.let { BackupSource(e.toBackupDocument(), it) }
         }

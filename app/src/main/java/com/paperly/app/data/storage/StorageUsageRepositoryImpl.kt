@@ -1,6 +1,6 @@
 package com.paperly.app.data.storage
 
-import com.paperly.app.core.database.DocumentDao
+import com.paperly.app.core.database.AggregateDao
 import com.paperly.app.domain.storage.StorageUsage
 import com.paperly.app.domain.storage.StorageUsageRepository
 import dagger.Binds
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.map
 
 @Singleton
 class StorageUsageRepositoryImpl @Inject constructor(
-    private val dao: DocumentDao,
+    private val dao: AggregateDao,
 ) : StorageUsageRepository {
     override fun observeUsage(): Flow<StorageUsage> = dao.observeStorageUsage().map {
         StorageUsage(it.activeBytes, it.activeCount, it.trashBytes, it.trashCount)

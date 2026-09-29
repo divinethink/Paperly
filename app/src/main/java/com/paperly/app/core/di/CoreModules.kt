@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.paperly.app.core.database.AggregateDao
 import com.paperly.app.core.database.DATABASE_NAME
 import com.paperly.app.core.database.DATABASE_VERSION
 import com.paperly.app.core.database.DatabaseBackup
@@ -44,6 +45,9 @@ object DatabaseModule {
 
     @Provides
     fun provideDocumentDao(db: PaperlyDatabase): DocumentDao = db.documentDao()
+
+    @Provides
+    fun provideAggregateDao(db: PaperlyDatabase): AggregateDao = db.aggregateDao()
 
     @Provides
     fun provideTrashDao(db: PaperlyDatabase): TrashDao = db.trashDao()

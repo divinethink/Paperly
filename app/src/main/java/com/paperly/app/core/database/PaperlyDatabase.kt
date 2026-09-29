@@ -70,10 +70,6 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY updatedAt DESC")
     fun observeActive(): Flow<List<DocumentEntity>>
 
-    /** Backup source: complete list on purpose (no LIMIT — a truncated backup would be silent data loss). */
-    @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt")
-    suspend fun getAllActive(): List<DocumentEntity>
-
     @Query("SELECT * FROM documents WHERE documentId = :id")
     suspend fun getById(id: String): DocumentEntity?
 
@@ -97,6 +93,14 @@ interface DocumentDao {
     @Query("UPDATE documents SET tags = :tags WHERE documentId = :id AND deletedAt IS NULL")
     suspend fun updateTags(id: String, tags: String?): Int
 
+    /** IGNORE = idempotent: a retry/double-tap never overwrites an existing row. Returns -1 if ignored. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(entity: DocumentEntity): Long
+}
+
+/** Whole-table reads (no LIMIT on purpose: truncated totals/backups would be silently wrong). */
+@Dao
+interface AggregateDao {
     @Query(
         "SELECT COALESCE(SUM(CASE WHEN deletedAt IS NULL THEN sizeBytes END), 0) AS activeBytes, " +
             "COUNT(CASE WHEN deletedAt IS NULL THEN 1 END) AS activeCount, " +
@@ -105,9 +109,9 @@ interface DocumentDao {
     )
     fun observeStorageUsage(): Flow<StorageUsageRow>
 
-    /** IGNORE = idempotent: a retry/double-tap never overwrites an existing row. Returns -1 if ignored. */
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(entity: DocumentEntity): Long
+    /** Backup source: complete list on purpose (no LIMIT — a truncated backup would be silent data loss). */
+    @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt")
+    suspend fun getAllActive(): List<DocumentEntity>
 }
 
 @Database(
@@ -118,6 +122,8 @@ interface DocumentDao {
 @TypeConverters(Converters::class)
 abstract class PaperlyDatabase : RoomDatabase() {
     abstract fun documentDao(): DocumentDao
+
+    abstract fun aggregateDao(): AggregateDao
 
     abstract fun trashDao(): TrashDao
 

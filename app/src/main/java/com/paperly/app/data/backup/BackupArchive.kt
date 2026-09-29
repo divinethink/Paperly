@@ -58,22 +58,26 @@ object BackupArchive {
     /** Re-reads a written archive: manifest valid and every document entry's SHA-256 equals its manifest checksum. */
     fun verify(input: InputStream): Boolean = try {
         val hashes = HashMap<String, String>()
-        var manifestJson: String? = null
-        ZipInputStream(BufferedInputStream(input)).use { zin ->
-            var entry = zin.nextEntry
-            while (entry != null) {
-                when {
-                    entry.name == MANIFEST_ENTRY -> manifestJson = readBounded(zin)
-                    entry.name.startsWith(DOC_PREFIX) -> hashes[entry.name.removePrefix(DOC_PREFIX)] = sha256(zin)
-                }
-                entry = zin.nextEntry
-            }
-        }
+        val manifestJson = ZipInputStream(BufferedInputStream(input)).use { scan(it, hashes) }
         val manifest = manifestJson?.let { BackupManifestCodec.decode(it) }
         manifest != null && manifest.invalidEntries == 0 &&
             manifest.documents.all { hashes[it.documentId] == it.checksum }
     } catch (e: IOException) {
         false // corrupted/truncated archive (ZipException is an IOException)
+    }
+
+    /** Fills [hashes] (id -> SHA-256) for document entries and returns the manifest text, if present. */
+    private fun scan(zin: ZipInputStream, hashes: MutableMap<String, String>): String? {
+        var manifestJson: String? = null
+        var entry = zin.nextEntry
+        while (entry != null) {
+            when {
+                entry.name == MANIFEST_ENTRY -> manifestJson = readBounded(zin)
+                entry.name.startsWith(DOC_PREFIX) -> hashes[entry.name.removePrefix(DOC_PREFIX)] = sha256(zin)
+            }
+            entry = zin.nextEntry
+        }
+        return manifestJson
     }
 
     fun readManifest(zip: ZipFile): BackupManifest? =
