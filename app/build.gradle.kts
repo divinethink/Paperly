@@ -78,6 +78,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.pdf.document.service) // P2 PDF engine (document API only; Viewer = our Compose UI)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
@@ -88,7 +89,6 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // P2 PDF-library spike: debug-only, never in release (Checklist P2).
+    // Pdfium spike (rejected, Checklist Decision Log): debug-only; remove with the spike Activities.
     debugImplementation(libs.spike.pdfium.oothp)
-    debugImplementation(libs.spike.androidx.pdf) // round-2: non-Compose document-service only
 }
