@@ -1,6 +1,7 @@
 package com.paperly.app.data.backup
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.DocumentsContract
 import com.paperly.app.core.database.DATABASE_VERSION
@@ -64,11 +65,14 @@ class BackupRepositoryImpl @Inject constructor(
         val sources = entities.mapNotNull { e ->
             fileStore.resolve(e.documentId)?.let { BackupSource(e.toBackupDocument(), it) }
         }
-        val folders = folderDao.getAll().map { BackupFolder(it.folderId, it.name, it.parentFolderId, it.createdAt) }
+        val folders = folderDao.getAll().map {
+            BackupFolder(it.folderId, it.name, it.parentFolderId, it.createdAt)
+        }
         val resolver = context.contentResolver
         val out = resolver.openOutputStream(uri, "w") ?: throw IOException("Cannot open target")
-        out.use { BackupArchive.write(it, sources, folders, DATABASE_VERSION, appVersion(), System.currentTimeMillis()) }
-        val verified = resolver.openInputStream(uri)?.use(BackupArchive::verify) == true
+        val header = BackupHeader(DATABASE_VERSION, appVersion(context), System.currentTimeMillis())
+        out.use { BackupArchive.write(it, sources, folders, header) }
+        val verified = resolver.openInputStream(uri)?.use { BackupArchive.verify(it) } == true
         return if (verified) {
             BackupResult.Success(sources.size, entities.size - sources.size)
         } else {
@@ -117,16 +121,14 @@ class BackupRepositoryImpl @Inject constructor(
     }
 
     private suspend fun restoreOne(zip: ZipFile, d: BackupDocument, folderIds: Set<String>): Outcome {
-        if (isAlreadyPresent(d)) return Outcome.PRESENT
+        // Same id (even in Trash) or same content already present: never overwrite, never duplicate.
+        val present = documentDao.getById(d.documentId) != null || documentDao.findActiveByChecksum(d.checksum) != null
+        if (present) return Outcome.PRESENT
         val stored = storeVerified(zip, d) ?: return Outcome.FAILED
         return if (insertRow(d, stored, folderIds)) Outcome.RESTORED else Outcome.FAILED
     }
 
-    /** Same id (even in Trash) or same content already in the Library: never overwrite, never duplicate. */
-    private suspend fun isAlreadyPresent(d: BackupDocument): Boolean =
-        documentDao.getById(d.documentId) != null || documentDao.findActiveByChecksum(d.checksum) != null
-
-    /** Copy via the file store (temp -> size check -> atomic rename), then require the checksum to match the manifest. */
+    /** Copy via the file store (temp, size check, atomic rename); the checksum must then match the manifest. */
     private suspend fun storeVerified(zip: ZipFile, d: BackupDocument): StoredFile? = try {
         val stored = BackupArchive.openDocument(zip, d.documentId)?.use { fileStore.storeFrom(it, d.documentId) }
         if (stored != null && stored.checksum != d.checksum) {
@@ -178,16 +180,16 @@ class BackupRepositoryImpl @Inject constructor(
             try {
                 DocumentsContract.deleteDocument(context.contentResolver, uri)
             } catch (e: Exception) {
-                // best effort: an unverified partial file must not be presented as a backup, but failing to delete is not fatal
+                // best effort: failing to delete a partial file is not fatal
             }
         }
     }
+}
 
-    private fun appVersion(): String = try {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-    } catch (e: Exception) {
-        ""
-    }
+private fun appVersion(context: Context): String = try {
+    context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+} catch (e: PackageManager.NameNotFoundException) {
+    ""
 }
 
 private fun DocumentEntity.toBackupDocument() = BackupDocument(

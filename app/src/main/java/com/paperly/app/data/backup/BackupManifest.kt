@@ -50,14 +50,14 @@ object BackupManifestCodec {
         put("schemaVersion", m.schemaVersion)
         put("appVersion", m.appVersion)
         put("createdAt", m.createdAt)
-        put("folders", JSONArray(m.folders.map(::folderJson)))
-        put("documents", JSONArray(m.documents.map(::documentJson)))
+        put("folders", JSONArray(m.folders.map { folderJson(it) }))
+        put("documents", JSONArray(m.documents.map { documentJson(it) }))
     }.toString()
 
     fun decode(json: String): BackupManifest? = try {
         val root = JSONObject(json)
-        val (folders, badFolders) = parseList(root.optJSONArray("folders"), ::parseFolder)
-        val (docs, badDocs) = parseList(root.optJSONArray("documents"), ::parseDocument)
+        val (folders, badFolders) = parseList(root.optJSONArray("folders"), { parseFolder(it) })
+        val (docs, badDocs) = parseList(root.optJSONArray("documents"), { parseDocument(it) })
         BackupManifest(
             formatVersion = root.getInt("formatVersion"),
             schemaVersion = root.optInt("schemaVersion"),

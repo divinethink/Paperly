@@ -34,7 +34,7 @@ class BackupArchiveTest {
     }
 
     private fun archive(vararg s: BackupSource): ByteArray = ByteArrayOutputStream().also {
-        BackupArchive.write(it, s.toList(), listOf(BackupFolder("f1", "Work", null, 5L)), 2, "1.0", 9L)
+        BackupArchive.write(it, s.toList(), listOf(BackupFolder("f1", "Work", null, 5L)), BackupHeader(2, "1.0", 9L))
     }.toByteArray()
 
     @Test

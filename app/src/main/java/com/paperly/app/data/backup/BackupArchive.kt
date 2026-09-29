@@ -2,7 +2,9 @@ package com.paperly.app.data.backup
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
@@ -12,6 +14,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 data class BackupSource(val doc: BackupDocument, val file: File)
+
+data class BackupHeader(val schemaVersion: Int, val appVersion: String, val createdAt: Long)
 
 /**
  * ZIP layout: `documents/<documentId>` (raw file bytes) ... then `manifest.json` LAST.
@@ -28,9 +32,7 @@ object BackupArchive {
         out: OutputStream,
         sources: List<BackupSource>,
         folders: List<BackupFolder>,
-        schemaVersion: Int,
-        appVersion: String,
-        now: Long,
+        header: BackupHeader,
     ) {
         val zip = ZipOutputStream(BufferedOutputStream(out))
         sources.forEach { s ->
@@ -39,7 +41,8 @@ object BackupArchive {
             zip.closeEntry()
         }
         val manifest = BackupManifest(
-            BACKUP_FORMAT_VERSION, schemaVersion, appVersion, now, folders, sources.map { it.doc },
+            BACKUP_FORMAT_VERSION, header.schemaVersion, header.appVersion, header.createdAt, folders,
+            sources.map { it.doc },
         )
         zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
         zip.write(BackupManifestCodec.encode(manifest).toByteArray(Charsets.UTF_8))
@@ -49,7 +52,7 @@ object BackupArchive {
     }
 
     /** Re-reads a written archive: manifest valid and every document entry's SHA-256 equals its manifest checksum. */
-    fun verify(input: InputStream): Boolean {
+    fun verify(input: InputStream): Boolean = try {
         val hashes = HashMap<String, String>()
         var manifestJson: String? = null
         ZipInputStream(BufferedInputStream(input)).use { zin ->
@@ -62,21 +65,29 @@ object BackupArchive {
                 entry = zin.nextEntry
             }
         }
-        val manifest = manifestJson?.let(BackupManifestCodec::decode)
-        return manifest != null && manifest.invalidEntries == 0 &&
+        val manifest = manifestJson?.let { BackupManifestCodec.decode(it) }
+        manifest != null && manifest.invalidEntries == 0 &&
             manifest.documents.all { hashes[it.documentId] == it.checksum }
+    } catch (e: IOException) {
+        false // corrupted/truncated archive (ZipException is an IOException)
     }
 
     fun readManifest(zip: ZipFile): BackupManifest? =
-        zip.getEntry(MANIFEST_ENTRY)?.let { e -> zip.getInputStream(e).use(::readBounded) }
-            ?.let(BackupManifestCodec::decode)
+        zip.getEntry(MANIFEST_ENTRY)?.let { e -> zip.getInputStream(e).use { readBounded(it) } }
+            ?.let { BackupManifestCodec.decode(it) }
 
     fun openDocument(zip: ZipFile, documentId: String): InputStream? =
-        zip.getEntry(DOC_PREFIX + documentId)?.let(zip::getInputStream)
+        zip.getEntry(DOC_PREFIX + documentId)?.let { zip.getInputStream(it) }
 
     private fun readBounded(input: InputStream): String? {
-        val bytes = input.readNBytes(MAX_MANIFEST_BYTES + 1)
-        return if (bytes.size > MAX_MANIFEST_BYTES) null else String(bytes, Charsets.UTF_8)
+        val out = ByteArrayOutputStream()
+        val buf = ByteArray(BUFFER_SIZE)
+        while (out.size() <= MAX_MANIFEST_BYTES) {
+            val n = input.read(buf)
+            if (n < 0) break
+            out.write(buf, 0, n)
+        }
+        return if (out.size() > MAX_MANIFEST_BYTES) null else out.toString(Charsets.UTF_8.name())
     }
 
     private fun sha256(input: InputStream): String {
