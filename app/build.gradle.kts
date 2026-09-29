@@ -9,6 +9,7 @@ plugins {
 android {
     namespace = "com.paperly.app"
     compileSdk = 36
+    compileSdkExtension = 19 // spike (androidx.pdf) requires SDK extension >= 19; spike branch only
 
     defaultConfig {
         applicationId = "com.paperly.app"
