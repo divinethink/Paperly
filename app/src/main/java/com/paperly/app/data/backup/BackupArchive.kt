@@ -41,8 +41,12 @@ object BackupArchive {
             zip.closeEntry()
         }
         val manifest = BackupManifest(
-            BACKUP_FORMAT_VERSION, header.schemaVersion, header.appVersion, header.createdAt, folders,
-            sources.map { it.doc },
+            formatVersion = BACKUP_FORMAT_VERSION,
+            schemaVersion = header.schemaVersion,
+            appVersion = header.appVersion,
+            createdAt = header.createdAt,
+            folders = folders,
+            documents = sources.map { it.doc },
         )
         zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
         zip.write(BackupManifestCodec.encode(manifest).toByteArray(Charsets.UTF_8))
