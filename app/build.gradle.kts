@@ -89,4 +89,5 @@ dependencies {
 
     // P2 PDF-library spike: debug-only, never in release (Checklist P2).
     debugImplementation(libs.spike.pdfium.oothp)
+    debugImplementation(libs.spike.androidx.pdf) // round-2: non-Compose document-service only
 }
