@@ -49,7 +49,7 @@ androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-mani
 androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmarkMacro" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExtJunit" }
 spike-pdfium-oothp = { module = "io.github.oothp:pdfium-android", version.ref = "pdfiumOothp" }
-spike-androidx-pdf = { module = "androidx.pdf:pdf-document-service", version.ref = "androidxPdf" }
+androidx-pdf-document-service = { module = "androidx.pdf:pdf-document-service", version.ref = "androidxPdf" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 
 [plugins]
