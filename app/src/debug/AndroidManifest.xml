@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Debug-only PDF library spike (Checklist P2). Separate launcher icon; never part of release builds. -->
+    <application>
+        <activity
+            android:name="com.paperly.app.spike.PdfSpikeActivity"
+            android:exported="true"
+            android:label="Paperly Spike"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -86,4 +86,7 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // P2 PDF-library spike: debug-only, never in release (Checklist P2).
+    debugImplementation(libs.spike.pdfium.oothp)
 }
