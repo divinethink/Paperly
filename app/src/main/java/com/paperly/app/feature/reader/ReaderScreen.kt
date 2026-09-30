@@ -139,6 +139,7 @@ private fun ReaderContent(
     val context = LocalContext.current
     val annotations by viewModel.annotations.items.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
     var editor by remember { mutableStateOf<AnnotationEditor?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -166,6 +167,7 @@ private fun ReaderContent(
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                     val hooks = AnnotationHooks(
                         items = annotations.groupBy { it.page },
+                        annotate = annotate,
                         onCreate = { page, rect -> editor = AnnotationEditor(page, rect, null) },
                         onTap = { editor = AnnotationEditor(it.page, it.rect, it) },
                     )
@@ -216,15 +218,16 @@ private fun PdfPages(
     BoxWithConstraints(Modifier.fillMaxSize().pinchZoom(onPinch)) {
         val base = if (look.fitHeight) minOf(maxWidth, maxHeight * aspect) else maxWidth
         val viewportWidth = maxWidth
+        val annotate = look.hooks.annotate
         // Render resolution follows the zoom step (1.5x, 2x, 3x, 4x of the page width) so zoomed text stays sharp.
         val renderPx = with(LocalDensity.current) {
             (base.toPx() * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
         }
         Box(
-            Modifier.fillMaxSize().horizontalScroll(hScroll).widthIn(min = viewportWidth),
+            Modifier.fillMaxSize().horizontalScroll(hScroll, enabled = !annotate).widthIn(min = viewportWidth),
             contentAlignment = Alignment.TopCenter,
         ) {
-            LazyColumn(Modifier.width(base * zoom), state = listState) {
+            LazyColumn(Modifier.width(base * zoom), state = listState, userScrollEnabled = !annotate) {
                 items(count = pageCount, key = { it }) { index ->
                     val spec = PageSpec(
                         aspect = aspect,
@@ -256,6 +259,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var draft by remember(index) { mutableStateOf<MatchRect?>(null) }
     val gestures = Modifier.annotationGestures(
         annotations = spec.annotations,
+        annotate = spec.hooks.annotate,
         onDraft = { draft = it },
         onCreate = { spec.hooks.onCreate(index, it) },
         onTap = spec.hooks.onTap,

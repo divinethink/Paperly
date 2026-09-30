@@ -18,16 +18,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.ReaderTheme
 
-/** Reader top-bar actions: Bookmark button + ⋮ menu (Fit mode, Theme). */
+/** Reader top-bar actions: Bookmark button + ⋮ menu (Fit mode, Annotate mode, Theme). */
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
+    val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     TextButton(onClick = { viewModel.toggleBookmark(page) }) {
         val label = if (page in bookmarks) R.string.reader_bookmark_remove else R.string.reader_bookmark_add
         Text(stringResource(label))
     }
-    OverflowMenu(theme, fitHeight, onToggleFit, viewModel::setTheme)
+    OverflowMenu(theme, fitHeight, onToggleFit, viewModel::setTheme, annotate, viewModel.annotations::toggleMode)
 }
 
 @Composable
@@ -36,6 +37,8 @@ private fun OverflowMenu(
     fitHeight: Boolean,
     onToggleFit: () -> Unit,
     onTheme: (ReaderTheme) -> Unit,
+    annotate: Boolean,
+    onToggleAnnotate: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
@@ -46,6 +49,14 @@ private fun OverflowMenu(
             text = { Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height)) },
             onClick = {
                 onToggleFit()
+                open = false
+            },
+        )
+        val annotateName = stringResource(R.string.reader_annotate_mode)
+        DropdownMenuItem(
+            text = { Text(if (annotate) "✓ $annotateName" else annotateName) },
+            onClick = {
+                onToggleAnnotate()
                 open = false
             },
         )

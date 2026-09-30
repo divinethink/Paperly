@@ -2,7 +2,9 @@ package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,11 +29,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntSize
@@ -52,6 +51,7 @@ private const val MIN_SIDE = 0.01f // smaller drags (fraction of the page) are t
 /** Page-level annotation wiring handed down to each page. [items] is keyed by zero-based page. */
 data class AnnotationHooks(
     val items: Map<Int, List<Annotation>>,
+    val annotate: Boolean,
     val onCreate: (Int, MatchRect) -> Unit,
     val onTap: (Annotation) -> Unit,
 )
@@ -70,10 +70,14 @@ internal fun dragRect(a: Offset, b: Offset, size: IntSize): MatchRect? {
     return rect.takeIf { it.right - it.left >= MIN_SIDE && it.bottom - it.top >= MIN_SIDE }
 }
 
-/** Long-press + drag draws a new area ([onDraft] previews it); a plain tap on an existing annotation edits it. */
+/**
+ * In [annotate] mode a one-finger drag draws a new area ([onDraft] previews it); a plain tap on an existing
+ * annotation edits it (any mode). Long-press was dropped: it failed twice on-device (Checklist Decision Log).
+ */
 @Composable
 fun Modifier.annotationGestures(
     annotations: List<Annotation>,
+    annotate: Boolean,
     onDraft: (MatchRect?) -> Unit,
     onCreate: (MatchRect) -> Unit,
     onTap: (Annotation) -> Unit,
@@ -81,7 +85,6 @@ fun Modifier.annotationGestures(
     val draft by rememberUpdatedState(onDraft)
     val create by rememberUpdatedState(onCreate)
     val tap by rememberUpdatedState(onTap)
-    val haptic = LocalHapticFeedback.current
     return this
         .pointerInput(annotations) {
             detectTapGestures { pos ->
@@ -91,55 +94,24 @@ fun Modifier.annotationGestures(
                     ?.let { tap(it) }
             }
         }
-        .pointerInput(Unit) {
-            awaitEachGesture {
-                selectArea(
-                    onDraft = { draft(it) },
-                    onCreate = { create(it) },
-                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
-                )
-            }
+        .pointerInput(annotate) {
+            if (annotate) awaitEachGesture { dragArea(onDraft = { draft(it) }, onCreate = { create(it) }) }
         }
 }
 
-/**
- * Hold still for the long-press timeout, then drag to size the area. Tracked in the Initial pass and consumed there,
- * so no ancestor scroll/zoom container can take the gesture over. Moving or a second finger before the timeout aborts.
- */
-private suspend fun AwaitPointerEventScope.selectArea(
-    onDraft: (MatchRect?) -> Unit,
-    onCreate: (MatchRect) -> Unit,
-    onLongPress: () -> Unit,
-) {
-    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-    var aborted = false
-    val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-        while (!aborted) {
-            val event = awaitPointerEvent(PointerEventPass.Initial)
-            val change = event.changes.takeIf { it.size == 1 }?.firstOrNull { it.id == down.id }
-            aborted = change == null || !change.pressed ||
-                (change.position - down.position).getDistance() > viewConfiguration.touchSlop * 2
-        }
-    } == null
-    if (!longPressed) return
-    onLongPress()
-    var end = down.position
+/** Touch-slop, then drag from the touch-down point; a cancelled drag (e.g. second finger) creates nothing. */
+private suspend fun AwaitPointerEventScope.dragArea(onDraft: (MatchRect?) -> Unit, onCreate: (MatchRect) -> Unit) {
+    val down = awaitFirstDown(requireUnconsumed = false)
+    val slop = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() } ?: return
+    var end = slop.position
     onDraft(dragRect(down.position, end, size))
-    var live = true
-    while (live) {
-        val event = awaitPointerEvent(PointerEventPass.Initial)
-        val change = event.changes.firstOrNull { it.id == down.id }
-        if (change == null) {
-            live = false
-        } else {
-            change.consume()
-            end = change.position
-            live = change.pressed
-            if (live) onDraft(dragRect(down.position, end, size))
-        }
+    val finished = drag(slop.id) { change ->
+        change.consume()
+        end = change.position
+        onDraft(dragRect(down.position, end, size))
     }
     onDraft(null)
-    dragRect(down.position, end, size)?.let(onCreate)
+    if (finished) dragRect(down.position, end, size)?.let(onCreate)
 }
 
 fun DrawScope.drawAnnotations(items: List<Annotation>) {
