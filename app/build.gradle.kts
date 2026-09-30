@@ -36,6 +36,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true // Readium 3.x requires it (P3)
     }
     kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
@@ -79,6 +80,10 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.pdf.document.service) // P2 PDF engine (document API only; Viewer = our Compose UI)
+    implementation(libs.readium.shared) // P3-A spike: EPUB engine candidate (BSD-3)
+    implementation(libs.readium.streamer)
+    implementation(libs.readium.navigator)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
