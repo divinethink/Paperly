@@ -88,7 +88,4 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    // Pdfium spike (rejected, Checklist Decision Log): debug-only; remove with the spike Activities.
-    debugImplementation(libs.spike.pdfium.oothp)
 }
