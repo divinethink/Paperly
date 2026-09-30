@@ -22,24 +22,17 @@ import com.paperly.app.domain.reader.ReaderTheme
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
-    val theme by viewModel.theme.collectAsStateWithLifecycle()
-    val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     TextButton(onClick = { viewModel.toggleBookmark(page) }) {
         val label = if (page in bookmarks) R.string.reader_bookmark_remove else R.string.reader_bookmark_add
         Text(stringResource(label))
     }
-    OverflowMenu(theme, fitHeight, onToggleFit, viewModel::setTheme, annotate, viewModel.annotations::toggleMode)
+    OverflowMenu(viewModel, fitHeight, onToggleFit)
 }
 
 @Composable
-private fun OverflowMenu(
-    current: ReaderTheme,
-    fitHeight: Boolean,
-    onToggleFit: () -> Unit,
-    onTheme: (ReaderTheme) -> Unit,
-    annotate: Boolean,
-    onToggleAnnotate: () -> Unit,
-) {
+private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggleFit: () -> Unit) {
+    val current by viewModel.theme.collectAsStateWithLifecycle()
+    val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.reader_more))
@@ -56,7 +49,7 @@ private fun OverflowMenu(
         DropdownMenuItem(
             text = { Text(if (annotate) "✓ $annotateName" else annotateName) },
             onClick = {
-                onToggleAnnotate()
+                viewModel.annotations.toggleMode()
                 open = false
             },
         )
@@ -65,7 +58,7 @@ private fun OverflowMenu(
             DropdownMenuItem(
                 text = { Text(if (option == current) "✓ $name" else name) },
                 onClick = {
-                    onTheme(option)
+                    viewModel.setTheme(option)
                     open = false
                 },
             )
