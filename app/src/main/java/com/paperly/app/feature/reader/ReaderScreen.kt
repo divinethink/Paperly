@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,12 +31,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -48,6 +52,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.theme.ReadingFontFamily
@@ -64,6 +70,20 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var fitHeight by rememberSaveable { mutableStateOf(false) }
+    val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    var resumed by rememberSaveable { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.flush() }
+    LaunchedEffect(listState, state.pageCount) {
+        if (state.pageCount > 0) {
+            // Resume once per session, BEFORE tracking starts, so the initial page 0 never overwrites the saved page.
+            if (!resumed) {
+                if (state.startPage > 0) listState.scrollToItem(state.startPage)
+                resumed = true
+            }
+            snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.onPageChanged(it) }
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -71,6 +91,11 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
             }
             Spacer(Modifier.weight(1f))
             if (state.pageCount > 0) {
+                val page = listState.firstVisibleItemIndex
+                val marked = page in bookmarks
+                TextButton(onClick = { viewModel.toggleBookmark(page) }) {
+                    Text(stringResource(if (marked) R.string.reader_bookmark_remove else R.string.reader_bookmark_add))
+                }
                 TextButton(onClick = { fitHeight = !fitHeight }) {
                     Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height))
                 }
@@ -81,7 +106,7 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
             when {
                 state.loading -> CircularProgressIndicator()
                 doc == null -> Text(stringResource(R.string.reader_missing))
-                state.pageCount > 0 -> PdfPages(viewModel, state.pageCount, state.pageAspect, fitHeight)
+                state.pageCount > 0 -> PdfPages(viewModel, listState, state.pageCount, state.pageAspect, fitHeight)
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         doc.title,
@@ -98,7 +123,13 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
 }
 
 @Composable
-private fun PdfPages(viewModel: ReaderViewModel, pageCount: Int, aspect: Float, fitHeight: Boolean) {
+private fun PdfPages(
+    viewModel: ReaderViewModel,
+    listState: LazyListState,
+    pageCount: Int,
+    aspect: Float,
+    fitHeight: Boolean,
+) {
     var zoom by rememberSaveable { mutableStateOf(MIN_ZOOM) }
     BoxWithConstraints(Modifier.fillMaxSize().pinchZoom { zoom = (zoom * it).coerceIn(MIN_ZOOM, MAX_ZOOM) }) {
         val base = if (fitHeight) minOf(maxWidth, maxHeight * aspect) else maxWidth
@@ -110,7 +141,7 @@ private fun PdfPages(viewModel: ReaderViewModel, pageCount: Int, aspect: Float, 
             Modifier.fillMaxSize().horizontalScroll(rememberScrollState()).widthIn(min = viewportWidth),
             contentAlignment = Alignment.TopCenter,
         ) {
-            LazyColumn(Modifier.width(base * zoom)) {
+            LazyColumn(Modifier.width(base * zoom), state = listState) {
                 items(count = pageCount, key = { it }) { index ->
                     PageItem(viewModel, index, renderPx, aspect, pageCount)
                 }
