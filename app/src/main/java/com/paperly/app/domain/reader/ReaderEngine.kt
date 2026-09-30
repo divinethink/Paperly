@@ -12,6 +12,9 @@ data class ReaderCapabilities(
     val supportsAnnotation: Boolean = false,
 )
 
+/** Search-hit rectangle as fractions (0..1) of the page width/height, origin top-left: zoom-independent. */
+data class MatchRect(val left: Float, val top: Float, val right: Float, val bottom: Float)
+
 sealed interface OpenResult {
     data class Success(val pageCount: Int) : OpenResult
     data object PasswordRequired : OpenResult
@@ -32,8 +35,8 @@ interface ReaderEngine {
     /** Plain text of page [index]; null if unavailable (no text layer or failure). */
     suspend fun pageText(index: Int): String?
 
-    /** Ascending zero-based pages containing [query]; null on failure. */
-    suspend fun searchPages(query: String): List<Int>?
+    /** Zero-based page -> hit rectangles (may be empty if unknown) for [query], ascending by page; null on failure. */
+    suspend fun search(query: String): Map<Int, List<MatchRect>>?
 
     fun close()
 }
