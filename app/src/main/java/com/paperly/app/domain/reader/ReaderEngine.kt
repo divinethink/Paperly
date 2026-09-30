@@ -23,6 +23,9 @@ interface ReaderEngine {
     val capabilities: ReaderCapabilities
     suspend fun open(file: File, password: String? = null): OpenResult
 
+    /** Page width/height ratio of page [index]; null if unknown. */
+    suspend fun pageAspect(index: Int): Float?
+
     /** Renders page [index] (0-based) scaled to at most [maxWidthPx] wide; null on any failure. */
     suspend fun renderPage(index: Int, maxWidthPx: Int): Bitmap?
     fun close()
