@@ -23,14 +23,18 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +59,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -89,6 +94,8 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
             snapshotFlow { listState.firstVisibleItemIndex }.collect { viewModel.onPageChanged(it) }
         }
     }
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
+    LaunchedEffect(search.jump) { search.jump?.let { listState.animateScrollToItem(it.page) } }
     val palette = readerPalette(theme, isSystemInDarkTheme())
     MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = palette.content)) {
         Surface(Modifier.fillMaxSize(), color = palette.background, contentColor = palette.content) {
@@ -112,6 +119,7 @@ private fun ReaderContent(
     val context = LocalContext.current
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -119,6 +127,11 @@ private fun ReaderContent(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
             }
             Spacer(Modifier.weight(1f))
+            if (search.available) {
+                IconButton(onClick = viewModel.search::toggle) {
+                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.reader_search))
+                }
+            }
             if (state.pageCount > 0) {
                 val page = listState.firstVisibleItemIndex
                 TextButton(onClick = { viewModel.toggleBookmark(page) }) {
@@ -131,6 +144,7 @@ private fun ReaderContent(
                 ThemeMenu(theme, viewModel::setTheme)
             }
         }
+        if (search.open) SearchBar(viewModel.search, search)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val doc = state.document
             when {
@@ -252,4 +266,41 @@ private fun themeName(theme: ReaderTheme): Int = when (theme) {
     ReaderTheme.WARM -> R.string.reader_theme_warm
     ReaderTheme.DARK -> R.string.reader_theme_dark
     ReaderTheme.AMOLED -> R.string.reader_theme_amoled
+}
+
+@Composable
+private fun SearchBar(controller: ReaderSearchController, state: SearchUiState) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = controller::onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text(stringResource(R.string.reader_search_hint)) },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { controller.submit() }),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(searchStatus(state), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            TextButton(onClick = controller::previous, enabled = state.matches.isNotEmpty()) {
+                Text(stringResource(R.string.reader_search_prev))
+            }
+            TextButton(onClick = controller::next, enabled = state.matches.isNotEmpty()) {
+                Text(stringResource(R.string.reader_search_next))
+            }
+        }
+        if (state.partialMatch) {
+            Text(stringResource(R.string.reader_search_partial), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun searchStatus(state: SearchUiState): String = when {
+    state.searching -> stringResource(R.string.reader_search_searching)
+    state.failed -> stringResource(R.string.reader_search_failed)
+    state.submitted && state.matches.isEmpty() -> stringResource(R.string.reader_search_none)
+    state.matches.isNotEmpty() ->
+        stringResource(R.string.reader_search_count, state.index + 1, state.matches.size)
+    else -> ""
 }

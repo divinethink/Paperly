@@ -63,6 +63,13 @@ class ReaderViewModel @Inject constructor(
     private val currentPage = MutableStateFlow<Int?>(null)
     private var lastSaved = -1
 
+    val search = ReaderSearchController(
+        scope = viewModelScope,
+        engine = { engine },
+        pageCount = { _uiState.value.pageCount },
+        currentPage = { currentPage.value ?: 0 },
+    )
+
     val theme: StateFlow<ReaderTheme> = preferences.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ReaderTheme.AUTO)
 
@@ -84,6 +91,7 @@ class ReaderViewModel @Inject constructor(
             } else {
                 failed(document, ReaderError.UNSUPPORTED)
             }
+            if (_uiState.value.pageCount > 0) search.probe() // after state is set: probe reads pageCount
         }
     }
 
