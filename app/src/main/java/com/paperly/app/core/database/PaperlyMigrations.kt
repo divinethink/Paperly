@@ -18,4 +18,26 @@ object PaperlyMigrations {
             )
         }
     }
+
+    /** v2 → v3: add `reading_state` and `bookmarks` (both FK → documents, CASCADE). Existing tables untouched. */
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `reading_state` (`documentId` TEXT NOT NULL, `locator` TEXT NOT NULL, " +
+                    "`progressPercent` REAL NOT NULL, `lastOpenedAt` INTEGER NOT NULL, PRIMARY KEY(`documentId`), " +
+                    "FOREIGN KEY(`documentId`) REFERENCES `documents`(`documentId`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `bookmarks` (`bookmarkId` TEXT NOT NULL, `documentId` TEXT NOT NULL, " +
+                    "`locator` TEXT NOT NULL, `title` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`bookmarkId`), " +
+                    "FOREIGN KEY(`documentId`) REFERENCES `documents`(`documentId`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_bookmarks_documentId_locator` " +
+                    "ON `bookmarks` (`documentId`, `locator`)",
+            )
+        }
+    }
 }
