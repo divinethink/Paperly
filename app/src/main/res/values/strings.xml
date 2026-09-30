@@ -87,6 +87,9 @@
 
     <string name="reader_back">Back</string>
     <string name="reader_missing">Document not found</string>
+    <string name="reader_fit_width">Fit width</string>
+    <string name="reader_fit_height">Fit height</string>
+    <string name="reader_page_failed">Couldn\'t render this page.</string>
     <string name="reader_page_description">Page %1$d of %2$d</string>
     <string name="reader_password_required">This PDF is password-protected. Password entry is coming soon.</string>
     <string name="reader_unsupported">This file type can\'t be opened yet.</string>
