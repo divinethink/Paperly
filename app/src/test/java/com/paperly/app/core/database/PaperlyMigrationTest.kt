@@ -49,7 +49,7 @@ class PaperlyMigrationTest {
         val file = createV1Database()
         val backups = tmp.newFolder("backups")
 
-        DatabaseBackup.backupBeforeMigration(file, backups, targetVersion = 2)
+        DatabaseBackup.backupBeforeMigration(file, backups, targetVersion = 3)
 
         val backup = File(backups, "$TEST_DB.v1.bak")
         assertTrue(backup.exists())
@@ -65,7 +65,7 @@ class PaperlyMigrationTest {
     @Test
     fun noBackupWhenDatabaseIsMissingOrAlreadyCurrent() {
         val backups = tmp.newFolder("none")
-        DatabaseBackup.backupBeforeMigration(File(tmp.root, "absent.db"), backups, targetVersion = 2)
+        DatabaseBackup.backupBeforeMigration(File(tmp.root, "absent.db"), backups, targetVersion = 3)
         assertFalse(backups.listFiles().orEmpty().isNotEmpty())
 
         val file = createV1Database()
@@ -77,7 +77,7 @@ class PaperlyMigrationTest {
     fun migrationKeepsDocumentsAndAddsWorkingFoldersTable() = runBlocking {
         createV1Database()
         val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
-            .addMigrations(PaperlyMigrations.MIGRATION_1_2)
+            .addMigrations(PaperlyMigrations.MIGRATION_1_2, PaperlyMigrations.MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
         try {
@@ -94,6 +94,36 @@ class PaperlyMigrationTest {
             db.folderDao().deleteAndUnassign("f1")
             assertEquals(null, db.documentDao().getById("d1")?.folderId)
             assertNotNull(db.documentDao().getById("d1"))
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun migrationAddsWorkingReaderTablesAndCascadesOnPermanentDelete() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(PaperlyMigrations.MIGRATION_1_2, PaperlyMigrations.MIGRATION_2_3)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.readerDao()
+            dao.upsertState(ReadingStateEntity("d1", "4", 0.5f, 10L))
+            dao.upsertState(ReadingStateEntity("d1", "7", 0.8f, 20L)) // upsert: still one row
+            assertEquals("7", dao.getState("d1")?.locator)
+
+            assertTrue(dao.toggleBookmark(BookmarkEntity("b1", "d1", "7", null, 1L)))
+            assertEquals(listOf("7"), dao.observeBookmarkLocators("d1").first())
+            assertFalse(dao.toggleBookmark(BookmarkEntity("b2", "d1", "7", null, 2L))) // second toggle removes
+            assertEquals(emptyList<String>(), dao.observeBookmarkLocators("d1").first())
+
+            dao.toggleBookmark(BookmarkEntity("b3", "d1", "2", null, 3L))
+            db.documentDao().getById("d1") // document survives migration
+            db.trashDao().softDelete("d1", 5L)
+            assertNotNull(dao.getState("d1")) // Trash keeps progress (Restore-safe)
+            db.trashDao().deleteTrashedRow("d1")
+            assertEquals(null, dao.getState("d1")) // permanent delete cascades
+            assertEquals(emptyList<String>(), dao.observeBookmarkLocators("d1").first())
         } finally {
             db.close()
         }
