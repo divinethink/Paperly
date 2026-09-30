@@ -87,6 +87,8 @@
 
     <string name="reader_back">Back</string>
     <string name="reader_missing">Document not found</string>
+    <string name="reader_bookmark_add">Bookmark</string>
+    <string name="reader_bookmark_remove">Bookmarked</string>
     <string name="reader_fit_width">Fit width</string>
     <string name="reader_fit_height">Fit height</string>
     <string name="reader_page_failed">Couldn\'t render this page.</string>
