@@ -49,7 +49,7 @@ class PaperlyMigrationTest {
         val file = createV1Database()
         val backups = tmp.newFolder("backups")
 
-        DatabaseBackup.backupBeforeMigration(file, backups, targetVersion = 3)
+        DatabaseBackup.backupBeforeMigration(file, backups, targetVersion = 4)
 
         val backup = File(backups, "$TEST_DB.v1.bak")
         assertTrue(backup.exists())
@@ -65,7 +65,7 @@ class PaperlyMigrationTest {
     @Test
     fun noBackupWhenDatabaseIsMissingOrAlreadyCurrent() {
         val backups = tmp.newFolder("none")
-        DatabaseBackup.backupBeforeMigration(File(tmp.root, "absent.db"), backups, targetVersion = 3)
+        DatabaseBackup.backupBeforeMigration(File(tmp.root, "absent.db"), backups, targetVersion = 4)
         assertFalse(backups.listFiles().orEmpty().isNotEmpty())
 
         val file = createV1Database()
@@ -77,7 +77,7 @@ class PaperlyMigrationTest {
     fun migrationKeepsDocumentsAndAddsWorkingFoldersTable() = runBlocking {
         createV1Database()
         val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
-            .addMigrations(PaperlyMigrations.MIGRATION_1_2, PaperlyMigrations.MIGRATION_2_3)
+            .addMigrations(*PaperlyMigrations.ALL)
             .allowMainThreadQueries()
             .build()
         try {
@@ -103,7 +103,7 @@ class PaperlyMigrationTest {
     fun migrationAddsWorkingReaderTablesAndCascadesOnPermanentDelete() = runBlocking {
         createV1Database()
         val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
-            .addMigrations(PaperlyMigrations.MIGRATION_1_2, PaperlyMigrations.MIGRATION_2_3)
+            .addMigrations(*PaperlyMigrations.ALL)
             .allowMainThreadQueries()
             .build()
         try {
@@ -124,6 +124,35 @@ class PaperlyMigrationTest {
             db.trashDao().deleteTrashedRow("d1")
             assertEquals(null, dao.getState("d1")) // permanent delete cascades
             assertEquals(emptyList<String>(), dao.observeBookmarkLocators("d1").first())
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun migrationAddsWorkingAnnotationsTableAndCascadesOnPermanentDelete() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.annotationDao()
+            val row = AnnotationEntity("a1", "d1", "3", "highlight", null, 0.1f, 0.2f, 0.5f, 0.3f, null, 1L, 1L)
+            dao.insert(row)
+            dao.insert(row.copy(type = "underline")) // retried insert with same id: ignored (idempotent)
+            assertEquals(listOf("highlight"), dao.observeForDocument("d1").first().map { it.type })
+
+            assertEquals(1, dao.update("a1", "note", "hello", 9L))
+            val updated = dao.observeForDocument("d1").first().single()
+            assertEquals("note", updated.type)
+            assertEquals("hello", updated.noteText)
+            assertEquals(0.5f, updated.rectRight, 0f) // rect untouched by update
+
+            db.trashDao().softDelete("d1", 5L)
+            assertEquals(1, dao.observeForDocument("d1").first().size) // Trash keeps annotations (Restore-safe)
+            db.trashDao().deleteTrashedRow("d1")
+            assertEquals(emptyList<AnnotationEntity>(), dao.observeForDocument("d1").first()) // cascade
         } finally {
             db.close()
         }
