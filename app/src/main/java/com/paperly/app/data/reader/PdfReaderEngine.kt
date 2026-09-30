@@ -38,6 +38,18 @@ class PdfReaderEngine @Inject constructor(
         }
     }
 
+    override suspend fun pageAspect(index: Int): Float? {
+        val doc = document ?: return null
+        return try {
+            val info = doc.getPageInfo(index)
+            if (info.width > 0 && info.height > 0) info.width.toFloat() / info.height else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     override suspend fun renderPage(index: Int, maxWidthPx: Int): Bitmap? {
         val doc = document ?: return null
         return try {
