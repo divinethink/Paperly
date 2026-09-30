@@ -1,25 +1,19 @@
 package com.paperly.app.feature.reader
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -33,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -43,8 +36,6 @@ import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
@@ -54,31 +45,15 @@ import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 
-private val AmberColor = Color(0xFFFFB300)
-private val RedColor = Color(0xFFD32F2F)
-private val GreenColor = Color(0xFF388E3C)
-private val BlueColor = Color(0xFF1E88E5)
-private val PurpleColor = Color(0xFF8E24AA)
-private val BlackColor = Color(0xFF212121)
 private val NoteFill = Color(0x3342A5F5)
 private val NoteStroke = Color(0xFF1E88E5)
 private val DraftFill = Color(0x3300796B)
 private val LineWidth = 1.5.dp // on-screen thickness; drawAnnotations divides by the zoom so it stays constant
 private const val HIGHLIGHT_ALPHA = 0.4f
-private const val SWATCHES_PER_ROW = 3
 private const val MIN_SIDE = 0.01f // smaller drags (fraction of the page) are treated as accidental
 
 /** Current page-list zoom, read lazily in the draw phase so pinching only redraws (never recomposes) the pages. */
 internal val LocalPageZoom = staticCompositionLocalOf<() -> Float> { { MIN_ZOOM } }
-
-internal fun AnnotationColor.argb(): Color = when (this) {
-    AnnotationColor.AMBER -> AmberColor
-    AnnotationColor.RED -> RedColor
-    AnnotationColor.GREEN -> GreenColor
-    AnnotationColor.BLUE -> BlueColor
-    AnnotationColor.PURPLE -> PurpleColor
-    AnnotationColor.BLACK -> BlackColor
-}
 
 /** Page-level annotation wiring handed down to each page. [items] is keyed by zero-based page. */
 data class AnnotationHooks(
@@ -224,55 +199,6 @@ fun AnnotationEditorHost(editor: AnnotationEditor?, controller: AnnotationContro
             }
         },
     )
-}
-
-@Composable
-private fun ColorPicker(selected: AnnotationColor, onSelect: (AnnotationColor) -> Unit) {
-    Text(
-        stringResource(R.string.reader_annotation_color),
-        Modifier.padding(top = 8.dp),
-        style = MaterialTheme.typography.labelLarge,
-    )
-    AnnotationColor.entries.chunked(SWATCHES_PER_ROW).forEach { rowItems ->
-        Row(Modifier.fillMaxWidth()) {
-            rowItems.forEach { option ->
-                ColorSwatch(option, option == selected, Modifier.weight(1f)) { onSelect(option) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ColorSwatch(option: AnnotationColor, selected: Boolean, modifier: Modifier, onSelect: () -> Unit) {
-    val name = stringResource(colorLabel(option))
-    Box(
-        modifier
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .semantics { contentDescription = name },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(option.argb())
-                .border(
-                    width = if (selected) 3.dp else 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (selected) 1f else 0.3f),
-                    shape = CircleShape,
-                ),
-        )
-    }
-}
-
-private fun colorLabel(color: AnnotationColor): Int = when (color) {
-    AnnotationColor.AMBER -> R.string.reader_annotation_color_amber
-    AnnotationColor.RED -> R.string.reader_annotation_color_red
-    AnnotationColor.GREEN -> R.string.reader_annotation_color_green
-    AnnotationColor.BLUE -> R.string.reader_annotation_color_blue
-    AnnotationColor.PURPLE -> R.string.reader_annotation_color_purple
-    AnnotationColor.BLACK -> R.string.reader_annotation_color_black
 }
 
 @Composable

@@ -1,8 +1,8 @@
 package com.paperly.app.feature.reader
 
 import com.paperly.app.domain.reader.Annotation
-import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.AnnotationContent
+import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.MatchRect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
