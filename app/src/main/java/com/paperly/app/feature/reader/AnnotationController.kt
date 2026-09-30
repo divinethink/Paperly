@@ -2,7 +2,7 @@ package com.paperly.app.feature.reader
 
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationRepository
-import com.paperly.app.domain.reader.AnnotationType
+import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.MatchRect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,13 +34,13 @@ class AnnotationController(
 
     fun toggleMode() = annotateOn.update { !it }
 
-    fun save(editor: AnnotationEditor, type: AnnotationType, note: String?) {
+    fun save(editor: AnnotationEditor, content: AnnotationContent) {
         scope.launch {
             val existing = editor.existing
             if (existing == null) {
-                repository.add(documentId, editor.page, type, editor.rect, note)
+                repository.add(documentId, editor.page, editor.rect, content)
             } else {
-                repository.update(existing.id, type, note)
+                repository.update(existing.id, content)
             }
         }
     }

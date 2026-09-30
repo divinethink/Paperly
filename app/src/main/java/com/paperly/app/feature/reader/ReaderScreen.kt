@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -207,28 +208,31 @@ private fun PdfPages(
                 listState.dispatchRawDelta(zoomState.transform(factor, focus, pan, viewportPx, basePx))
             },
         )
-        Box(gesture) {
-            // Layout height shrinks by the zoom so the scaled list exactly fills the viewport (all of it reachable).
-            LazyColumn(
-                modifier = Modifier.width(base).height(viewportHeight / zoom).graphicsLayer {
-                    scaleX = zoom
-                    scaleY = zoom
-                    translationX = zoomState.offsetX(viewportPx, basePx)
-                    transformOrigin = TransformOrigin(0f, 0f)
-                },
-                state = listState,
-                userScrollEnabled = !annotate,
-            ) {
-                items(count = pageCount, key = { it }) { index ->
-                    val spec = PageSpec(
-                        aspect = aspect,
-                        pageCount = pageCount,
-                        filter = look.filter,
-                        highlights = look.highlights[index].orEmpty(),
-                        annotations = look.hooks.items[index].orEmpty(),
-                        hooks = look.hooks,
-                    )
-                    PageItem(viewModel, index, renderPx, spec)
+        val zoomProvider = remember(zoomState) { { zoomState.zoom } }
+        CompositionLocalProvider(LocalPageZoom provides zoomProvider) {
+            Box(gesture) {
+                // Layout height shrinks by the zoom so the scaled list exactly fills the viewport.
+                LazyColumn(
+                    modifier = Modifier.width(base).height(viewportHeight / zoom).graphicsLayer {
+                        scaleX = zoom
+                        scaleY = zoom
+                        translationX = zoomState.offsetX(viewportPx, basePx)
+                        transformOrigin = TransformOrigin(0f, 0f)
+                    },
+                    state = listState,
+                    userScrollEnabled = !annotate,
+                ) {
+                    items(count = pageCount, key = { it }) { index ->
+                        val spec = PageSpec(
+                            aspect = aspect,
+                            pageCount = pageCount,
+                            filter = look.filter,
+                            highlights = look.highlights[index].orEmpty(),
+                            annotations = look.hooks.items[index].orEmpty(),
+                            hooks = look.hooks,
+                        )
+                        PageItem(viewModel, index, renderPx, spec)
+                    }
                 }
             }
         }
@@ -248,6 +252,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     val current = shown
     val ratio = if (current != null) current.width.toFloat() / current.height else spec.aspect
     var draft by remember(index) { mutableStateOf<MatchRect?>(null) }
+    val zoomOf = LocalPageZoom.current
     val gestures = Modifier.annotationGestures(
         annotations = spec.annotations,
         annotate = spec.hooks.annotate,
@@ -265,7 +270,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                     size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
                 )
             }
-            drawAnnotations(spec.annotations)
+            drawAnnotations(spec.annotations, zoomOf())
             draft?.let { drawDraft(it) }
         },
         contentAlignment = Alignment.Center,
