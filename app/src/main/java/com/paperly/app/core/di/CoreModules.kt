@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.paperly.app.core.database.AggregateDao
+import com.paperly.app.core.database.AnnotationDao
 import com.paperly.app.core.database.DATABASE_NAME
 import com.paperly.app.core.database.DATABASE_VERSION
 import com.paperly.app.core.database.DatabaseBackup
@@ -40,7 +41,7 @@ object DatabaseModule {
             targetVersion = DATABASE_VERSION,
         )
         return Room.databaseBuilder(context, PaperlyDatabase::class.java, DATABASE_NAME)
-            .addMigrations(PaperlyMigrations.MIGRATION_1_2, PaperlyMigrations.MIGRATION_2_3)
+            .addMigrations(*PaperlyMigrations.ALL)
             .build()
     }
 
@@ -58,6 +59,9 @@ object DatabaseModule {
 
     @Provides
     fun provideReaderDao(db: PaperlyDatabase): ReaderDao = db.readerDao()
+
+    @Provides
+    fun provideAnnotationDao(db: PaperlyDatabase): AnnotationDao = db.annotationDao()
 }
 
 @Module
