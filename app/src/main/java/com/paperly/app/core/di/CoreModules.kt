@@ -14,6 +14,7 @@ import com.paperly.app.core.database.DocumentDao
 import com.paperly.app.core.database.FolderDao
 import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.database.PaperlyMigrations
+import com.paperly.app.core.database.ReaderDao
 import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.AppPrivateDocumentFileStore
 import com.paperly.app.core.file.DocumentFileStore
@@ -39,7 +40,7 @@ object DatabaseModule {
             targetVersion = DATABASE_VERSION,
         )
         return Room.databaseBuilder(context, PaperlyDatabase::class.java, DATABASE_NAME)
-            .addMigrations(PaperlyMigrations.MIGRATION_1_2)
+            .addMigrations(PaperlyMigrations.MIGRATION_1_2, PaperlyMigrations.MIGRATION_2_3)
             .build()
     }
 
@@ -54,6 +55,9 @@ object DatabaseModule {
 
     @Provides
     fun provideFolderDao(db: PaperlyDatabase): FolderDao = db.folderDao()
+
+    @Provides
+    fun provideReaderDao(db: PaperlyDatabase): ReaderDao = db.readerDao()
 }
 
 @Module
