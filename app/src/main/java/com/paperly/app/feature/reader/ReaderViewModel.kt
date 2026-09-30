@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 enum class ReaderError { NONE, PASSWORD_REQUIRED, UNSUPPORTED, FAILED }
 
@@ -26,7 +28,7 @@ data class ReaderUiState(
     val loading: Boolean = true,
     val document: Document? = null,
     val pageCount: Int = 0,
-    val firstPage: Bitmap? = null,
+    val pageAspect: Float = 0f,
     val error: ReaderError = ReaderError.NONE,
 )
 
@@ -43,6 +45,8 @@ class ReaderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
     private var engine: ReaderEngine? = null
+    private val cache = PageBitmapCache()
+    private val renderLock = Mutex() // one render at a time keeps peak memory bounded
 
     init {
         viewModelScope.launch {
@@ -66,15 +70,15 @@ class ReaderViewModel @Inject constructor(
         return try {
             when (val result = PerfTrace.span("reader.pdf.open") { pdf.open(file) }) {
                 is OpenResult.Success -> {
-                    val page = PerfTrace.span("reader.pdf.render") { pdf.renderPage(0, MAX_RENDER_WIDTH_PX) }
-                    if (page == null) {
+                    val aspect = PerfTrace.span("reader.pdf.page0") { pdf.pageAspect(0) }
+                    if (aspect == null) {
                         failed(document, ReaderError.FAILED)
                     } else {
                         ReaderUiState(
                             loading = false,
                             document = document,
                             pageCount = result.pageCount,
-                            firstPage = page,
+                            pageAspect = aspect,
                         )
                     }
                 }
@@ -90,11 +94,16 @@ class ReaderViewModel @Inject constructor(
     private fun failed(document: Document, error: ReaderError) =
         ReaderUiState(loading = false, document = document, error = error)
 
-    override fun onCleared() {
-        engine?.close()
+    /** Cached page bitmap (LRU). [widthPx] must stay constant per session: the cache is keyed by index only. */
+    suspend fun pageBitmap(index: Int, widthPx: Int): Bitmap? {
+        val pdf = engine ?: return null
+        return cache.get(index) ?: renderLock.withLock {
+            cache.get(index) ?: pdf.renderPage(index, widthPx)?.also { cache.put(index, it) }
+        }
     }
 
-    private companion object {
-        const val MAX_RENDER_WIDTH_PX = 1080 // P2-B sizes pages from the real screen width
+    override fun onCleared() {
+        engine?.close()
+        cache.clear()
     }
 }
