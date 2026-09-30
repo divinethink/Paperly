@@ -15,7 +15,7 @@ import com.paperly.app.core.model.StorageState
 import kotlinx.coroutines.flow.Flow
 
 const val DATABASE_NAME = "paperly.db"
-const val DATABASE_VERSION = 3
+const val DATABASE_VERSION = 4
 
 /** Local Document table. Fields follow Architecture §২.১; times are UTC epoch millis. */
 @Entity(
@@ -120,6 +120,7 @@ interface AggregateDao {
         FolderEntity::class,
         ReadingStateEntity::class,
         BookmarkEntity::class,
+        AnnotationEntity::class,
     ],
     version = DATABASE_VERSION,
     exportSchema = true,
@@ -135,4 +136,6 @@ abstract class PaperlyDatabase : RoomDatabase() {
     abstract fun folderDao(): FolderDao
 
     abstract fun readerDao(): ReaderDao
+
+    abstract fun annotationDao(): AnnotationDao
 }

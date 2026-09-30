@@ -40,4 +40,25 @@ object PaperlyMigrations {
             )
         }
     }
+
+    /** v3 → v4: add `annotations` (FK → documents, CASCADE). Existing tables untouched. */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `annotations` (`annotationId` TEXT NOT NULL, `documentId` TEXT NOT NULL, " +
+                    "`locator` TEXT NOT NULL, `type` TEXT NOT NULL, `color` TEXT, `rectLeft` REAL NOT NULL, " +
+                    "`rectTop` REAL NOT NULL, `rectRight` REAL NOT NULL, `rectBottom` REAL NOT NULL, " +
+                    "`noteText` TEXT, " +
+                    "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`annotationId`), " +
+                    "FOREIGN KEY(`documentId`) REFERENCES `documents`(`documentId`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_annotations_documentId` ON `annotations` (`documentId`)",
+            )
+        }
+    }
+
+    /** Every migration in order: the single list used by the app and by tests. */
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 }
