@@ -17,12 +17,12 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 
-/** PDF engine on `androidx.pdf` document-service (renders in a sandboxed process). Search/reflow arrive in P2-E/P3. */
+/** PDF engine on `androidx.pdf` document-service (sandboxed process). Text + search (P2-E); reflow P3. */
 class PdfReaderEngine @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ReaderEngine {
 
-    override val capabilities = ReaderCapabilities()
+    override val capabilities = ReaderCapabilities(supportsSearch = true)
     private var document: PdfDocument? = null
 
     override suspend fun open(file: File, password: String?): OpenResult {
@@ -61,6 +61,29 @@ class PdfReaderEngine @Inject constructor(
             } finally {
                 source.close()
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override suspend fun pageText(index: Int): String? {
+        val doc = document ?: return null
+        return try {
+            doc.getPageContent(index)?.textContents?.joinToString("\n") { it.text }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override suspend fun searchPages(query: String): List<Int>? {
+        val doc = document ?: return null
+        return try {
+            val hits = doc.searchDocument(query, 0 until doc.pageCount)
+            (0 until hits.size()).map { hits.keyAt(it) }.sorted()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
