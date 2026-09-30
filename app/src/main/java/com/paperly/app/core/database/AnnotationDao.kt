@@ -50,8 +50,11 @@ interface AnnotationDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: AnnotationEntity): Long
 
-    @Query("UPDATE annotations SET type = :type, noteText = :note, updatedAt = :now WHERE annotationId = :id")
-    suspend fun update(id: String, type: String, note: String?, now: Long): Int
+    @Query(
+        "UPDATE annotations SET type = :type, color = :color, noteText = :note, updatedAt = :now " +
+            "WHERE annotationId = :id",
+    )
+    suspend fun update(id: String, type: String, color: String?, note: String?, now: Long): Int
 
     @Query("DELETE FROM annotations WHERE annotationId = :id")
     suspend fun delete(id: String): Int
