@@ -110,6 +110,13 @@
     <string name="reader_annotation_note">Note</string>
     <string name="reader_annotation_note_hint">Note text</string>
     <string name="reader_annotation_delete">Delete</string>
+    <string name="reader_annotation_color">Color</string>
+    <string name="reader_annotation_color_amber">Amber</string>
+    <string name="reader_annotation_color_red">Red</string>
+    <string name="reader_annotation_color_green">Green</string>
+    <string name="reader_annotation_color_blue">Blue</string>
+    <string name="reader_annotation_color_purple">Purple</string>
+    <string name="reader_annotation_color_black">Black</string>
     <string name="reader_theme_auto">Auto</string>
     <string name="reader_theme_light">Light</string>
     <string name="reader_theme_sepia">Sepia</string>
