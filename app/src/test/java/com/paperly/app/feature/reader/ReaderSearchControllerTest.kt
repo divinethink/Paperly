@@ -86,6 +86,7 @@ class ReaderSearchControllerTest {
     fun hitRectanglesReachTheStateForHighlighting() {
         val rect = MatchRect(0.1f, 0.2f, 0.4f, 0.25f)
         val c = controller(FakeEngine("x", mapOf(2 to listOf(rect))))
+        c.toggle() // open search first (as the UI does)
         c.onQueryChange("report")
         c.submit()
         assertEquals(listOf(rect), c.state.value.rects[2])
