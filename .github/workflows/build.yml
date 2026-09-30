@@ -54,6 +54,10 @@ jobs:
       - name: Unit tests + debug APK
         run: gradle testDebugUnitTest assembleDebug --stacktrace
 
+      # R8/shrink check: the release build (minify + shrinkResources) must at least compile. Unsigned, never shipped.
+      - name: Release build (R8 check)
+        run: gradle :app:assembleRelease --stacktrace
+
       - uses: actions/upload-artifact@v4
         with:
           name: paperly-debug-apk
