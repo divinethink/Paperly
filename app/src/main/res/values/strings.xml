@@ -99,6 +99,16 @@
     <string name="reader_search_count">Page match %1$d of %2$d</string>
     <string name="reader_search_partial">Bengali text may match only partially.</string>
     <string name="reader_theme">Theme</string>
+    <string name="reader_theme_item">Theme: %1$s</string>
+    <string name="reader_more">More options</string>
+    <string name="reader_annotation_new">New annotation</string>
+    <string name="reader_annotation_edit">Edit annotation</string>
+    <string name="reader_annotation_highlight">Highlight</string>
+    <string name="reader_annotation_underline">Underline</string>
+    <string name="reader_annotation_strikethrough">Strikethrough</string>
+    <string name="reader_annotation_note">Note</string>
+    <string name="reader_annotation_note_hint">Note text</string>
+    <string name="reader_annotation_delete">Delete</string>
     <string name="reader_theme_auto">Auto</string>
     <string name="reader_theme_light">Light</string>
     <string name="reader_theme_sepia">Sepia</string>
