@@ -34,6 +34,7 @@ object DatabaseModule {
     // No destructive fallback: schema changes need explicit migrations, each preceded by a verified backup.
     @Provides
     @Singleton
+    @Suppress("SpreadOperator") // one-time array copy at startup; keeps PaperlyMigrations.ALL the single list
     fun provideDatabase(@ApplicationContext context: Context): PaperlyDatabase {
         DatabaseBackup.backupBeforeMigration(
             dbFile = context.getDatabasePath(DATABASE_NAME),
