@@ -2,10 +2,12 @@ package com.paperly.app.data.reader
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.net.Uri
 import android.util.Size
 import androidx.pdf.PdfDocument
 import androidx.pdf.SandboxedPdfLoader
+import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderCapabilities
 import com.paperly.app.domain.reader.ReaderEngine
@@ -79,16 +81,38 @@ class PdfReaderEngine @Inject constructor(
         }
     }
 
-    override suspend fun searchPages(query: String): List<Int>? {
+    override suspend fun search(query: String): Map<Int, List<MatchRect>>? {
         val doc = document ?: return null
         return try {
             val hits = doc.searchDocument(query, 0 until doc.pageCount)
-            (0 until hits.size()).map { hits.keyAt(it) }.sorted()
+            val result = LinkedHashMap<Int, List<MatchRect>>() // SparseArray keys are ascending
+            for (i in 0 until hits.size()) {
+                val page = hits.keyAt(i)
+                val boxes = hits.valueAt(i).flatMap { it.bounds }
+                result[page] = normalized(doc, page, boxes)
+            }
+            result
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             null
         }
+    }
+
+    /** Page points -> 0..1 fractions. A page whose size is unknown keeps its match but loses the rectangles. */
+    private suspend fun normalized(doc: PdfDocument, page: Int, boxes: List<RectF>): List<MatchRect> {
+        val info = try {
+            doc.getPageInfo(page)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return emptyList()
+        }
+        if (info.width <= 0 || info.height <= 0) return emptyList()
+        val w = info.width.toFloat()
+        val h = info.height.toFloat()
+        return boxes.map { MatchRect(it.left / w, it.top / h, it.right / w, it.bottom / h) }
+            .filter { it.right > it.left && it.bottom > it.top }
     }
 
     override fun close() {
