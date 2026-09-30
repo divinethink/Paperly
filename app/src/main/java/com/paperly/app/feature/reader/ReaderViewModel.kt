@@ -11,7 +11,9 @@ import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderEngine
+import com.paperly.app.domain.reader.ReaderPreferences
 import com.paperly.app.domain.reader.ReaderStateRepository
+import com.paperly.app.domain.reader.ReaderTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
@@ -46,6 +48,7 @@ class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DocumentRepository,
     private val readerState: ReaderStateRepository,
+    private val preferences: ReaderPreferences,
     private val fileStore: DocumentFileStore,
     // Provider = lazy: the engine is created only when a PDF is actually opened (Rule #10).
     private val engineProvider: Provider<ReaderEngine>,
@@ -59,6 +62,9 @@ class ReaderViewModel @Inject constructor(
     private val renderLock = Mutex() // one render at a time keeps peak memory bounded
     private val currentPage = MutableStateFlow<Int?>(null)
     private var lastSaved = -1
+
+    val theme: StateFlow<ReaderTheme> = preferences.theme
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ReaderTheme.AUTO)
 
     val bookmarkedPages: StateFlow<Set<Int>> =
         (if (documentId.isEmpty()) emptyFlow() else readerState.observeBookmarkedPages(documentId))
@@ -132,6 +138,10 @@ class ReaderViewModel @Inject constructor(
 
     fun flush() {
         currentPage.value?.let { page -> viewModelScope.launch { save(page) } }
+    }
+
+    fun setTheme(theme: ReaderTheme) {
+        viewModelScope.launch { preferences.setTheme(theme) }
     }
 
     fun toggleBookmark(page: Int) {
