@@ -28,5 +28,12 @@ interface ReaderEngine {
 
     /** Renders page [index] (0-based) scaled to at most [maxWidthPx] wide; null on any failure. */
     suspend fun renderPage(index: Int, maxWidthPx: Int): Bitmap?
+
+    /** Plain text of page [index]; null if unavailable (no text layer or failure). */
+    suspend fun pageText(index: Int): String?
+
+    /** Ascending zero-based pages containing [query]; null on failure. */
+    suspend fun searchPages(query: String): List<Int>?
+
     fun close()
 }
