@@ -164,11 +164,11 @@ class ReaderViewModel @Inject constructor(
     private fun failed(document: Document, error: ReaderError) =
         ReaderUiState(loading = false, document = document, error = error)
 
-    /** Cached page bitmap (LRU). [widthPx] must stay constant per session: the cache is keyed by index only. */
+    /** Cached page bitmap (LRU), keyed by page + [widthPx] so a zoom-driven higher resolution re-renders. */
     suspend fun pageBitmap(index: Int, widthPx: Int): Bitmap? {
         val pdf = engine ?: return null
-        return cache.get(index) ?: renderLock.withLock {
-            cache.get(index) ?: pdf.renderPage(index, widthPx)?.also { cache.put(index, it) }
+        return cache.get(index, widthPx) ?: renderLock.withLock {
+            cache.get(index, widthPx) ?: pdf.renderPage(index, widthPx)?.also { cache.put(index, widthPx, it) }
         }
     }
 

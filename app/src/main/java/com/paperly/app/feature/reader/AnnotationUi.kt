@@ -1,6 +1,7 @@
 package com.paperly.app.feature.reader
 
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +27,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntSize
@@ -76,6 +81,7 @@ fun Modifier.annotationGestures(
     val draft by rememberUpdatedState(onDraft)
     val create by rememberUpdatedState(onCreate)
     val tap by rememberUpdatedState(onTap)
+    val haptic = LocalHapticFeedback.current
     return this
         .pointerInput(annotations) {
             detectTapGestures { pos ->
@@ -86,26 +92,54 @@ fun Modifier.annotationGestures(
             }
         }
         .pointerInput(Unit) {
-            var start = Offset.Zero
-            var end = Offset.Zero
-            detectDragGesturesAfterLongPress(
-                onDragStart = {
-                    start = it
-                    end = it
-                    draft(dragRect(start, end, size))
-                },
-                onDrag = { change, _ ->
-                    change.consume()
-                    end = change.position
-                    draft(dragRect(start, end, size))
-                },
-                onDragEnd = {
-                    draft(null)
-                    dragRect(start, end, size)?.let { create(it) }
-                },
-                onDragCancel = { draft(null) },
-            )
+            awaitEachGesture {
+                selectArea(
+                    onDraft = { draft(it) },
+                    onCreate = { create(it) },
+                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                )
+            }
         }
+}
+
+/**
+ * Hold still for the long-press timeout, then drag to size the area. Tracked in the Initial pass and consumed there,
+ * so no ancestor scroll/zoom container can take the gesture over. Moving or a second finger before the timeout aborts.
+ */
+private suspend fun AwaitPointerEventScope.selectArea(
+    onDraft: (MatchRect?) -> Unit,
+    onCreate: (MatchRect) -> Unit,
+    onLongPress: () -> Unit,
+) {
+    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+    var aborted = false
+    val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+        while (!aborted) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            val change = event.changes.takeIf { it.size == 1 }?.firstOrNull { it.id == down.id }
+            aborted = change == null || !change.pressed ||
+                (change.position - down.position).getDistance() > viewConfiguration.touchSlop * 2
+        }
+    } == null
+    if (!longPressed) return
+    onLongPress()
+    var end = down.position
+    onDraft(dragRect(down.position, end, size))
+    var live = true
+    while (live) {
+        val event = awaitPointerEvent(PointerEventPass.Initial)
+        val change = event.changes.firstOrNull { it.id == down.id }
+        if (change == null) {
+            live = false
+        } else {
+            change.consume()
+            end = change.position
+            live = change.pressed
+            if (live) onDraft(dragRect(down.position, end, size))
+        }
+    }
+    onDraft(null)
+    dragRect(down.position, end, size)?.let(onCreate)
 }
 
 fun DrawScope.drawAnnotations(items: List<Annotation>) {
