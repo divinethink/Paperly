@@ -49,6 +49,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -68,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.theme.ReadingFontFamily
 import com.paperly.app.core.ui.theme.readerPalette
+import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.common.documentMeta
 
@@ -104,9 +109,20 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     }
 }
 
-private data class PageSpec(val aspect: Float, val pageCount: Int, val filter: ColorFilter?)
+private val HighlightColor = Color(0x66FFEB3B) // translucent yellow, readable on every reader theme
 
-private data class PageLook(val fitHeight: Boolean, val filter: ColorFilter?)
+private data class PageSpec(
+    val aspect: Float,
+    val pageCount: Int,
+    val filter: ColorFilter?,
+    val highlights: List<MatchRect>,
+)
+
+private data class PageLook(
+    val fitHeight: Boolean,
+    val filter: ColorFilter?,
+    val highlights: Map<Int, List<MatchRect>>,
+)
 
 @Composable
 private fun ReaderContent(
@@ -151,7 +167,8 @@ private fun ReaderContent(
                 state.loading -> CircularProgressIndicator()
                 doc == null -> Text(stringResource(R.string.reader_missing))
                 state.pageCount > 0 -> {
-                    val look = PageLook(fitHeight, pageFilter)
+                    val highlights = if (search.open && search.submitted) search.rects else emptyMap()
+                    val look = PageLook(fitHeight, pageFilter, highlights)
                     PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
                 }
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -190,7 +207,8 @@ private fun PdfPages(
         ) {
             LazyColumn(Modifier.width(base * zoom), state = listState) {
                 items(count = pageCount, key = { it }) { index ->
-                    PageItem(viewModel, index, renderPx, PageSpec(aspect, pageCount, look.filter))
+                    val spec = PageSpec(aspect, pageCount, look.filter, look.highlights[index].orEmpty())
+                    PageItem(viewModel, index, renderPx, spec)
                 }
             }
         }
@@ -206,7 +224,19 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     }
     val current = bitmap
     val ratio = if (current != null) current.width.toFloat() / current.height else spec.aspect
-    Box(Modifier.fillMaxWidth().aspectRatio(ratio), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxWidth().aspectRatio(ratio).drawWithContent {
+            drawContent()
+            spec.highlights.forEach { r ->
+                drawRect(
+                    color = HighlightColor,
+                    topLeft = Offset(r.left * size.width, r.top * size.height),
+                    size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
+                )
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
         when {
             current != null -> Image(
                 bitmap = remember(current) { current.asImageBitmap() },

@@ -1,5 +1,6 @@
 package com.paperly.app.feature.reader
 
+import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.TextReadability
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,7 @@ data class SearchUiState(
     val failed: Boolean = false,
     val submitted: Boolean = false,
     val matches: List<Int> = emptyList(),
+    val rects: Map<Int, List<MatchRect>> = emptyMap(),
     val index: Int = 0,
     val jump: SearchJump? = null,
 )
@@ -70,16 +72,30 @@ class ReaderSearchController(
         if (query.isEmpty() || pdf == null) return
         job?.cancel()
         _state.update {
-            it.copy(searching = true, failed = false, submitted = false, matches = emptyList(), jump = null)
+            it.copy(
+                searching = true,
+                failed = false,
+                submitted = false,
+                matches = emptyList(),
+                rects = emptyMap(),
+                jump = null,
+            )
         }
         job = scope.launch {
-            val pages = pdf.searchPages(query) // engine maps failures to null; cancellation propagates
+            val found = pdf.search(query) // engine maps failures to null; cancellation propagates
+            val pages = found?.keys?.sorted()
             _state.update { st ->
                 if (pages == null) {
                     st.copy(searching = false, failed = true)
                 } else {
                     val start = pages.indexOfFirst { it >= currentPage() }.takeIf { it >= 0 } ?: 0
-                    st.copy(searching = false, submitted = true, matches = pages, index = start).jumpTo(start)
+                    st.copy(
+                        searching = false,
+                        submitted = true,
+                        matches = pages,
+                        rects = found.orEmpty(),
+                        index = start,
+                    ).jumpTo(start)
                 }
             }
         }
