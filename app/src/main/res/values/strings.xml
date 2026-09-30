@@ -89,11 +89,18 @@
     <string name="reader_missing">Document not found</string>
     <string name="reader_bookmark_add">Bookmark</string>
     <string name="reader_bookmark_remove">Bookmarked</string>
+    <string name="reader_theme">Theme</string>
+    <string name="reader_theme_auto">Auto</string>
+    <string name="reader_theme_light">Light</string>
+    <string name="reader_theme_sepia">Sepia</string>
+    <string name="reader_theme_warm">Warm</string>
+    <string name="reader_theme_dark">Dark</string>
+    <string name="reader_theme_amoled">AMOLED</string>
     <string name="reader_fit_width">Fit width</string>
     <string name="reader_fit_height">Fit height</string>
     <string name="reader_page_failed">Couldn\'t render this page.</string>
     <string name="reader_page_description">Page %1$d of %2$d</string>
-    <string name="reader_password_required">This PDF is password-protected. Password entry is coming soon.</string>
+    <string name="reader_password_required">This PDF is password-protected and can\'t be opened in Paperly.</string>
     <string name="reader_unsupported">This file type can\'t be opened yet.</string>
     <string name="reader_open_failed">Couldn\'t open this document.</string>
 
