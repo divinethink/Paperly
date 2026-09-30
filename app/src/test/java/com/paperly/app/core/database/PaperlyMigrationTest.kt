@@ -143,10 +143,11 @@ class PaperlyMigrationTest {
             dao.insert(row.copy(type = "underline")) // retried insert with same id: ignored (idempotent)
             assertEquals(listOf("highlight"), dao.observeForDocument("d1").first().map { it.type })
 
-            assertEquals(1, dao.update("a1", "note", "hello", 9L))
+            assertEquals(1, dao.update("a1", "note", "green", "hello", 9L))
             val updated = dao.observeForDocument("d1").first().single()
             assertEquals("note", updated.type)
             assertEquals("hello", updated.noteText)
+            assertEquals("green", updated.color)
             assertEquals(0.5f, updated.rectRight, 0f) // rect untouched by update
 
             db.trashDao().softDelete("d1", 5L)
