@@ -29,8 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -72,8 +70,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.theme.ReadingFontFamily
 import com.paperly.app.core.ui.theme.readerPalette
+import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.MatchRect
-import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.common.documentMeta
 
 private const val MIN_ZOOM = 1f
@@ -116,12 +114,15 @@ private data class PageSpec(
     val pageCount: Int,
     val filter: ColorFilter?,
     val highlights: List<MatchRect>,
+    val annotations: List<Annotation>,
+    val hooks: AnnotationHooks,
 )
 
 private data class PageLook(
     val fitHeight: Boolean,
     val filter: ColorFilter?,
     val highlights: Map<Int, List<MatchRect>>,
+    val hooks: AnnotationHooks,
 )
 
 @Composable
@@ -133,10 +134,10 @@ private fun ReaderContent(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
-    val theme by viewModel.theme.collectAsStateWithLifecycle()
+    val annotations by viewModel.annotations.items.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
+    var editor by remember { mutableStateOf<AnnotationEditor?>(null) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -149,15 +150,7 @@ private fun ReaderContent(
                 }
             }
             if (state.pageCount > 0) {
-                val page = listState.firstVisibleItemIndex
-                TextButton(onClick = { viewModel.toggleBookmark(page) }) {
-                    val label = if (page in bookmarks) R.string.reader_bookmark_remove else R.string.reader_bookmark_add
-                    Text(stringResource(label))
-                }
-                TextButton(onClick = { fitHeight = !fitHeight }) {
-                    Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height))
-                }
-                ThemeMenu(theme, viewModel::setTheme)
+                ReaderActions(viewModel, listState.firstVisibleItemIndex, fitHeight) { fitHeight = !fitHeight }
             }
         }
         if (search.open) SearchBar(viewModel.search, search)
@@ -168,7 +161,12 @@ private fun ReaderContent(
                 doc == null -> Text(stringResource(R.string.reader_missing))
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
-                    val look = PageLook(fitHeight, pageFilter, highlights)
+                    val hooks = AnnotationHooks(
+                        items = annotations.groupBy { it.page },
+                        onCreate = { page, rect -> editor = AnnotationEditor(page, rect, null) },
+                        onTap = { editor = AnnotationEditor(it.page, it.rect, it) },
+                    )
+                    val look = PageLook(fitHeight, pageFilter, highlights, hooks)
                     PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
                 }
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -184,6 +182,7 @@ private fun ReaderContent(
             }
         }
     }
+    AnnotationEditorHost(editor, viewModel.annotations) { editor = null }
 }
 
 @Composable
@@ -207,7 +206,14 @@ private fun PdfPages(
         ) {
             LazyColumn(Modifier.width(base * zoom), state = listState) {
                 items(count = pageCount, key = { it }) { index ->
-                    val spec = PageSpec(aspect, pageCount, look.filter, look.highlights[index].orEmpty())
+                    val spec = PageSpec(
+                        aspect = aspect,
+                        pageCount = pageCount,
+                        filter = look.filter,
+                        highlights = look.highlights[index].orEmpty(),
+                        annotations = look.hooks.items[index].orEmpty(),
+                        hooks = look.hooks,
+                    )
                     PageItem(viewModel, index, renderPx, spec)
                 }
             }
@@ -224,8 +230,15 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     }
     val current = bitmap
     val ratio = if (current != null) current.width.toFloat() / current.height else spec.aspect
+    var draft by remember(index) { mutableStateOf<MatchRect?>(null) }
+    val gestures = Modifier.annotationGestures(
+        annotations = spec.annotations,
+        onDraft = { draft = it },
+        onCreate = { spec.hooks.onCreate(index, it) },
+        onTap = spec.hooks.onTap,
+    )
     Box(
-        Modifier.fillMaxWidth().aspectRatio(ratio).drawWithContent {
+        Modifier.fillMaxWidth().aspectRatio(ratio).then(gestures).drawWithContent {
             drawContent()
             spec.highlights.forEach { r ->
                 drawRect(
@@ -234,6 +247,8 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                     size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
                 )
             }
+            drawAnnotations(spec.annotations)
+            draft?.let { drawDraft(it) }
         },
         contentAlignment = Alignment.Center,
     ) {
@@ -269,33 +284,6 @@ private fun errorText(error: ReaderError): Int = when (error) {
     ReaderError.PASSWORD_REQUIRED -> R.string.reader_password_required
     ReaderError.UNSUPPORTED -> R.string.reader_unsupported
     else -> R.string.reader_open_failed
-}
-
-@Composable
-private fun ThemeMenu(current: ReaderTheme, onSelect: (ReaderTheme) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    TextButton(onClick = { open = true }) { Text(stringResource(R.string.reader_theme)) }
-    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-        ReaderTheme.entries.forEach { option ->
-            val name = stringResource(themeName(option))
-            DropdownMenuItem(
-                text = { Text(if (option == current) "✓ $name" else name) },
-                onClick = {
-                    onSelect(option)
-                    open = false
-                },
-            )
-        }
-    }
-}
-
-private fun themeName(theme: ReaderTheme): Int = when (theme) {
-    ReaderTheme.AUTO -> R.string.reader_theme_auto
-    ReaderTheme.LIGHT -> R.string.reader_theme_light
-    ReaderTheme.SEPIA -> R.string.reader_theme_sepia
-    ReaderTheme.WARM -> R.string.reader_theme_warm
-    ReaderTheme.DARK -> R.string.reader_theme_dark
-    ReaderTheme.AMOLED -> R.string.reader_theme_amoled
 }
 
 @Composable
