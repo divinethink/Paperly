@@ -70,8 +70,6 @@ import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.feature.common.documentMeta
 import kotlin.math.ceil
 
-
-
 private const val RENDER_WIDTH_FACTOR = 1.5f
 private const val MAX_RENDER_WIDTH_PX = 2048
 
@@ -196,6 +194,7 @@ private fun PdfPages(
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
         val density = LocalDensity.current
         val base = if (look.fitHeight) minOf(maxWidth, maxHeight * aspect) else maxWidth
+        val viewportHeight = maxHeight
         val viewportPx = with(density) { maxWidth.toPx() }
         val basePx = with(density) { base.toPx() }
         val zoom = zoomState.zoom
@@ -211,7 +210,7 @@ private fun PdfPages(
         Box(gesture) {
             // Layout height shrinks by the zoom so the scaled list exactly fills the viewport (all of it reachable).
             LazyColumn(
-                modifier = Modifier.width(base).height(maxHeight / zoom).graphicsLayer {
+                modifier = Modifier.width(base).height(viewportHeight / zoom).graphicsLayer {
                     scaleX = zoom
                     scaleY = zoom
                     translationX = zoomState.offsetX(viewportPx, basePx)
