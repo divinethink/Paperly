@@ -2,11 +2,6 @@ package com.paperly.app.feature.reader
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,14 +11,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -45,17 +39,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,10 +69,9 @@ import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.feature.common.documentMeta
 import kotlin.math.ceil
-import kotlin.math.roundToInt
 
-private const val MIN_ZOOM = 1f
-private const val MAX_ZOOM = 4f
+
+
 private const val RENDER_WIDTH_FACTOR = 1.5f
 private const val MAX_RENDER_WIDTH_PX = 2048
 
@@ -198,36 +191,35 @@ private fun PdfPages(
     aspect: Float,
     look: PageLook,
 ) {
-    var zoom by rememberSaveable { mutableStateOf(MIN_ZOOM) }
-    val hScroll = rememberScrollState()
-    var pendingScroll by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(pendingScroll) {
-        val target = pendingScroll ?: return@LaunchedEffect
-        withFrameNanos { } // let the wider layout be measured first, or scrollTo would clamp to the old width
-        hScroll.scrollTo(target)
-    }
-    val onPinch: (Float, Offset) -> Unit = { factor, focus ->
-        val next = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-        val ratio = next / zoom
-        if (ratio != 1f) {
-            // Keep the content under the fingers in place (zoom about the pinch point, not the left edge).
-            pendingScroll = ((hScroll.value + focus.x) * ratio - focus.x).roundToInt().coerceAtLeast(0)
-            zoom = next
-        }
-    }
-    BoxWithConstraints(Modifier.fillMaxSize().pinchZoom(onPinch)) {
+    val zoomState = rememberSaveable(saver = PageZoomState.Saver) { PageZoomState() }
+    val annotate = look.hooks.annotate
+    BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
+        val density = LocalDensity.current
         val base = if (look.fitHeight) minOf(maxWidth, maxHeight * aspect) else maxWidth
-        val viewportWidth = maxWidth
-        val annotate = look.hooks.annotate
+        val viewportPx = with(density) { maxWidth.toPx() }
+        val basePx = with(density) { base.toPx() }
+        val zoom = zoomState.zoom
         // Render resolution follows the zoom step (1.5x, 2x, 3x, 4x of the page width) so zoomed text stays sharp.
-        val renderPx = with(LocalDensity.current) {
-            (base.toPx() * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
-        }
-        Box(
-            Modifier.fillMaxSize().horizontalScroll(hScroll, enabled = !annotate).widthIn(min = viewportWidth),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            LazyColumn(Modifier.width(base * zoom), state = listState, userScrollEnabled = !annotate) {
+        val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
+        val gesture = Modifier.fillMaxSize().pinchZoom(
+            panEnabled = !annotate,
+            onPan = { zoomState.panX(it, viewportPx, basePx) },
+            onTransform = { factor, focus, pan ->
+                listState.dispatchRawDelta(zoomState.transform(factor, focus, pan, viewportPx, basePx))
+            },
+        )
+        Box(gesture) {
+            // Layout height shrinks by the zoom so the scaled list exactly fills the viewport (all of it reachable).
+            LazyColumn(
+                modifier = Modifier.width(base).height(maxHeight / zoom).graphicsLayer {
+                    scaleX = zoom
+                    scaleY = zoom
+                    translationX = zoomState.offsetX(viewportPx, basePx)
+                    transformOrigin = TransformOrigin(0f, 0f)
+                },
+                state = listState,
+                userScrollEnabled = !annotate,
+            ) {
                 items(count = pageCount, key = { it }) { index ->
                     val spec = PageSpec(
                         aspect = aspect,
@@ -290,20 +282,6 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
             failed -> Text(stringResource(R.string.reader_page_failed))
             else -> CircularProgressIndicator()
         }
-    }
-}
-
-/** Two-finger pinch only: single-finger drags still reach the list's scroll. */
-private fun Modifier.pinchZoom(onZoom: (Float, Offset) -> Unit): Modifier = pointerInput(Unit) {
-    awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        do {
-            val event = awaitPointerEvent(PointerEventPass.Initial)
-            if (event.changes.size > 1) {
-                onZoom(event.calculateZoom(), event.calculateCentroid())
-                event.changes.forEach { it.consume() }
-            }
-        } while (event.changes.any { it.pressed })
     }
 }
 
