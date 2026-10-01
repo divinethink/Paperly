@@ -21,7 +21,7 @@ googleServices = "4.4.3"
 crashlytics = "3.0.4"
 junit = "4.13.2"
 robolectric = "4.16"
-benchmarkMacro = "1.4.1"
+benchmarkMacro = "1.5.0"
 androidxTestExtJunit = "1.3.0"
 androidxPdf = "1.0.0-beta01"
 
