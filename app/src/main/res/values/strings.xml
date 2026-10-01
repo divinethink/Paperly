@@ -38,7 +38,7 @@
     <string name="doc_save_copy">Save a copy</string>
     <string name="doc_print">Print</string>
     <string name="export_saved">Saved</string>
-    <string name="export_failed">Couldn't export this file</string>
+    <string name="export_failed">Could not export this file</string>
     <string name="trash_title">Trash</string>
     <string name="trash_empty">Trash is empty</string>
     <string name="trash_empty_action">Empty Trash</string>
