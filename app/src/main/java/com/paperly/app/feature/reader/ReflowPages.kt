@@ -121,6 +121,7 @@ private fun reflowState(raw: String?): ReflowPageState = when {
     else -> ReflowPageState.Ready(raw.replace(SINGLE_NEWLINE, " ").trim())
 }
 
+@Suppress("MagicNumber") // colour literals; local palette (debt: move to central tokens)
 private fun paletteFor(theme: ReaderTheme, systemDark: Boolean): ReflowPalette = when (theme) {
     ReaderTheme.LIGHT -> ReflowPalette(Color(0xFFFFFFFF), Color(0xFF1A1A1A))
     ReaderTheme.SEPIA -> ReflowPalette(Color(0xFFF4ECD8), Color(0xFF5B4636))

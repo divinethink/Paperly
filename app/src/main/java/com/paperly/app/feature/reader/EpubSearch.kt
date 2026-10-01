@@ -27,7 +27,7 @@ internal fun canSearch(publication: Publication): Boolean = publication.isSearch
 /** First [MAX_HITS] matches in reading order, or null if the search itself failed. Always closes the iterator. */
 @OptIn(ExperimentalReadiumApi::class)
 internal suspend fun searchPublication(publication: Publication, query: String): List<EpubSearchHit>? {
-    val iterator = publication.search(query).getOrNull() ?: return null
+    val iterator = publication.search(query) ?: return null
     val result = runCatching {
         val hits = mutableListOf<EpubSearchHit>()
         while (hits.size < MAX_HITS) {

@@ -45,7 +45,7 @@ data class ReaderUiState(
 )
 
 @HiltViewModel
-@Suppress("LongParameterList") // Hilt constructor injection; each dependency is a distinct collaborator
+@Suppress("LongParameterList", "TooManyFunctions") // Hilt DI collaborators; 11 small state/event handlers
 class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DocumentRepository,
