@@ -90,6 +90,9 @@
     <string name="reader_epub_failed">This book could not be opened.</string>
     <string name="epub_settings">Reading settings</string>
     <string name="epub_done">Done</string>
+    <string name="epub_toc">Contents</string>
+    <string name="epub_bookmark_add">Add bookmark</string>
+    <string name="epub_bookmark_remove">Remove bookmark</string>
     <string name="epub_font">Font</string>
     <string name="epub_font_serif">Serif</string>
     <string name="epub_font_sans">Sans</string>
