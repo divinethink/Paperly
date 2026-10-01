@@ -2,7 +2,6 @@ package com.paperly.app
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
@@ -11,22 +10,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.core.crash.CrashMarker
 import com.paperly.app.core.crash.CrashNoticeDialog
 import com.paperly.app.core.intent.IncomingImportRequests
 import com.paperly.app.core.intent.extractImportUri
 import com.paperly.app.core.ui.theme.PaperlyTheme
+import com.paperly.app.feature.reader.EpubFragmentHost
 import com.paperly.app.navigation.PaperlyRoot
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     @Inject lateinit var incomingImports: IncomingImportRequests
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
+        supportFragmentManager.fragmentFactory = EpubFragmentHost // before super: safe fragment restore (P3)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Only a fresh launch: after rotation/process restore the same intent must not import again.
