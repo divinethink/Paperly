@@ -91,6 +91,8 @@
     <string name="epub_settings">Reading settings</string>
     <string name="epub_done">Done</string>
     <string name="epub_toc">Contents</string>
+    <string name="epub_toc_expand">Expand</string>
+    <string name="epub_toc_collapse">Collapse</string>
     <string name="epub_bookmark_add">Add bookmark</string>
     <string name="epub_bookmark_remove">Remove bookmark</string>
     <string name="epub_search">Search in book</string>
