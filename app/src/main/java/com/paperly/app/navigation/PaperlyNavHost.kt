@@ -140,7 +140,7 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
             onOpenTrash = { navController.navigate(Routes.TRASH) },
         )
     }
-    composable(Routes.SCAN) { ScanScreen() }
+    composable(Routes.SCAN) { ScanScreen(onSaved = { navController.navigateTopLevel(Routes.LIBRARY) }) }
     composable(Routes.SETTINGS) { SettingsScreen() }
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
     composable(
