@@ -97,8 +97,9 @@ fun Modifier.annotationGestures(
             detectTapGestures { pos ->
                 val fx = pos.x / size.width
                 val fy = pos.y / size.height
-                annotations.lastOrNull { fx in it.rect.left..it.rect.right && fy in it.rect.top..it.rect.bottom }
-                    ?.let { tap(it) }
+                annotations.lastOrNull { a ->
+                    a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
+                }?.let { tap(it) }
             }
         }
         .pointerInput(annotate) {
@@ -124,17 +125,20 @@ private suspend fun AwaitPointerEventScope.dragArea(onDraft: (MatchRect?) -> Uni
 fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
     val lineWidth = LineWidth.toPx() / maxOf(zoom, MIN_ZOOM)
     items.forEach { a ->
-        val topLeft = Offset(a.rect.left * size.width, a.rect.top * size.height)
-        val area = Size((a.rect.right - a.rect.left) * size.width, (a.rect.bottom - a.rect.top) * size.height)
-        val lineY = if (a.type == AnnotationType.STRIKETHROUGH) topLeft.y + area.height / 2 else topLeft.y + area.height
         val base = (a.color ?: AnnotationColor.defaultFor(a.type)).argb()
-        when (a.type) {
-            AnnotationType.HIGHLIGHT -> drawRect(base.copy(alpha = HIGHLIGHT_ALPHA), topLeft, area)
-            AnnotationType.NOTE -> {
-                drawRect(NoteFill, topLeft, area)
-                drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
+        a.rects.forEach { r ->
+            val topLeft = Offset(r.left * size.width, r.top * size.height)
+            val area = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height)
+            val strike = a.type == AnnotationType.STRIKETHROUGH
+            val lineY = topLeft.y + if (strike) area.height / 2 else area.height
+            when (a.type) {
+                AnnotationType.HIGHLIGHT -> drawRect(base.copy(alpha = HIGHLIGHT_ALPHA), topLeft, area)
+                AnnotationType.NOTE -> {
+                    drawRect(NoteFill, topLeft, area)
+                    drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
+                }
+                else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
             }
-            else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
         }
     }
 }
