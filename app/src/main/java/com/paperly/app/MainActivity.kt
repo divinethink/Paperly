@@ -14,8 +14,10 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.core.crash.CrashMarker
 import com.paperly.app.core.crash.CrashNoticeDialog
+import com.paperly.app.core.intent.ContinueReadingRequests
 import com.paperly.app.core.intent.IncomingImportRequests
 import com.paperly.app.core.intent.extractImportUri
+import com.paperly.app.core.intent.isContinueReading
 import com.paperly.app.core.ui.theme.PaperlyTheme
 import com.paperly.app.feature.reader.EpubFragmentHost
 import com.paperly.app.navigation.PaperlyRoot
@@ -26,13 +28,15 @@ import javax.inject.Inject
 class MainActivity : FragmentActivity() {
     @Inject lateinit var incomingImports: IncomingImportRequests
 
+    @Inject lateinit var continueReading: ContinueReadingRequests
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         supportFragmentManager.fragmentFactory = EpubFragmentHost // before super: safe fragment restore (P3)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Only a fresh launch: after rotation/process restore the same intent must not import again.
-        if (savedInstanceState == null) postImport(intent)
+        if (savedInstanceState == null) postIntent(intent)
         setContent {
             PaperlyTheme {
                 val pendingImport by incomingImports.pending.collectAsStateWithLifecycle()
@@ -51,10 +55,11 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        postImport(intent)
+        postIntent(intent)
     }
 
-    private fun postImport(intent: Intent?) {
+    private fun postIntent(intent: Intent?) {
         extractImportUri(intent)?.let(incomingImports::post)
+        if (isContinueReading(intent)) continueReading.post()
     }
 }
