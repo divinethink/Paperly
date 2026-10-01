@@ -46,7 +46,13 @@ class BackupExtrasTest {
     private fun doc(id: String) = BackupDocument(id, "T", "pdf", 1L, checksum, null, emptyList(), false, 1L, 2L, null)
 
     private fun docRow(id: String) = DocumentEntity(
-        documentId = id, title = "T", type = "pdf", sizeBytes = 1, checksum = id, createdAt = 1, updatedAt = 2,
+        documentId = id,
+        title = "T",
+        type = "pdf",
+        sizeBytes = 1,
+        checksum = id,
+        createdAt = 1,
+        updatedAt = 2,
     )
 
     private val extras = BackupExtras(
