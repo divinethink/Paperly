@@ -111,7 +111,8 @@ internal fun Modifier.annotationGestures(
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { textSelectGesture(select) }
         }
-        .pointerInput(select != null) { // declared last = first to see a touch, so a handle wins over long-press
+        // declared last = first to see a touch, so a handle wins over long-press
+        .pointerInput(select != null) {
             if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
 }
