@@ -37,7 +37,11 @@ class ImageExportWorker(context: Context, params: WorkerParameters) : CoroutineW
             val pages = (engine.open(source) as? OpenResult.Success)?.pageCount ?: 0
             val file = if (pages > 0) export(engine, pages, dir, base, png) else null
             if (file != null && validate(file, pages)) {
-                val mime = if (pages > 1) "application/zip" else if (png) "image/png" else "image/jpeg"
+                val mime = when {
+                    pages > 1 -> "application/zip"
+                    png -> "image/png"
+                    else -> "image/jpeg"
+                }
                 Result.success(workDataOf(KEY_PATH to file.absolutePath, KEY_MIME to mime))
             } else {
                 dir.listFiles()?.forEach { it.delete() }
