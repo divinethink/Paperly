@@ -148,14 +148,32 @@ fun DrawScope.drawDraft(rect: MatchRect) {
 @Composable
 fun AnnotationEditorHost(editor: AnnotationEditor?, controller: AnnotationController, onClose: () -> Unit) {
     val current = editor ?: return
-    var type by remember(current) { mutableStateOf(current.existing?.type ?: AnnotationType.UNDERLINE) }
-    var color by remember(current) { mutableStateOf(current.existing?.color) }
-    var note by remember(current) { mutableStateOf(current.existing?.noteText.orEmpty()) }
+    AnnotationEditorDialog(
+        key = current,
+        existing = current.existing,
+        onSave = { controller.save(current, it) },
+        onDelete = controller::delete,
+        onClose = onClose,
+    )
+}
+
+/** Shared by PDF and EPUB: [key] resets the fields when a different annotation is edited. */
+@Composable
+internal fun AnnotationEditorDialog(
+    key: Any,
+    existing: Annotation?,
+    onSave: (AnnotationContent) -> Unit,
+    onDelete: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    var type by remember(key) { mutableStateOf(existing?.type ?: AnnotationType.UNDERLINE) }
+    var color by remember(key) { mutableStateOf(existing?.color) }
+    var note by remember(key) { mutableStateOf(existing?.noteText.orEmpty()) }
     val isNote = type == AnnotationType.NOTE
     AlertDialog(
         onDismissRequest = onClose,
         title = {
-            val isNew = current.existing == null
+            val isNew = existing == null
             Text(stringResource(if (isNew) R.string.reader_annotation_new else R.string.reader_annotation_edit))
         },
         text = {
@@ -180,17 +198,17 @@ fun AnnotationEditorHost(editor: AnnotationEditor?, controller: AnnotationContro
             TextButton(
                 enabled = !isNote || note.isNotBlank(),
                 onClick = {
-                    controller.save(current, AnnotationContent(type, color.takeIf { !isNote }, note.takeIf { isNote }))
+                    onSave(AnnotationContent(type, color.takeIf { !isNote }, note.takeIf { isNote }))
                     onClose()
                 },
             ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
             Row {
-                current.existing?.let { existing ->
+                existing?.let { saved ->
                     TextButton(
                         onClick = {
-                            controller.delete(existing.id)
+                            onDelete(saved.id)
                             onClose()
                         },
                     ) { Text(stringResource(R.string.reader_annotation_delete)) }
