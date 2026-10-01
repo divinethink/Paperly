@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.ReaderTheme
@@ -41,11 +42,11 @@ fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onT
     ) {
         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.reader_annotate_mode))
     }
-    OverflowMenu(viewModel, fitHeight, onToggleFit)
+    OverflowMenu(viewModel, page, fitHeight, onToggleFit)
 }
 
 @Composable
-private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggleFit: () -> Unit) {
+private fun OverflowMenu(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
     val current by viewModel.theme.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
@@ -53,6 +54,10 @@ private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggl
     }
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
+    val scanPages: ScanPageViewModel = hiltViewModel()
+    val isScan by scanPages.isScan.collectAsStateWithLifecycle()
+    var editingPage by remember { mutableStateOf(false) }
+    if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         // Capability-aware: only readable, non-Bengali text layers (Architecture 11.3); otherwise no item.
         if (search.available && !search.partialMatch) {
@@ -68,6 +73,15 @@ private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggl
             )
         }
         SharePdfAnnotationsItem(viewModel) { open = false }
+        if (isScan) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.scan_page_edit)) },
+                onClick = {
+                    editingPage = true
+                    open = false
+                },
+            )
+        }
         DropdownMenuItem(
             text = { Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height)) },
             onClick = {
