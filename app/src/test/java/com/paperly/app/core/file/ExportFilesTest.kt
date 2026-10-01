@@ -18,6 +18,11 @@ class ExportFilesTest {
     }
 
     @Test
+    fun baseNameHasNoExtension() {
+        assertEquals("Scan 1", ExportFiles.baseName(" Scan 1 "))
+    }
+
+    @Test
     fun longNamesAreCapped() {
         assertTrue(ExportFiles.fileName("x".repeat(500), "pdf").length <= 84)
     }
