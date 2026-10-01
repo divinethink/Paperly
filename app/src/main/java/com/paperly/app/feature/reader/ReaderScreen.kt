@@ -160,8 +160,9 @@ private fun ReaderContent(
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                     val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
-                    val look = PageLook(fitHeight, pageFilter, highlights, hooks)
-                    PdfOrReflow(viewModel, state, listState, look)
+                        .copy(select = rememberSelectHooks(viewModel, enabled = !annotate))
+                    PdfOrReflow(viewModel, state, listState, PageLook(fitHeight, pageFilter, highlights, hooks))
+                    PdfSelectionMenu(viewModel) { editor = it }
                 }
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -278,7 +279,8 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
-    val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, spec.hooks.onTap)
+    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks) { finger = it } }
+    val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }
     Box(
         Modifier.fillMaxWidth().aspectRatio(ratio).then(gestures).drawWithContent {
@@ -291,6 +293,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                 )
             }
             drawAnnotations(spec.annotations, zoomOf())
+            spec.hooks.select?.selection?.takeIf { it.page == index }?.let { drawSelection(it.rects) }
             drawPending(edit.rects, zoomOf())
             draft?.let { drawDraft(it) }
             val touch = finger

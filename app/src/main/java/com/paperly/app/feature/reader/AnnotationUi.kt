@@ -59,6 +59,7 @@ data class AnnotationHooks(
     val onCreate: (Int, MatchRect) -> Unit,
     val onTap: (Annotation) -> Unit,
     val pending: PendingHooks,
+    val select: SelectHooks? = null,
 )
 
 /** Drag from [a] to [b] inside a page of [size] px -> normalised page-fraction rect, or null if degenerate. */
@@ -85,10 +86,12 @@ internal fun Modifier.annotationGestures(
     annotations: List<Annotation>,
     annotate: Boolean,
     edit: PendingEdit,
+    select: SelectEdit?,
     onTap: (Annotation) -> Unit,
 ): Modifier {
     val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
+    val clearSelect by rememberUpdatedState(select?.hooks?.onClear)
     val zoomOf = LocalPageZoom.current
     val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
@@ -98,11 +101,14 @@ internal fun Modifier.annotationGestures(
                 val fy = pos.y / size.height
                 annotations.lastOrNull { a ->
                     a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
-                }?.let { tap(it) }
+                }?.let { tap(it) } ?: clearSelect?.invoke()
             }
         }
         .pointerInput(annotate) {
             if (annotate) awaitEachGesture { pendingGesture(reachBase, zoomOf) { current } }
+        }
+        .pointerInput(select != null) {
+            if (select != null) awaitEachGesture { textSelectGesture(select) }
         }
 }
 

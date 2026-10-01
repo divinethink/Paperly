@@ -75,6 +75,8 @@ class ReaderViewModel @Inject constructor(
         currentPage = { currentPage.value ?: 0 },
     )
 
+    val textSelect = PdfTextSelectController(viewModelScope) { engine }
+
     val annotations = AnnotationController(viewModelScope, annotationRepository, annotateStyleStore, documentId)
 
     val theme: StateFlow<ReaderTheme> = preferences.theme
