@@ -62,7 +62,15 @@
     <string name="tags_label">Tags (comma-separated)</string>
     <string name="action_save">Save</string>
 
-    <string name="scan_placeholder">Scanner arrives in a later phase</string>
+    <string name="scan_start">Start scanning</string>
+    <string name="scan_hint">Scan with the camera or import from your gallery. The result is saved to your Library as a PDF.</string>
+    <string name="scan_page_edit">Page title &amp; note</string>
+    <string name="scan_page_title">Page %1$d</string>
+    <string name="scan_page_name">Title</string>
+    <string name="scan_page_note">Note</string>
+    <string name="scan_saving">Saving scan…</string>
+    <string name="scan_error_unavailable">Scanner is not available on this device (Google Play services needed).</string>
+    <string name="scan_error_save">Could not save the scan. Please try again.</string>
     <string name="settings_backup_header">Backup</string>
     <string name="settings_backup_hint">Export saves all documents to one ZIP file. Restore only adds what is missing; nothing is overwritten or deleted.</string>
     <string name="settings_backup_export">Export backup</string>
