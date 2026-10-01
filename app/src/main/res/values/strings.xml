@@ -91,6 +91,9 @@
     <string name="epub_settings">Reading settings</string>
     <string name="epub_done">Done</string>
     <string name="epub_toc">Contents</string>
+    <string name="epub_mode">Reading mode</string>
+    <string name="epub_mode_paged">Paged</string>
+    <string name="epub_mode_scroll">Scroll</string>
     <string name="epub_toc_expand">Expand</string>
     <string name="epub_toc_collapse">Collapse</string>
     <string name="epub_bookmark_add">Add bookmark</string>
