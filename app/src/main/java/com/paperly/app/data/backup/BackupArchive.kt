@@ -33,6 +33,7 @@ object BackupArchive {
         sources: List<BackupSource>,
         folders: List<BackupFolder>,
         header: BackupHeader,
+        extras: BackupExtras = BackupExtras.EMPTY,
     ) {
         val zip = ZipOutputStream(BufferedOutputStream(out))
         sources.forEach { s ->
@@ -47,6 +48,7 @@ object BackupArchive {
             createdAt = header.createdAt,
             folders = folders,
             documents = sources.map { it.doc },
+            extras = extras,
         )
         zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
         zip.write(BackupManifestCodec.encode(manifest).toByteArray(Charsets.UTF_8))

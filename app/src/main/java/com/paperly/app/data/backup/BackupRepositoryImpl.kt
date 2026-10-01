@@ -42,6 +42,7 @@ class BackupRepositoryImpl @Inject constructor(
     private val aggregateDao: AggregateDao,
     private val folderDao: FolderDao,
     private val fileStore: DocumentFileStore,
+    private val extrasStore: BackupExtrasStore,
 ) : BackupRepository {
 
     /** Export/Restore never run concurrently (double-tap / retry safe). */
@@ -73,7 +74,8 @@ class BackupRepositoryImpl @Inject constructor(
         val resolver = context.contentResolver
         val out = resolver.openOutputStream(uri, "w") ?: throw IOException("Cannot open target")
         val header = BackupHeader(DATABASE_VERSION, appVersion(context), System.currentTimeMillis())
-        out.use { BackupArchive.write(it, sources, folders, header) }
+        val extras = extrasStore.collect(sources.map { it.doc.documentId }.toSet())
+        out.use { BackupArchive.write(it, sources, folders, header, extras) }
         val verified = resolver.openInputStream(uri)?.use { BackupArchive.verify(it) } == true
         return if (verified) {
             BackupResult.Success(sources.size, entities.size - sources.size)
@@ -112,7 +114,7 @@ class BackupRepositoryImpl @Inject constructor(
             }
         }
         val folderIds = folderDao.getAll().map { it.folderId }.toSet()
-        val outcomes = manifest.documents.map { restoreOne(zip, it, folderIds) }
+        val outcomes = manifest.documents.map { restoreOne(zip, it, folderIds, manifest.extras) }
         return RestoreResult.Done(
             RestoreSummary(
                 restored = outcomes.count { it == Outcome.RESTORED },
@@ -122,12 +124,30 @@ class BackupRepositoryImpl @Inject constructor(
         )
     }
 
-    private suspend fun restoreOne(zip: ZipFile, d: BackupDocument, folderIds: Set<String>): Outcome {
+    private suspend fun restoreOne(
+        zip: ZipFile,
+        d: BackupDocument,
+        folderIds: Set<String>,
+        extras: BackupExtras,
+    ): Outcome {
         // Same id (even in Trash) or same content already present: never overwrite, never duplicate.
         val present = documentDao.getById(d.documentId) != null || documentDao.findActiveByChecksum(d.checksum) != null
         if (present) return Outcome.PRESENT
         val stored = storeVerified(zip, d) ?: return Outcome.FAILED
-        return if (insertRow(d, stored, folderIds)) Outcome.RESTORED else Outcome.FAILED
+        val inserted = insertRow(d, stored, folderIds)
+        if (inserted) restoreExtras(d.documentId, extras)
+        return if (inserted) Outcome.RESTORED else Outcome.FAILED
+    }
+
+    /** Only for a just-restored document. A failure here loses the notes/progress, never the document. */
+    private suspend fun restoreExtras(documentId: String, extras: BackupExtras) {
+        try {
+            extrasStore.restore(documentId, extras)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // best effort: the document is already restored and verified
+        }
     }
 
     /** Copy via the file store (temp, size check, atomic rename); the checksum must then match the manifest. */

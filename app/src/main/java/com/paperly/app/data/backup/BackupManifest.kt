@@ -37,6 +37,10 @@ data class BackupManifest(
     val createdAt: Long,
     val folders: List<BackupFolder>,
     val documents: List<BackupDocument>,
+    /** Optional (absent in older archives): reading progress, bookmarks, annotations. */
+    val extras: BackupExtras = BackupExtras.EMPTY,
+    /** Extras entries dropped by validation while decoding (never encoded; does not affect archive verify). */
+    val invalidExtras: Int = 0,
     /** Entries dropped by validation while decoding (never encoded). */
     val invalidEntries: Int = 0,
 )
@@ -52,12 +56,14 @@ object BackupManifestCodec {
         put("createdAt", m.createdAt)
         put("folders", JSONArray(m.folders.map { folderJson(it) }))
         put("documents", JSONArray(m.documents.map { documentJson(it) }))
+        BackupExtrasCodec.encode(m.extras, this)
     }.toString()
 
     fun decode(json: String): BackupManifest? = try {
         val root = JSONObject(json)
         val (folders, badFolders) = parseList(root.optJSONArray("folders"), { parseFolder(it) })
         val (docs, badDocs) = parseList(root.optJSONArray("documents"), { parseDocument(it) })
+        val (extras, badExtras) = BackupExtrasCodec.decode(root, docs.map { it.documentId }.toSet())
         BackupManifest(
             formatVersion = root.getInt("formatVersion"),
             schemaVersion = root.optInt("schemaVersion"),
@@ -65,6 +71,8 @@ object BackupManifestCodec {
             createdAt = root.optLong("createdAt"),
             folders = folders,
             documents = docs,
+            extras = extras,
+            invalidExtras = badExtras,
             invalidEntries = badFolders + badDocs,
         )
     } catch (e: JSONException) {
