@@ -87,6 +87,15 @@
 
     <string name="reader_back">Back</string>
     <string name="reader_missing">Document not found</string>
+    <string name="reader_epub_failed">This book could not be opened.</string>
+    <string name="epub_settings">Reading settings</string>
+    <string name="epub_done">Done</string>
+    <string name="epub_font">Font</string>
+    <string name="epub_font_serif">Serif</string>
+    <string name="epub_font_sans">Sans</string>
+    <string name="epub_font_size">Text size</string>
+    <string name="epub_line_spacing">Line spacing</string>
+    <string name="epub_margin">Margins</string>
     <string name="reader_bookmark_add">Bookmark</string>
     <string name="reader_bookmark_remove">Bookmarked</string>
     <string name="reader_search">Search in document</string>
