@@ -3,6 +3,8 @@ package com.paperly.app.feature.reader
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -55,6 +57,7 @@ fun EpubSettingsSheet(
 }
 
 /** Shared settings rows. [showMode] = Paged/Scroll switch (EPUB only; PDF reflow is always a scrolling view). */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ColumnScope.EpubSettingsRows(
     typography: EpubTypography,
@@ -71,7 +74,7 @@ internal fun ColumnScope.EpubSettingsRows(
         }
     }
     Text(stringResource(R.string.epub_font))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         EpubFont.entries.forEach { font ->
             CheckChip(typography.font == font, fontName(font)) { onTypography(typography.copy(font = font)) }
         }
@@ -123,4 +126,7 @@ private fun ThemeChips(theme: ReaderTheme, onTheme: (ReaderTheme) -> Unit) {
 private fun fontName(font: EpubFont): Int = when (font) {
     EpubFont.SERIF -> R.string.epub_font_serif
     EpubFont.SANS -> R.string.epub_font_sans
+    EpubFont.HIND_SILIGURI -> R.string.epub_font_hind_siliguri
+    EpubFont.NOTO_SERIF_BENGALI -> R.string.epub_font_noto_serif_bengali
+    EpubFont.INTER -> R.string.epub_font_inter
 }

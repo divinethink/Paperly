@@ -187,6 +187,7 @@ private fun rememberEpubConfiguration(annotations: EpubAnnotationController): Ep
             onCopy = { scope.launch { withSelection(activity) { copyText(activity, it.locator.text.highlight) } } },
         )
         EpubNavigatorFragment.Configuration(selectionActionModeCallback = menu, shouldApplyInsetsPadding = false)
+            .withBundledFonts()
     }
 }
 

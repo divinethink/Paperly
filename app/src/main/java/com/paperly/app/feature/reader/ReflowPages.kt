@@ -23,13 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
-import com.paperly.app.domain.reader.EpubFont
 import com.paperly.app.domain.reader.EpubTypography
 import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.domain.reader.TextReadability
@@ -96,7 +94,7 @@ private fun ReflowPage(search: ReaderSearchController, index: Int, typography: E
         value = reflowState(search.pageText(index))
     }
     val size = BASE_TEXT_SP * typography.fontScale
-    val family = if (typography.font == EpubFont.SERIF) FontFamily.Serif else FontFamily.SansSerif
+    val family = typography.font.composeFamily()
     when (val s = state) {
         ReflowPageState.Loading -> Unit
         ReflowPageState.Unavailable -> Text(
