@@ -8,6 +8,7 @@ import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.data.reader.EpubPublicationOpener
 import com.paperly.app.domain.document.DocumentRepository
+import com.paperly.app.domain.reader.EpubAnnotationRepository
 import com.paperly.app.domain.reader.ReaderStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -47,20 +48,27 @@ class EpubReaderViewModel @Inject constructor(
     private val fileStore: DocumentFileStore,
     private val opener: EpubPublicationOpener,
     private val readerState: ReaderStateRepository,
+    annotationRepository: EpubAnnotationRepository,
 ) : ViewModel() {
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
     private val _uiState = MutableStateFlow(EpubUiState())
     val uiState: StateFlow<EpubUiState> = _uiState.asStateFlow()
+    val annotations = EpubAnnotationController(viewModelScope, annotationRepository, documentId)
     private val latest = MutableStateFlow<Locator?>(null)
     private var searchJob: Job? = null
     private val _searchState = MutableStateFlow(EpubSearchState())
     val searchState: StateFlow<EpubSearchState> = _searchState.asStateFlow()
 
-    val isBookmarked: StateFlow<Boolean> = combine(
-        (if (documentId.isEmpty()) emptyFlow() else readerState.observeBookmarkLocators(documentId)).map { it.toSet() },
-        latest,
-    ) { bookmarks, locator -> locator != null && bookmarkKey(locator) in bookmarks }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /** Live reading position (chapter title + progress) for the bottom bar. */
+    val position: StateFlow<Locator?> = latest.asStateFlow()
+
+    val bookmarks: StateFlow<List<String>> =
+        (if (documentId.isEmpty()) emptyFlow() else readerState.observeBookmarkLocators(documentId))
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val isBookmarked: StateFlow<Boolean> = combine(bookmarks.map { it.toSet() }, latest) { saved, locator ->
+        locator != null && bookmarkKey(locator) in saved
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     init {
         viewModelScope.launch { load() }
@@ -98,6 +106,11 @@ class EpubReaderViewModel @Inject constructor(
 
     fun toggleBookmark() {
         latest.value?.let { viewModelScope.launch { readerState.toggleBookmarkLocator(documentId, bookmarkKey(it)) } }
+    }
+
+    /** Stored bookmark JSON is its own identity, so toggling it removes it. */
+    fun removeBookmark(json: String) {
+        viewModelScope.launch { readerState.toggleBookmarkLocator(documentId, json) }
     }
 
     /** Cancels any running search; a blank query just clears the results. */
