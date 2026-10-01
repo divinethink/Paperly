@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.feature.reader.ReadingTimeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,8 +31,10 @@ import java.util.Locale
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     backupViewModel: BackupViewModel = hiltViewModel(),
+    readingTime: ReadingTimeViewModel = hiltViewModel(),
 ) {
     val usage by viewModel.usage.collectAsStateWithLifecycle()
+    val minutesToday by readingTime.todayMinutes.collectAsStateWithLifecycle()
     val backup by backupViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
@@ -41,6 +44,12 @@ fun SettingsScreen(
         it?.let(backupViewModel::restore)
     }
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        Text(
+            stringResource(R.string.settings_reading_header),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 16.dp))
         Text(
             stringResource(R.string.settings_storage_header),
             style = MaterialTheme.typography.titleMedium,
