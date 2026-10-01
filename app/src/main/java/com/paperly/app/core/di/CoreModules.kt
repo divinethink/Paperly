@@ -16,6 +16,7 @@ import com.paperly.app.core.database.FolderDao
 import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.database.PaperlyMigrations
 import com.paperly.app.core.database.ReaderDao
+import com.paperly.app.core.database.ScanPageDao
 import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.AppPrivateDocumentFileStore
 import com.paperly.app.core.file.DocumentFileStore
@@ -63,6 +64,9 @@ object DatabaseModule {
 
     @Provides
     fun provideAnnotationDao(db: PaperlyDatabase): AnnotationDao = db.annotationDao()
+
+    @Provides
+    fun provideScanPageDao(db: PaperlyDatabase): ScanPageDao = db.scanPageDao()
 }
 
 @Module
