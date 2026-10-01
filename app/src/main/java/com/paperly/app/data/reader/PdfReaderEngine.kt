@@ -8,6 +8,7 @@ import android.net.Uri
 import android.util.Size
 import androidx.pdf.PdfDocument
 import androidx.pdf.SandboxedPdfLoader
+import androidx.pdf.content.PdfPageTextContent
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderCapabilities
@@ -105,15 +106,14 @@ class PdfReaderEngine @Inject constructor(
         val doc = document ?: return null
         return try {
             val info = doc.getPageInfo(page)
-            if (info.width <= 0 || info.height <= 0) return null
             val w = info.width.toFloat()
             val h = info.height.toFloat()
-            val picked = doc.getSelectionBounds(page, PointF(x1 * w, y1 * h), PointF(x2 * w, y2 * h)) ?: return null
-            val parts = picked.selectedTextContents
-            val rects = parts.flatMap { it.bounds }
-                .map { MatchRect(it.left / w, it.top / h, it.right / w, it.bottom / h) }
-                .filter { it.right > it.left && it.bottom > it.top }
-            if (rects.isEmpty()) null else TextSelection(rects, parts.joinToString(" ") { it.text })
+            val picked = if (w > 0f && h > 0f) {
+                doc.getSelectionBounds(page, PointF(x1 * w, y1 * h), PointF(x2 * w, y2 * h))
+            } else {
+                null
+            }
+            picked?.let { toSelection(it.selectedContents, w, h) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -156,4 +156,13 @@ class PdfReaderEngine @Inject constructor(
         const val MAX_BITMAP_HEIGHT_PX = 4096
         const val MAX_CAUSE_DEPTH = 4
     }
+}
+
+/** Text parts of a page selection -> line rectangles as 0..1 page fractions + joined text; null if nothing usable. */
+private fun toSelection(contents: List<*>, w: Float, h: Float): TextSelection? {
+    val parts = contents.filterIsInstance<PdfPageTextContent>()
+    val rects = parts.flatMap { it.bounds }
+        .map { MatchRect(it.left / w, it.top / h, it.right / w, it.bottom / h) }
+        .filter { it.right > it.left && it.bottom > it.top }
+    return if (rects.isEmpty()) null else TextSelection(rects, parts.joinToString(" ") { it.text })
 }
