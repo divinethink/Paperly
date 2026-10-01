@@ -63,7 +63,6 @@ private fun EpubReaderScreen(
     val typography by settingsViewModel.typography.collectAsStateWithLifecycle()
     val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
     val bookmarked by viewModel.isBookmarked.collectAsStateWithLifecycle()
-    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val position by viewModel.position.collectAsStateWithLifecycle()
     val editor by viewModel.annotations.editor.collectAsStateWithLifecycle()
     val prefs = typography.toReadium(theme, isSystemInDarkTheme())
@@ -103,21 +102,11 @@ private fun EpubReaderScreen(
         AnimatedVisibility(barsVisible, Modifier.align(Alignment.BottomStart), enter = fadeIn(), exit = fadeOut()) {
             EpubBottomBar(position)
         }
+        EpubContentsPage(showContents, toc, viewModel) { showContents = false }
+        EpubSettingsPage(showSettings, settingsViewModel) { showSettings = false }
     }
     EpubAnnotationHost(editor, viewModel.annotations)
-    if (showContents) {
-        EpubContentsSheet(toc, bookmarks, viewModel.annotations, viewModel::removeBookmark) { showContents = false }
-    }
     if (showSearch) EpubSearchEntry(viewModel) { showSearch = false }
-    if (showSettings) {
-        EpubSettingsSheet(
-            typography = typography,
-            theme = theme,
-            onTypography = settingsViewModel::updateTypography,
-            onTheme = settingsViewModel::setTheme,
-            onDismiss = { showSettings = false },
-        )
-    }
 }
 
 /** Saves reading position when the app leaves the foreground (activity lifecycle: no Compose-local needed). */

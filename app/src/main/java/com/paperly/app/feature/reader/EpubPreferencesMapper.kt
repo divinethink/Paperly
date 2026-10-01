@@ -16,6 +16,7 @@ internal fun EpubTypography.toReadium(theme: ReaderTheme, systemDark: Boolean) =
     lineHeight = lineSpacing.toDouble(),
     pageMargins = margin.toDouble(),
     publisherStyles = false,
+    scroll = scroll,
     theme = when (theme) {
         ReaderTheme.LIGHT -> Theme.LIGHT
         ReaderTheme.SEPIA, ReaderTheme.WARM -> Theme.SEPIA

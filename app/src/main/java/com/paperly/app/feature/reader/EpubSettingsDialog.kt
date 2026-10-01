@@ -2,6 +2,7 @@ package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -45,26 +46,41 @@ fun EpubSettingsSheet(
             Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(stringResource(R.string.epub_font))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                EpubFont.entries.forEach { font ->
-                    CheckChip(typography.font == font, fontName(font)) { onTypography(typography.copy(font = font)) }
-                }
-            }
-            Stepper(R.string.epub_font_size, "%.1f×".format(typography.fontScale)) {
-                onTypography(typography.stepScale(it))
-            }
-            Stepper(R.string.epub_line_spacing, "%.1f".format(typography.lineSpacing)) {
-                onTypography(typography.stepLine(it))
-            }
-            Stepper(R.string.epub_margin, "%.2f×".format(typography.margin)) { onTypography(typography.stepMargin(it)) }
-            Text(stringResource(R.string.reader_theme))
-            ThemeChips(theme, onTheme)
+            EpubSettingsRows(typography, theme, onTypography, onTheme, showMode = false)
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
                 Text(stringResource(R.string.epub_done))
             }
         }
     }
+}
+
+/** Shared settings rows. [showMode] = Paged/Scroll switch (EPUB only; PDF reflow is always a scrolling view). */
+@Composable
+internal fun ColumnScope.EpubSettingsRows(
+    typography: EpubTypography,
+    theme: ReaderTheme,
+    onTypography: (EpubTypography) -> Unit,
+    onTheme: (ReaderTheme) -> Unit,
+    showMode: Boolean,
+) {
+    if (showMode) {
+        Text(stringResource(R.string.epub_mode))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CheckChip(!typography.scroll, R.string.epub_mode_paged) { onTypography(typography.copy(scroll = false)) }
+            CheckChip(typography.scroll, R.string.epub_mode_scroll) { onTypography(typography.copy(scroll = true)) }
+        }
+    }
+    Text(stringResource(R.string.epub_font))
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        EpubFont.entries.forEach { font ->
+            CheckChip(typography.font == font, fontName(font)) { onTypography(typography.copy(font = font)) }
+        }
+    }
+    Stepper(R.string.epub_font_size, "%.1f×".format(typography.fontScale)) { onTypography(typography.stepScale(it)) }
+    Stepper(R.string.epub_line_spacing, "%.1f".format(typography.lineSpacing)) { onTypography(typography.stepLine(it)) }
+    Stepper(R.string.epub_margin, "%.2f×".format(typography.margin)) { onTypography(typography.stepMargin(it)) }
+    Text(stringResource(R.string.reader_theme))
+    ThemeChips(theme, onTheme)
 }
 
 /** Selected chip shows a check mark, so the choice is clear without relying on colour alone. */

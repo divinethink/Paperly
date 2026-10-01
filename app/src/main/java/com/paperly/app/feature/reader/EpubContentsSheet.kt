@@ -1,11 +1,9 @@
 package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,10 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -48,18 +44,18 @@ private const val COLLAPSED_ROTATION = -90f
 
 private val TAB_LABELS = listOf(R.string.epub_toc, R.string.epub_tab_bookmarks, R.string.epub_tab_annotations)
 
-/** Contents / Bookmarks / Annotations bottom sheet (Architecture 11.1 tri-tab drawer); a row tap jumps there. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Contents / Bookmarks / Annotations as a full page from the left (Architecture 11.1); a row tap jumps there. */
 @Composable
-internal fun EpubContentsSheet(
+internal fun EpubContentsPage(
+    visible: Boolean,
     toc: List<TocEntry>,
-    bookmarks: List<String>,
-    annotations: EpubAnnotationController,
-    onRemoveBookmark: (String) -> Unit,
+    viewModel: EpubReaderViewModel,
     onDismiss: () -> Unit,
 ) {
     val activity = LocalContext.current as FragmentActivity
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val annotations = viewModel.annotations
+    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val notes by annotations.items.collectAsStateWithLifecycle()
     fun jump(locator: Locator) {
         EpubFragmentHost.navigator(activity)?.go(locator, animated = false)
@@ -69,20 +65,18 @@ internal fun EpubContentsSheet(
         EpubFragmentHost.navigator(activity)?.go(link, animated = false)
         onDismiss()
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.navigationBarsPadding()) {
-            TabRow(selectedTabIndex = tab) {
-                TAB_LABELS.forEachIndexed { index, label ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(stringResource(label)) })
-                }
+    SidePanel(visible, fromStart = true, title = R.string.epub_toc, onDismiss = onDismiss) {
+        TabRow(selectedTabIndex = tab) {
+            TAB_LABELS.forEachIndexed { index, label ->
+                Tab(selected = tab == index, onClick = { tab = index }, text = { Text(stringResource(label)) })
             }
-            when (tab) {
-                0 -> TocList(toc) { jumpLink(it.link) }
-                1 -> BookmarkList(bookmarks, ::jump, onRemoveBookmark)
-                else -> NoteList(notes, ::jump) {
-                    annotations.startEdit(it)
-                    onDismiss()
-                }
+        }
+        when (tab) {
+            0 -> TocList(toc) { jumpLink(it.link) }
+            1 -> BookmarkList(bookmarks, ::jump, viewModel::removeBookmark)
+            else -> NoteList(notes, ::jump) {
+                annotations.startEdit(it)
+                onDismiss()
             }
         }
     }
