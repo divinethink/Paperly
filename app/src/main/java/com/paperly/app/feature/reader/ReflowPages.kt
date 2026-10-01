@@ -80,7 +80,7 @@ internal fun ReflowPages(
         }
     }
     if (showSettings) {
-        EpubSettingsDialog(
+        EpubSettingsSheet(
             typography = typography,
             theme = theme,
             onTypography = settings::updateTypography,
