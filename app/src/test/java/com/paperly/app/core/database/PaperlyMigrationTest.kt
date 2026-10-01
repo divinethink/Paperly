@@ -181,6 +181,29 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v6ScanPagesStoreUpsertDeleteAndCascade() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.scanPageDao()
+            dao.upsert(ScanPageEntity("d1", 0, "Cover", null, 1L))
+            dao.upsert(ScanPageEntity("d1", 0, "Cover", "note", 2L)) // same key = replace, not duplicate
+            assertEquals("note", dao.observe("d1", 0).first()?.note)
+            dao.delete("d1", 0)
+            assertEquals(null, dao.observe("d1", 0).first())
+            dao.upsert(ScanPageEntity("d1", 1, "Back", null, 3L))
+            db.trashDao().softDelete("d1", 5L)
+            db.trashDao().deleteTrashedRow("d1")
+            assertEquals(null, dao.observe("d1", 1).first()) // cascade with the document
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =
