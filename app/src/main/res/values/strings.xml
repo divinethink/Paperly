@@ -34,6 +34,11 @@
     <string name="library_more">Library menu</string>
     <string name="menu_trash">Trash</string>
     <string name="doc_trash">Move to Trash</string>
+    <string name="doc_share">Share</string>
+    <string name="doc_save_copy">Save a copy</string>
+    <string name="doc_print">Print</string>
+    <string name="export_saved">Saved</string>
+    <string name="export_failed">Couldn't export this file</string>
     <string name="trash_title">Trash</string>
     <string name="trash_empty">Trash is empty</string>
     <string name="trash_empty_action">Empty Trash</string>
