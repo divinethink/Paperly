@@ -44,12 +44,21 @@ data class Annotation(
     val rect: MatchRect,
     val noteText: String?,
     val color: AnnotationColor? = null,
+    /** All parts (page fractions); [rect] is their bounding box. Single-part = `listOf(rect)`. */
+    val rects: List<MatchRect> = listOf(rect),
 )
 
 interface AnnotationRepository {
     fun observe(documentId: String): Flow<List<Annotation>>
 
-    suspend fun add(documentId: String, page: Int, rect: MatchRect, content: AnnotationContent)
+    /** [rects] non-empty = multi-part (≤50); [rect] is then replaced by their bounding box. */
+    suspend fun add(
+        documentId: String,
+        page: Int,
+        rect: MatchRect,
+        content: AnnotationContent,
+        rects: List<MatchRect> = emptyList(),
+    )
 
     suspend fun update(id: String, content: AnnotationContent)
 
