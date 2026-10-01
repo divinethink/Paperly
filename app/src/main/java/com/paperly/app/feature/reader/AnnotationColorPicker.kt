@@ -59,7 +59,7 @@ internal fun ColorPicker(selected: AnnotationColor, onSelect: (AnnotationColor) 
 }
 
 @Composable
-private fun ColorSwatch(option: AnnotationColor, selected: Boolean, modifier: Modifier, onSelect: () -> Unit) {
+internal fun ColorSwatch(option: AnnotationColor, selected: Boolean, modifier: Modifier, onSelect: () -> Unit) {
     val name = stringResource(colorLabel(option))
     Box(
         modifier

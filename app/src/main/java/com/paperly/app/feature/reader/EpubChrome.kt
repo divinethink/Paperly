@@ -6,16 +6,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,17 +46,20 @@ import org.readium.r2.shared.publication.Locator
 
 private const val BAR_ALPHA = 0.95f
 private const val PERCENT = 100
+private const val NAV_BUTTON_DP = 44
+private const val CONTENTS_PULL_DP = 6
 
 @Composable
-private fun barColor(): Color = MaterialTheme.colorScheme.surface.copy(alpha = BAR_ALPHA)
+internal fun barColor(): Color = MaterialTheme.colorScheme.surface.copy(alpha = BAR_ALPHA)
 
-internal data class EpubBarState(val canSearch: Boolean, val bookmarked: Boolean)
+internal data class EpubBarState(val canSearch: Boolean, val bookmarked: Boolean, val annotating: Boolean = false)
 
 internal class EpubBarActions(
     val onBack: () -> Unit,
     val onContents: () -> Unit,
     val onBookmark: () -> Unit,
     val onSearch: () -> Unit,
+    val onAnnotate: () -> Unit,
     val onSettings: () -> Unit,
 )
 
@@ -62,10 +70,14 @@ internal fun EpubTopBar(bar: EpubBarState, actions: EpubBarActions, modifier: Mo
         modifier.fillMaxWidth().background(barColor()).statusBarsPadding(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = actions.onBack) {
+        IconButton(onClick = actions.onBack, modifier = Modifier.size(NAV_BUTTON_DP.dp)) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
         }
-        IconButton(onClick = actions.onContents) {
+        // Pulled toward Back (Contents is the book's index).
+        IconButton(
+            onClick = actions.onContents,
+            modifier = Modifier.size(NAV_BUTTON_DP.dp).offset(x = (-CONTENTS_PULL_DP).dp),
+        ) {
             Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.epub_toc))
         }
         Spacer(Modifier.weight(1f))
@@ -74,6 +86,16 @@ internal fun EpubTopBar(bar: EpubBarState, actions: EpubBarActions, modifier: Mo
             IconButton(onClick = actions.onSearch) {
                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.epub_search))
             }
+        }
+        IconToggleButton(
+            checked = bar.annotating,
+            onCheckedChange = { actions.onAnnotate() },
+            colors = IconButtonDefaults.iconToggleButtonColors(
+                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+        ) {
+            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.reader_annotate_mode))
         }
         IconButton(onClick = actions.onBookmark) {
             Icon(

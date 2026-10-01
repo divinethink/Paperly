@@ -94,10 +94,11 @@ private fun EpubReaderScreen(
             onContents = { showContents = true },
             onBookmark = viewModel::toggleBookmark,
             onSearch = { showSearch = true },
+            onAnnotate = viewModel.annotations::toggleMode,
             onSettings = { showSettings = true },
         )
         AnimatedVisibility(barsVisible, Modifier.align(Alignment.TopStart), enter = fadeIn(), exit = fadeOut()) {
-            EpubTopBar(EpubBarState(state.searchable, bookmarked), actions)
+            EpubTopOverlay(EpubBarState(state.searchable, bookmarked), actions, viewModel.annotations)
         }
         AnimatedVisibility(barsVisible, Modifier.align(Alignment.BottomStart), enter = fadeIn(), exit = fadeOut()) {
             EpubBottomBar(position)
@@ -192,7 +193,7 @@ private fun rememberEpubConfiguration(annotations: EpubAnnotationController): Ep
             annotateLabel = activity.getString(R.string.epub_annotate),
             copyLabel = activity.getString(R.string.epub_copy),
             onAnnotate = {
-                scope.launch { withSelection(activity) { annotations.startNew(encodeLocator(it.locator)) } }
+                scope.launch { withSelection(activity) { annotations.onSelection(encodeLocator(it.locator)) } }
             },
             onCopy = { scope.launch { withSelection(activity) { copyText(activity, it.locator.text.highlight) } } },
         )

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,10 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,6 +44,7 @@ import org.readium.r2.shared.publication.Locator
 
 private const val PERCENT = 100
 private const val INDENT_DP = 16
+private const val COLLAPSED_ROTATION = -90f
 
 private val TAB_LABELS = listOf(R.string.epub_toc, R.string.epub_tab_bookmarks, R.string.epub_tab_annotations)
 
@@ -91,16 +96,40 @@ private fun EmptyHint(text: Int) {
 @Composable
 private fun TocList(entries: List<TocEntry>, onSelect: (TocEntry) -> Unit) {
     if (entries.isEmpty()) return EmptyHint(R.string.epub_empty_toc)
+    var expanded by remember { mutableStateOf(emptySet<Int>()) }
+    val rows = remember(entries, expanded) { visibleToc(entries, expanded) }
     LazyColumn(Modifier.fillMaxWidth().heightIn(min = LIST_MIN_DP.dp)) {
-        items(entries) { entry ->
-            Text(
-                text = entry.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .clickable { onSelect(entry) }
-                    .padding(start = (16 + entry.depth * INDENT_DP).dp, top = 12.dp, bottom = 12.dp, end = 16.dp),
-            )
+        items(rows) { index ->
+            val entry = entries[index]
+            val hasChildren = entries.getOrNull(index + 1)?.let { it.depth > entry.depth } == true
+            TocRow(entry, hasChildren, index in expanded, { onSelect(entry) }) {
+                expanded = if (index in expanded) expanded - index else expanded + index
+            }
+        }
+    }
+}
+
+@Composable
+private fun TocRow(entry: TocEntry, hasChildren: Boolean, open: Boolean, onSelect: () -> Unit, onToggle: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onSelect),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = entry.title,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = (16 + entry.depth * INDENT_DP).dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
+        )
+        if (hasChildren) {
+            IconButton(onClick = onToggle) {
+                val label = if (open) R.string.epub_toc_collapse else R.string.epub_toc_expand
+                Icon(
+                    Icons.Filled.ArrowDropDown,
+                    contentDescription = stringResource(label),
+                    modifier = Modifier.rotate(if (open) 0f else COLLAPSED_ROTATION),
+                )
+            }
         }
     }
 }
