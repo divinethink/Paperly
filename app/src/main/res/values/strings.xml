@@ -146,6 +146,8 @@
     <string name="reader_annotation_note">Note</string>
     <string name="reader_annotation_note_hint">Note text</string>
     <string name="reader_annotation_delete">Delete</string>
+    <string name="reader_pending_parts">Parts: %1$d</string>
+    <string name="reader_pending_done">Done</string>
     <string name="reader_annotation_color">Color</string>
     <string name="reader_annotation_color_amber">Amber</string>
     <string name="reader_annotation_color_red">Red</string>
