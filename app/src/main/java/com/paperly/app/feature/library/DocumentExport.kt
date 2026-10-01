@@ -22,7 +22,6 @@ import com.paperly.app.R
 import com.paperly.app.core.file.ExportFiles
 import com.paperly.app.domain.document.Document
 import java.io.File
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,22 +93,16 @@ private suspend fun shareFile(context: Context, source: File?, name: String, mim
 
 private suspend fun copyOrNull(context: Context, source: File, name: String): File? =
     withContext(Dispatchers.IO) {
-        try {
-            ExportFiles.copyToExports(context, source, name)
-        } catch (e: IOException) {
-            null
-        }
+        runCatching { ExportFiles.copyToExports(context, source, name) }.getOrNull()
     }
 
 @StringRes
 internal suspend fun saveTo(context: Context, source: File?, target: Uri): Int = withContext(Dispatchers.IO) {
-    val copied = try {
+    val copied = runCatching {
         context.contentResolver.openOutputStream(target, "w")?.use { out ->
             source?.inputStream()?.use { it.copyTo(out) }
         }
-    } catch (e: IOException) {
-        null
-    }
+    }.getOrNull()
     if (source != null && copied == source.length()) R.string.export_saved else R.string.export_failed
 }
 
