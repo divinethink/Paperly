@@ -92,6 +92,7 @@ internal fun Modifier.annotationGestures(
     val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
     val clearSelect by rememberUpdatedState(select?.hooks?.onClear)
+    val currentSelect by rememberUpdatedState(select)
     val zoomOf = LocalPageZoom.current
     val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
@@ -109,6 +110,9 @@ internal fun Modifier.annotationGestures(
         }
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { textSelectGesture(select) }
+        }
+        .pointerInput(select != null) { // declared last = first to see a touch, so a handle wins over long-press
+            if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
 }
 

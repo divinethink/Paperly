@@ -293,7 +293,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                 )
             }
             drawAnnotations(spec.annotations, zoomOf())
-            spec.hooks.select?.selection?.takeIf { it.page == index }?.let { drawSelection(it.rects) }
+            spec.hooks.select?.selection?.takeIf { it.page == index }?.let { drawSelection(it.rects, zoomOf()) }
             drawPending(edit.rects, zoomOf())
             draft?.let { drawDraft(it) }
             val touch = finger

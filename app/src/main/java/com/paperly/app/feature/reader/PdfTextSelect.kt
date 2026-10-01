@@ -11,7 +11,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.ReaderEngine
@@ -23,6 +25,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 private val SelectionFill = Color(0x5542A5F5)
+private val SelectHandleColor = Color(0xFF1E88E5)
+private val SelectHandleRadius = 8.dp
+private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, so the end characters stay selected
+private const val HALF = 0.5f
 
 /** Text picked on one [page]: line [rects] (page fractions) and its plain [text]. Not persisted. */
 data class PdfSelection(val page: Int, val rects: List<MatchRect>, val text: String)
@@ -82,7 +88,7 @@ private fun fraction(p: Offset, size: IntSize) =
  * fires returns without consuming, so page scroll and pinch-zoom are untouched.
  */
 internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) {
-    val down = awaitFirstDown(requireUnconsumed = false)
+    val down = awaitFirstDown(requireUnconsumed = true) // a grabbed handle already consumed its down
     val pressed = awaitLongPressOrCancellation(down.id) ?: return
     if (size.width <= 0 || size.height <= 0) return
     pressed.consume()
@@ -98,7 +104,64 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
     edit.onFinger(null)
 }
 
-internal fun DrawScope.drawSelection(rects: List<MatchRect>) {
+/** Page-fraction points just inside the first and last selected line, used as the fixed/moving ends. */
+private class HandleAnchors(val start: Offset, val end: Offset)
+
+private fun anchorsOf(rects: List<MatchRect>): HandleAnchors {
+    val first = rects.first()
+    val last = rects.last()
+    return HandleAnchors(
+        Offset(first.left + EDGE_INSET, (first.top + first.bottom) * HALF),
+        Offset(last.right - EDGE_INSET, (last.top + last.bottom) * HALF),
+    )
+}
+
+/** Handle centres (px) just below the start of the first line and the end of the last line. */
+private fun handleCenters(rects: List<MatchRect>, w: Float, h: Float, radius: Float): Pair<Offset, Offset> {
+    val first = rects.first()
+    val last = rects.last()
+    return Offset(first.left * w, first.bottom * h + radius) to Offset(last.right * w, last.bottom * h + radius)
+}
+
+/**
+ * Drag one of the two selection handles to extend/shrink the selection; the other end stays fixed. A touch that
+ * misses both handles is left alone (long-press, tap and scroll handle it).
+ */
+internal suspend fun AwaitPointerEventScope.selectHandleGesture(current: () -> SelectEdit?, zoomOf: () -> Float) {
+    val down = awaitFirstDown(requireUnconsumed = true)
+    val edit = current() ?: return
+    val rects = edit.hooks.selection?.takeIf { it.page == edit.page }?.rects?.takeIf { it.isNotEmpty() } ?: return
+    val zoom = maxOf(zoomOf(), MIN_ZOOM)
+    val radius = SelectHandleRadius.toPx() / zoom
+    val (startAt, endAt) = handleCenters(rects, size.width.toFloat(), size.height.toFloat(), radius)
+    val reach = HandleReach.toPx() / zoom
+    val moveStart = (down.position - startAt).getDistance() <= reach
+    if (moveStart || (down.position - endAt).getDistance() <= reach) {
+        down.consume()
+        dragHandle(down, edit, anchorsOf(rects), moveStart)
+    }
+}
+
+private suspend fun AwaitPointerEventScope.dragHandle(
+    down: PointerInputChange,
+    edit: SelectEdit,
+    anchors: HandleAnchors,
+    moveStart: Boolean,
+) {
+    val moving = if (moveStart) anchors.start else anchors.end
+    val fixed = if (moveStart) anchors.end else anchors.start
+    val origin = Offset(moving.x * size.width, moving.y * size.height)
+    drag(down.id) { change ->
+        change.consume()
+        val to = fraction(origin + (change.position - down.position), size)
+        if (moveStart) edit.hooks.onUpdate(edit.page, to, fixed) else edit.hooks.onUpdate(edit.page, fixed, to)
+        edit.onFinger(change.position)
+    }
+    edit.onFinger(null)
+}
+
+/** Selected lines plus two round handles; handle size stays constant on screen at any zoom. */
+internal fun DrawScope.drawSelection(rects: List<MatchRect>, zoom: Float) {
     rects.forEach { r ->
         drawRect(
             SelectionFill,
@@ -106,4 +169,9 @@ internal fun DrawScope.drawSelection(rects: List<MatchRect>) {
             Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
         )
     }
+    if (rects.isEmpty()) return
+    val radius = SelectHandleRadius.toPx() / maxOf(zoom, MIN_ZOOM)
+    val (startAt, endAt) = handleCenters(rects, size.width, size.height, radius)
+    drawCircle(SelectHandleColor, radius, startAt)
+    drawCircle(SelectHandleColor, radius, endAt)
 }
