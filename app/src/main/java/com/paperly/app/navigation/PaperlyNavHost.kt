@@ -2,6 +2,7 @@ package com.paperly.app.navigation
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -89,7 +90,7 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
             }
         },
     ) { padding ->
-        Row(Modifier.padding(padding)) {
+        Row(Modifier.padding(padding).consumeWindowInsets(padding)) {
             if (showNav && useRail) {
                 NavigationRail {
                     TopLevel.entries.forEach { item ->
