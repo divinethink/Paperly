@@ -28,6 +28,25 @@ class ReaderStateRepositoryImpl @Inject constructor(
         dao.upsertState(ReadingStateEntity(documentId, page.toString(), percent, System.currentTimeMillis()))
     }
 
+    override suspend fun getSavedLocator(documentId: String): String? = dao.getState(documentId)?.locator
+
+    override suspend fun saveLocator(documentId: String, locator: String, progress: Float) {
+        dao.upsertState(ReadingStateEntity(documentId, locator, progress.coerceIn(0f, 1f), System.currentTimeMillis()))
+    }
+
+    override fun observeBookmarkLocators(documentId: String): Flow<List<String>> =
+        dao.observeBookmarkLocators(documentId)
+
+    override suspend fun toggleBookmarkLocator(documentId: String, locator: String): Boolean =
+        dao.toggleBookmark(
+            BookmarkEntity(
+                bookmarkId = UUID.randomUUID().toString(),
+                documentId = documentId,
+                locator = locator,
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
+
     override fun observeBookmarkedPages(documentId: String): Flow<Set<Int>> =
         dao.observeBookmarkLocators(documentId).map { list -> list.mapNotNull { it.toIntOrNull() }.toSet() }
 
