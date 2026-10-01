@@ -72,7 +72,7 @@ private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggl
     }
 }
 
-private fun themeName(theme: ReaderTheme): Int = when (theme) {
+internal fun themeName(theme: ReaderTheme): Int = when (theme) {
     ReaderTheme.AUTO -> R.string.reader_theme_auto
     ReaderTheme.LIGHT -> R.string.reader_theme_light
     ReaderTheme.SEPIA -> R.string.reader_theme_sepia
