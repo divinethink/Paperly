@@ -1,6 +1,7 @@
 package com.paperly.app.data.backup
 
 import com.paperly.app.core.file.SAFE_DOCUMENT_ID
+import com.paperly.app.data.reader.AnnotationRects
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
 import org.json.JSONArray
@@ -83,6 +84,7 @@ object BackupExtrasCodec {
         put("noteText", a.noteText ?: JSONObject.NULL)
         put("createdAt", a.createdAt)
         put("updatedAt", a.updatedAt)
+        a.rects?.let { raw -> runCatching { JSONArray(raw) }.getOrNull()?.let { put("rects", it) } }
     }
 
     private fun parseReading(o: JSONObject, docIds: Set<String>): BackupReadingState? {
@@ -130,6 +132,7 @@ object BackupExtrasCodec {
                 noteText = o.optText("noteText"),
                 createdAt = created,
                 updatedAt = o.optLong("updatedAt", created),
+                rects = AnnotationRects.normalize(o.optJSONArray("rects")?.toString()),
             )
         } else {
             null

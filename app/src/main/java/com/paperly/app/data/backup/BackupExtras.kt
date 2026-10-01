@@ -35,6 +35,7 @@ data class BackupAnnotation(
     val noteText: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    val rects: String? = null,
 )
 
 /** Optional manifest extras: reading progress, bookmarks, annotations. Absent in old archives = empty. */
@@ -95,6 +96,7 @@ private fun AnnotationEntity.toBackup() = BackupAnnotation(
     noteText = noteText,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    rects = rects,
 )
 
 private fun BackupAnnotation.toEntity() = AnnotationEntity(
@@ -110,4 +112,5 @@ private fun BackupAnnotation.toEntity() = AnnotationEntity(
     noteText = noteText,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    rects = rects,
 )
