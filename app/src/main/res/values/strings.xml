@@ -117,6 +117,9 @@
     <string name="epub_font">Font</string>
     <string name="epub_font_serif">Serif</string>
     <string name="epub_font_sans">Sans</string>
+    <string name="epub_font_hind_siliguri" translatable="false">Hind Siliguri</string>
+    <string name="epub_font_noto_serif_bengali" translatable="false">Noto Serif Bengali</string>
+    <string name="epub_font_inter" translatable="false">Inter</string>
     <string name="epub_font_size">Text size</string>
     <string name="epub_line_spacing">Line spacing</string>
     <string name="epub_margin">Margins</string>
