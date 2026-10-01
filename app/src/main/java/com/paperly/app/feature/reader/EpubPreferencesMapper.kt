@@ -51,7 +51,7 @@ internal fun EpubFont.composeFamily(): androidx.compose.ui.text.font.FontFamily 
     return remember(this) {
         when {
             assetFile != null ->
-                androidx.compose.ui.text.font.FontFamily(Font(assets, "$FONT_DIR/$assetFile"))
+                androidx.compose.ui.text.font.FontFamily(Font("$FONT_DIR/$assetFile", assets))
             this == EpubFont.SANS -> androidx.compose.ui.text.font.FontFamily.SansSerif
             else -> androidx.compose.ui.text.font.FontFamily.Serif
         }
