@@ -21,6 +21,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -67,6 +69,8 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     val showNav = currentRoute != Routes.READER && currentRoute != Routes.TRASH // full-screen flows
     val useRail = rememberScreenSize() != ScreenSize.Compact // adaptive: rail on medium/expanded
 
+    ContinueReadingEffect(navController, currentRoute)
+
     // Open-With/Share import is handled by Library: make sure it is on screen (whatever screen we were on).
     LaunchedEffect(hasIncomingImport, currentRoute) {
         if (hasIncomingImport && currentRoute != null && currentRoute != Routes.LIBRARY) {
@@ -111,6 +115,21 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
                 paperlyDestinations(navController)
             }
         }
+    }
+}
+
+/** Launcher shortcut "Continue reading": opens the most recently opened document (nothing if none yet). */
+@Composable
+private fun ContinueReadingEffect(
+    navController: NavHostController,
+    currentRoute: String?,
+    viewModel: ContinueReadingViewModel = hiltViewModel(),
+) {
+    val pending by viewModel.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pending) {
+        if (!pending) return@LaunchedEffect
+        val id = viewModel.consumeTarget()
+        if (id != null && currentRoute != Routes.READER) navController.navigate(Routes.reader(id))
     }
 }
 
