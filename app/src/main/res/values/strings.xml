@@ -99,6 +99,13 @@
     <string name="epub_search_empty">No results</string>
     <string name="epub_searching">Searching…</string>
     <string name="epub_close">Close</string>
+    <string name="epub_annotate">Annotate</string>
+    <string name="epub_tab_bookmarks">Bookmarks</string>
+    <string name="epub_tab_annotations">Annotations</string>
+    <string name="epub_empty_toc">This book has no table of contents.</string>
+    <string name="epub_empty_bookmarks">No bookmarks yet. Tap the star to add one.</string>
+    <string name="epub_empty_annotations">No annotations yet. Select text and choose Annotate.</string>
+    <string name="epub_copy">Copy</string>
     <string name="reader_view_reflow">Reflow view</string>
     <string name="reader_view_original">Original view</string>
     <string name="reader_reflow_unavailable">Text is not available for this page.</string>
