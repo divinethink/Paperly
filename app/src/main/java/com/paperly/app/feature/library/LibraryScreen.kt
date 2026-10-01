@@ -116,6 +116,7 @@ fun LibraryScreen(
             onNew = { dialog = LibraryDialog.NewFolder },
             onDelete = { state.selectedFolderId?.let(organize::deleteFolder) },
         )
+        ImageExportStatus()
         LibraryList(state, actions)
     }
 }
@@ -194,6 +195,7 @@ private fun DocumentList(docs: List<Document>, actions: DocumentActions) {
 private fun DocumentRow(doc: Document, actions: DocumentActions) {
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
+    val export = rememberDocumentExport(doc)
     Card(Modifier.fillMaxWidth().clickable(role = Role.Button) { actions.onOpen(doc) }) {
         Row(
             Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
@@ -213,15 +215,35 @@ private fun DocumentRow(doc: Document, actions: DocumentActions) {
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doc_more))
                 }
-                DocumentMenu(menuOpen, doc, actions) { menuOpen = false }
+                DocumentMenu(menuOpen, doc, actions, export) { menuOpen = false }
             }
         }
     }
 }
 
 @Composable
-private fun DocumentMenu(expanded: Boolean, doc: Document, actions: DocumentActions, onDismiss: () -> Unit) {
+private fun DocumentMenu(
+    expanded: Boolean,
+    doc: Document,
+    actions: DocumentActions,
+    export: DocumentExport,
+    onDismiss: () -> Unit,
+) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        listOfNotNull(
+            R.string.doc_share to export.share,
+            R.string.doc_save_copy to export.saveCopy,
+            export.print?.let { R.string.doc_print to it },
+            export.exportImages?.let { R.string.doc_export_images to it },
+        ).forEach { (label, action) ->
+            DropdownMenuItem(
+                text = { Text(stringResource(label)) },
+                onClick = {
+                    onDismiss()
+                    action()
+                },
+            )
+        }
         listOf(
             R.string.doc_rename to actions.onRename,
             R.string.doc_move to actions.onMove,
