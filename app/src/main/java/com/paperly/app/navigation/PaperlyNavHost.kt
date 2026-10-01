@@ -33,7 +33,7 @@ import com.paperly.app.R
 import com.paperly.app.core.ui.adaptive.ScreenSize
 import com.paperly.app.core.ui.adaptive.rememberScreenSize
 import com.paperly.app.feature.library.LibraryScreen
-import com.paperly.app.feature.reader.ReaderScreen
+import com.paperly.app.feature.reader.ReaderRoute
 import com.paperly.app.feature.scanner.ScanScreen
 import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.trash.TrashScreen
@@ -127,6 +127,6 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         Routes.READER,
         arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
     ) {
-        ReaderScreen(onBack = { navController.popBackStack() })
+        ReaderRoute(onBack = { navController.popBackStack() })
     }
 }
