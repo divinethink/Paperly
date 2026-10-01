@@ -16,10 +16,12 @@ object ExportFiles {
 
     fun mimeType(type: String): String = if (isPdf(type)) "application/pdf" else "application/epub+zip"
 
-    fun fileName(title: String, type: String): String {
-        val base = title.replace(unsafeChars, "_").trim().take(MAX_NAME).ifBlank { "document" }
-        return base + if (isPdf(type)) ".pdf" else ".epub"
-    }
+    fun baseName(title: String): String = title.replace(unsafeChars, "_").trim().take(MAX_NAME).ifBlank { "document" }
+
+    fun fileName(title: String, type: String): String = baseName(title) + if (isPdf(type)) ".pdf" else ".epub"
+
+    /** Image-export output folder (inside the FileProvider-exposed `exports/`; not wiped by document shares). */
+    fun imagesDir(context: Context): File = File(context.cacheDir, "$DIR/images").apply { mkdirs() }
 
     /** Copies [source] to a fresh export file (older exports removed); the original is never touched. */
     fun copyToExports(context: Context, source: File, name: String): File {
