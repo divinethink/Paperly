@@ -3,10 +3,16 @@ package com.paperly.app.domain.reader
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.Flow
 
-/** EPUB reading fonts (P3-C). Stored by [key]; unknown/missing values fall back to [SERIF]. */
-enum class EpubFont(val key: String) {
-    SERIF("serif"),
-    SANS("sans"),
+/**
+ * Reading fonts. Stored by [key]; unknown/missing values fall back to [SERIF]. [assetFile] = bundled TTF under
+ * `assets/fonts/` (null = system generic); [family] = the CSS family name registered with Readium (no spaces).
+ */
+enum class EpubFont(val key: String, val family: String, val assetFile: String? = null) {
+    SERIF("serif", "serif"),
+    SANS("sans", "sans-serif"),
+    HIND_SILIGURI("hind_siliguri", "HindSiliguri", "HindSiliguri-Regular.ttf"),
+    NOTO_SERIF_BENGALI("noto_serif_bengali", "NotoSerifBengali", "NotoSerifBengali-Regular.ttf"),
+    INTER("inter", "Inter", "Inter-Regular.ttf"),
     ;
 
     companion object {
