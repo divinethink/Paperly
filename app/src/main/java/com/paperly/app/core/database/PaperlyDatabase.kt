@@ -138,4 +138,6 @@ abstract class PaperlyDatabase : RoomDatabase() {
     abstract fun readerDao(): ReaderDao
 
     abstract fun annotationDao(): AnnotationDao
+
+    abstract fun backupExtrasDao(): BackupExtrasDao
 }
