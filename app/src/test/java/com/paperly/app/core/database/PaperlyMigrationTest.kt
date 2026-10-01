@@ -159,6 +159,28 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v5RectsColumnStoresMultiPartAndOldRowsReadNull() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.annotationDao()
+            dao.insert(AnnotationEntity("old", "d1", "1", "underline", null, 0.1f, 0.2f, 0.5f, 0.3f, null, 1L, 1L))
+            val json = "[[0.1,0.2,0.5,0.3]]"
+            val multi = AnnotationEntity("new", "d1", "1", "underline", null, 0.1f, 0.2f, 0.9f, 0.7f, null, 2L, 2L)
+                .copy(rects = json)
+            dao.insert(multi)
+            val rows = dao.observeForDocument("d1").first().associateBy { it.annotationId }
+            assertEquals(null, rows.getValue("old").rects)
+            assertEquals("[[0.1,0.2,0.5,0.3]]", rows.getValue("new").rects)
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =
