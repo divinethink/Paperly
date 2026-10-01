@@ -83,8 +83,18 @@ private fun AnnotationEntity.hasFiniteRect() =
     listOf(rectLeft, rectTop, rectRight, rectBottom).all { it.isFinite() }
 
 private fun AnnotationEntity.toBackup() = BackupAnnotation(
-    annotationId, documentId, locator, type, color,
-    rectLeft, rectTop, rectRight, rectBottom, noteText, createdAt, updatedAt,
+    annotationId = annotationId,
+    documentId = documentId,
+    locator = locator,
+    type = type,
+    color = color,
+    rectLeft = rectLeft,
+    rectTop = rectTop,
+    rectRight = rectRight,
+    rectBottom = rectBottom,
+    noteText = noteText,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
 )
 
 private fun BackupAnnotation.toEntity() = AnnotationEntity(
