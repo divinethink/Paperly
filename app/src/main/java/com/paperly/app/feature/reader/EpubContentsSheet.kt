@@ -74,9 +74,12 @@ internal fun EpubContentsPage(
         when (tab) {
             0 -> TocList(toc) { jumpLink(it.link) }
             1 -> BookmarkList(bookmarks, ::jump, viewModel::removeBookmark)
-            else -> NoteList(notes, ::jump) {
-                annotations.startEdit(it)
-                onDismiss()
+            else -> {
+                ShareEpubAnnotationsButton(notes, viewModel.uiState.value.title)
+                NoteList(notes, ::jump) {
+                    annotations.startEdit(it)
+                    onDismiss()
+                }
             }
         }
     }

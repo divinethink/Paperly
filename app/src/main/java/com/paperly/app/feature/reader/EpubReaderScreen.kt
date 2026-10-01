@@ -46,6 +46,7 @@ import org.readium.r2.shared.publication.Publication
 @Composable
 fun ReaderRoute(onBack: () -> Unit, viewModel: EpubReaderViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    ReadingTimeEffect()
     when {
         state.loading -> Unit
         !state.isEpub -> ReaderScreen(onBack = onBack)

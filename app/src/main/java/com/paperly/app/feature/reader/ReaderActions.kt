@@ -67,6 +67,7 @@ private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggl
                 },
             )
         }
+        SharePdfAnnotationsItem(viewModel) { open = false }
         DropdownMenuItem(
             text = { Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height)) },
             onClick = {
