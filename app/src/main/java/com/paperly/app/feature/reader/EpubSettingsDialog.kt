@@ -20,6 +20,8 @@ import com.paperly.app.domain.reader.EpubFont
 import com.paperly.app.domain.reader.EpubTypography
 import com.paperly.app.domain.reader.ReaderTheme
 
+private const val THEMES_PER_ROW = 3
+
 /** EPUB reading settings: font, size, line spacing, margin, theme (P3-C). Changes apply and persist immediately. */
 @Composable
 fun EpubSettingsDialog(
@@ -74,7 +76,7 @@ private fun Stepper(label: Int, value: String, onStep: (up: Boolean) -> Unit) {
 @Composable
 private fun ThemeChips(theme: ReaderTheme, onTheme: (ReaderTheme) -> Unit) {
     // Two rows so six chips fit a phone width.
-    ReaderTheme.entries.chunked(3).forEach { row ->
+    ReaderTheme.entries.chunked(THEMES_PER_ROW).forEach { row ->
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             row.forEach {
                 FilterChip(
