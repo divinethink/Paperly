@@ -170,4 +170,8 @@
     <string name="crash_notice_title">Paperly closed unexpectedly</string>
     <string name="crash_notice_body">Paperly stopped working last time. Sorry for the interruption.</string>
     <string name="crash_notice_ok">OK</string>
+    <string name="annotations_share">Share annotations</string>
+    <string name="continue_reading_label">Continue reading</string>
+    <string name="settings_reading_header">Reading</string>
+    <string name="settings_reading_today">Read today: %1$d min</string>
 </resources>
