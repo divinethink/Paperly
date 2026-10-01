@@ -39,6 +39,8 @@ data class AnnotationEntity(
     val noteText: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    /** v5: JSON `[[l,t,r,b],…]` page fractions (multi-part); null = single part (the four rect columns). */
+    val rects: String? = null,
 )
 
 @Dao
