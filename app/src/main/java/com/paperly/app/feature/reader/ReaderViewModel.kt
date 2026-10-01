@@ -153,6 +153,15 @@ class ReaderViewModel @Inject constructor(
         currentPage.value?.let { page -> viewModelScope.launch { save(page) } }
     }
 
+    private val _reflow = MutableStateFlow(false)
+
+    /** Reflow (text) view of the PDF instead of page images; not persisted, never touches saved progress. */
+    val reflow: StateFlow<Boolean> = _reflow.asStateFlow()
+
+    fun toggleReflow() {
+        _reflow.value = !_reflow.value
+    }
+
     fun setTheme(theme: ReaderTheme) {
         viewModelScope.launch { preferences.setTheme(theme) }
     }

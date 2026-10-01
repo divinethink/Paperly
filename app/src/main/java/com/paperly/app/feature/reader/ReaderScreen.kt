@@ -164,7 +164,7 @@ private fun ReaderContent(
                         onTap = { editor = AnnotationEditor(it.page, it.rect, it) },
                     )
                     val look = PageLook(fitHeight, pageFilter, highlights, hooks)
-                    PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
+                    PdfOrReflow(viewModel, state, listState, look)
                 }
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -180,6 +180,17 @@ private fun ReaderContent(
         }
     }
     AnnotationEditorHost(editor, viewModel.annotations) { editor = null }
+}
+
+/** Page images (default) or the text Reflow view (P3-G); Reflow is its own path and never alters PDF progress. */
+@Composable
+private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listState: LazyListState, look: PageLook) {
+    val reflow by viewModel.reflow.collectAsStateWithLifecycle()
+    if (reflow) {
+        ReflowPages(viewModel.search, state.pageCount)
+    } else {
+        PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
+    }
 }
 
 @Composable

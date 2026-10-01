@@ -51,7 +51,22 @@ private fun OverflowMenu(viewModel: ReaderViewModel, fitHeight: Boolean, onToggl
     IconButton(onClick = { open = true }) {
         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.reader_more))
     }
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        // Capability-aware: only readable, non-Bengali text layers (Architecture 11.3); otherwise no item.
+        if (search.available && !search.partialMatch) {
+            DropdownMenuItem(
+                text = {
+                    val label = if (reflow) R.string.reader_view_original else R.string.reader_view_reflow
+                    Text(stringResource(label))
+                },
+                onClick = {
+                    viewModel.toggleReflow()
+                    open = false
+                },
+            )
+        }
         DropdownMenuItem(
             text = { Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height)) },
             onClick = {

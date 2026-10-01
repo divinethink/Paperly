@@ -51,6 +51,9 @@ class ReaderSearchController(
         }
     }
 
+    /** Plain text of one page for the Reflow view; null if unavailable. */
+    suspend fun pageText(index: Int): String? = engine()?.pageText(index)
+
     fun toggle() {
         job?.cancel()
         _state.update {

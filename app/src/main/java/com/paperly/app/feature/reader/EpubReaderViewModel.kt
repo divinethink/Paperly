@@ -12,6 +12,7 @@ import com.paperly.app.domain.reader.ReaderStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,7 @@ data class EpubUiState(
     val title: String = "",
     val publication: Publication? = null,
     val initialLocator: Locator? = null,
+    val searchable: Boolean = false,
 )
 
 private const val PROGRESS_DEBOUNCE_MS = 800L
@@ -50,6 +52,9 @@ class EpubReaderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(EpubUiState())
     val uiState: StateFlow<EpubUiState> = _uiState.asStateFlow()
     private val latest = MutableStateFlow<Locator?>(null)
+    private var searchJob: Job? = null
+    private val _searchState = MutableStateFlow(EpubSearchState())
+    val searchState: StateFlow<EpubSearchState> = _searchState.asStateFlow()
 
     val isBookmarked: StateFlow<Boolean> = combine(
         (if (documentId.isEmpty()) emptyFlow() else readerState.observeBookmarkLocators(documentId)).map { it.toSet() },
@@ -78,6 +83,7 @@ class EpubReaderViewModel @Inject constructor(
             title = document.title,
             publication = publication,
             initialLocator = decodeLocator(readerState.getSavedLocator(documentId)),
+            searchable = publication?.let(::canSearch) == true,
         )
     }
 
@@ -92,6 +98,22 @@ class EpubReaderViewModel @Inject constructor(
 
     fun toggleBookmark() {
         latest.value?.let { viewModelScope.launch { readerState.toggleBookmarkLocator(documentId, bookmarkKey(it)) } }
+    }
+
+    /** Cancels any running search; a blank query just clears the results. */
+    fun search(query: String) {
+        searchJob?.cancel()
+        val publication = _uiState.value.publication
+        val text = query.trim()
+        if (publication == null || text.isEmpty()) {
+            _searchState.value = EpubSearchState(query = query)
+            return
+        }
+        _searchState.value = EpubSearchState(query = text, searching = true)
+        searchJob = viewModelScope.launch {
+            val hits = searchPublication(publication, text).orEmpty()
+            _searchState.value = EpubSearchState(query = text, hits = hits, searched = true)
+        }
     }
 
     private suspend fun save(locator: Locator) {
