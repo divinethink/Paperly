@@ -1,10 +1,7 @@
 package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,8 +29,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntSize
@@ -61,6 +58,7 @@ data class AnnotationHooks(
     val annotate: Boolean,
     val onCreate: (Int, MatchRect) -> Unit,
     val onTap: (Annotation) -> Unit,
+    val pending: PendingHooks,
 )
 
 /** Drag from [a] to [b] inside a page of [size] px -> normalised page-fraction rect, or null if degenerate. */
@@ -78,20 +76,21 @@ internal fun dragRect(a: Offset, b: Offset, size: IntSize): MatchRect? {
 }
 
 /**
- * In [annotate] mode a one-finger drag draws a new area ([onDraft] previews it); a plain tap on an existing
- * annotation edits it (any mode). Long-press was dropped: it failed twice on-device (Checklist Decision Log).
+ * In [annotate] mode a one-finger drag draws a new part or moves/resizes/removes a pending one ([edit]); a plain tap
+ * on an existing annotation edits it (any mode). Long-press was dropped: it failed twice on-device (Checklist
+ * Decision Log).
  */
 @Composable
-fun Modifier.annotationGestures(
+internal fun Modifier.annotationGestures(
     annotations: List<Annotation>,
     annotate: Boolean,
-    onDraft: (MatchRect?) -> Unit,
-    onCreate: (MatchRect) -> Unit,
+    edit: PendingEdit,
     onTap: (Annotation) -> Unit,
 ): Modifier {
-    val draft by rememberUpdatedState(onDraft)
-    val create by rememberUpdatedState(onCreate)
+    val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
+    val zoomOf = LocalPageZoom.current
+    val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
         .pointerInput(annotations) {
             detectTapGestures { pos ->
@@ -103,42 +102,24 @@ fun Modifier.annotationGestures(
             }
         }
         .pointerInput(annotate) {
-            if (annotate) awaitEachGesture { dragArea(onDraft = { draft(it) }, onCreate = { create(it) }) }
+            if (annotate) awaitEachGesture { pendingGesture(reachBase, zoomOf) { current } }
         }
-}
-
-/** Touch-slop, then drag from the touch-down point; a cancelled drag (e.g. second finger) creates nothing. */
-private suspend fun AwaitPointerEventScope.dragArea(onDraft: (MatchRect?) -> Unit, onCreate: (MatchRect) -> Unit) {
-    val down = awaitFirstDown(requireUnconsumed = false)
-    val slop = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() } ?: return
-    var end = slop.position
-    onDraft(dragRect(down.position, end, size))
-    val finished = drag(slop.id) { change ->
-        change.consume()
-        end = change.position
-        onDraft(dragRect(down.position, end, size))
-    }
-    onDraft(null)
-    if (finished) dragRect(down.position, end, size)?.let(onCreate)
 }
 
 fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
     val lineWidth = LineWidth.toPx() / maxOf(zoom, MIN_ZOOM)
     items.forEach { a ->
+        val topLeft = Offset(a.rect.left * size.width, a.rect.top * size.height)
+        val area = Size((a.rect.right - a.rect.left) * size.width, (a.rect.bottom - a.rect.top) * size.height)
+        val lineY = if (a.type == AnnotationType.STRIKETHROUGH) topLeft.y + area.height / 2 else topLeft.y + area.height
         val base = (a.color ?: AnnotationColor.defaultFor(a.type)).argb()
-        a.rects.forEach { r ->
-            val topLeft = Offset(r.left * size.width, r.top * size.height)
-            val area = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height)
-            val strike = a.type == AnnotationType.STRIKETHROUGH
-            val lineY = topLeft.y + if (strike) area.height / 2 else area.height
-            when (a.type) {
-                AnnotationType.HIGHLIGHT -> drawRect(base.copy(alpha = HIGHLIGHT_ALPHA), topLeft, area)
-                AnnotationType.NOTE -> {
-                    drawRect(NoteFill, topLeft, area)
-                    drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
-                }
-                else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
+        when (a.type) {
+            AnnotationType.HIGHLIGHT -> drawRect(base.copy(alpha = HIGHLIGHT_ALPHA), topLeft, area)
+            AnnotationType.NOTE -> {
+                drawRect(NoteFill, topLeft, area)
+                drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
             }
+            else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
         }
     }
 }

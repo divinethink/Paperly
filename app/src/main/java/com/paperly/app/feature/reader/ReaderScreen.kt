@@ -132,7 +132,7 @@ private fun ReaderContent(
     val annotations by viewModel.annotations.items.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
-    val annotateStyle by viewModel.annotations.style.collectAsStateWithLifecycle()
+    val pending by viewModel.annotations.pending.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
     var editor by remember { mutableStateOf<AnnotationEditor?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -151,7 +151,7 @@ private fun ReaderContent(
             }
         }
         if (search.open) SearchBar(viewModel.search, search)
-        if (annotate) PdfAnnotateStrip(annotateStyle, viewModel.annotations::setStyle)
+        PdfAnnotateBars(viewModel.annotations, annotate) { editor = it }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val doc = state.document
             when {
@@ -159,7 +159,7 @@ private fun ReaderContent(
                 doc == null -> Text(stringResource(R.string.reader_missing))
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
-                    val hooks = annotationHooks(annotations, annotate, viewModel) { editor = it }
+                    val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
                     val look = PageLook(fitHeight, pageFilter, highlights, hooks)
                     PdfOrReflow(viewModel, state, listState, look)
                 }
@@ -179,19 +179,19 @@ private fun ReaderContent(
     AnnotationEditorHost(editor, viewModel.annotations) { editor = null }
 }
 
-/** A dragged area saves at once with the pencil-strip style; only a Note (or tapping one) opens the dialog. */
+/** Dragged areas become pending parts (committed together with Done); tapping a saved annotation opens its dialog. */
 private fun annotationHooks(
     items: List<Annotation>,
     annotate: Boolean,
-    viewModel: ReaderViewModel,
+    controller: AnnotationController,
+    pending: PendingParts?,
     openEditor: (AnnotationEditor) -> Unit,
 ) = AnnotationHooks(
     items = items.groupBy { it.page },
     annotate = annotate,
-    onCreate = { page, rect ->
-        if (!viewModel.annotations.saveDirect(page, rect)) openEditor(AnnotationEditor(page, rect, null))
-    },
+    onCreate = controller::addPending,
     onTap = { openEditor(AnnotationEditor(it.page, it.rect, it)) },
+    pending = PendingHooks(pending, controller::changePending, controller::removePending),
 )
 
 /** Page images (default) or the text Reflow view (P3-G); Reflow is its own path and never alters PDF progress. */
@@ -275,14 +275,11 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     val current = shown
     val ratio = if (current != null) current.width.toFloat() / current.height else spec.aspect
     var draft by remember(index) { mutableStateOf<MatchRect?>(null) }
+    var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
-    val gestures = Modifier.annotationGestures(
-        annotations = spec.annotations,
-        annotate = spec.hooks.annotate,
-        onDraft = { draft = it },
-        onCreate = { spec.hooks.onCreate(index, it) },
-        onTap = spec.hooks.onTap,
-    )
+    val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
+    val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, spec.hooks.onTap)
+    val picture = remember(current) { current?.asImageBitmap() }
     Box(
         Modifier.fillMaxWidth().aspectRatio(ratio).then(gestures).drawWithContent {
             drawContent()
@@ -294,7 +291,10 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                 )
             }
             drawAnnotations(spec.annotations, zoomOf())
+            drawPending(edit.rects, zoomOf())
             draft?.let { drawDraft(it) }
+            val touch = finger
+            if (touch != null && picture != null) drawLoupe(picture, touch, zoomOf(), spec.filter)
         },
         contentAlignment = Alignment.Center,
     ) {
