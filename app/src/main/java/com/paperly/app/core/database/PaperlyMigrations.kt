@@ -66,6 +66,19 @@ object PaperlyMigrations {
         }
     }
 
+    /** v5 → v6: add `scan_pages` (per-page title/note of scanned documents; FK → documents, CASCADE). */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `scan_pages` (`documentId` TEXT NOT NULL, `pageIndex` INTEGER NOT NULL, " +
+                    "`title` TEXT, `note` TEXT, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`documentId`, `pageIndex`), " +
+                    "FOREIGN KEY(`documentId`) REFERENCES `documents`(`documentId`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }
