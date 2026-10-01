@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -71,27 +72,25 @@ private fun EpubReaderScreen(
     val prefs = typography.toReadium(theme, isSystemInDarkTheme())
     val toc = remember(state.publication) { state.publication?.let { flattenToc(it.tableOfContents) }.orEmpty() }
     var showToc by rememberSaveable { mutableStateOf(false) }
+    var showSearch by rememberSaveable { mutableStateOf(false) }
     FlushOnPause(viewModel::flushProgress)
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        val actions = EpubBarActions(onBack, { showToc = true }, viewModel::toggleBookmark) { showSettings = true }
-        EpubTopBar(state.title, EpubBarState(toc.isNotEmpty(), bookmarked), actions)
+        val actions = EpubBarActions(
+            onBack = onBack,
+            onToc = { showToc = true },
+            onBookmark = viewModel::toggleBookmark,
+            onSearch = { showSearch = true },
+            onSettings = { showSettings = true },
+        )
+        EpubTopBar(state.title, EpubBarState(toc.isNotEmpty(), state.searchable, bookmarked), actions)
         if (state.publication == null) {
             Text(stringResource(R.string.reader_epub_failed))
         } else {
             EpubNavigatorHost(state.publication, prefs, state.initialLocator, viewModel::onLocator)
         }
     }
-    if (showToc) {
-        val activity = LocalContext.current as FragmentActivity
-        EpubTocDialog(
-            entries = toc,
-            onSelect = {
-                EpubFragmentHost.navigator(activity)?.go(it.link, animated = false)
-                showToc = false
-            },
-            onDismiss = { showToc = false },
-        )
-    }
+    if (showToc) EpubTocEntry(toc) { showToc = false }
+    if (showSearch) EpubSearchEntry(viewModel) { showSearch = false }
     if (showSettings) {
         EpubSettingsDialog(
             typography = typography,
@@ -103,12 +102,13 @@ private fun EpubReaderScreen(
     }
 }
 
-internal data class EpubBarState(val hasToc: Boolean, val bookmarked: Boolean)
+internal data class EpubBarState(val hasToc: Boolean, val canSearch: Boolean, val bookmarked: Boolean)
 
 internal class EpubBarActions(
     val onBack: () -> Unit,
     val onToc: () -> Unit,
     val onBookmark: () -> Unit,
+    val onSearch: () -> Unit,
     val onSettings: () -> Unit,
 )
 
@@ -123,6 +123,11 @@ private fun EpubTopBar(title: String, bar: EpubBarState, actions: EpubBarActions
         if (bar.hasToc) {
             IconButton(onClick = actions.onToc) {
                 Icon(Icons.Filled.Menu, contentDescription = stringResource(R.string.epub_toc))
+            }
+        }
+        if (bar.canSearch) {
+            IconButton(onClick = actions.onSearch) {
+                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.epub_search))
             }
         }
         IconButton(onClick = actions.onBookmark) {

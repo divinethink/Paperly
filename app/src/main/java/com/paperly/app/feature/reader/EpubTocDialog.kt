@@ -11,13 +11,29 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import com.paperly.app.R
+
+/** Hooks the chapter list to the live navigator. */
+@Composable
+internal fun EpubTocEntry(entries: List<TocEntry>, onDismiss: () -> Unit) {
+    val activity = LocalContext.current as FragmentActivity
+    EpubTocDialog(
+        entries = entries,
+        onSelect = {
+            EpubFragmentHost.navigator(activity)?.go(it.link, animated = false)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+    )
+}
 
 /** Chapter list (P3-D). Tapping an entry jumps there; touch rows are >= 48dp. */
 @Composable
-internal fun EpubTocDialog(entries: List<TocEntry>, onSelect: (TocEntry) -> Unit, onDismiss: () -> Unit) {
+private fun EpubTocDialog(entries: List<TocEntry>, onSelect: (TocEntry) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.epub_toc)) },
