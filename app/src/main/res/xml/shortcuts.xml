@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="continue_reading"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/continue_reading_label"
+        android:shortcutLongLabel="@string/continue_reading_label">
+        <intent
+            android:action="com.paperly.app.action.CONTINUE_READING"
+            android:targetClass="com.paperly.app.MainActivity"
+            android:targetPackage="com.paperly.app" />
+    </shortcut>
+</shortcuts>
