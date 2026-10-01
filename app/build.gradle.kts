@@ -80,6 +80,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.pdf.document.service) // P2 PDF engine (document API only; Viewer = our Compose UI)
+    implementation(libs.mlkit.document.scanner) // P4 scanner (on-device UI via Play Services)
     implementation(libs.readium.shared) // P3-A spike: EPUB engine candidate (BSD-3)
     implementation(libs.readium.streamer)
     implementation(libs.readium.navigator)
