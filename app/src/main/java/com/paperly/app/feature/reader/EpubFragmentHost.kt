@@ -1,7 +1,9 @@
 package com.paperly.app.feature.reader
 
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentFactory
+import com.paperly.app.R
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 
 /**
@@ -16,4 +18,8 @@ object EpubFragmentHost : FragmentFactory() {
         if (className != EpubNavigatorFragment::class.java.name) return super.instantiate(classLoader, className)
         return delegate?.instantiate(classLoader, className) ?: Fragment()
     }
+
+    /** The live navigator, or null before it is attached. */
+    fun navigator(activity: FragmentActivity): EpubNavigatorFragment? =
+        activity.supportFragmentManager.findFragmentById(R.id.epub_fragment_container) as? EpubNavigatorFragment
 }
