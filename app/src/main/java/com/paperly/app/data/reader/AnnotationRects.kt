@@ -41,7 +41,7 @@ object AnnotationRects {
         if (length() != RECT_VALUES) return null
         val v = List(RECT_VALUES) { optDouble(it, Double.NaN) }
         if (!v.all { it.isFinite() && it in 0.0..1.0 }) return null
-        val (l, t, r, b) = v
-        return MatchRect(l.toFloat(), t.toFloat(), r.toFloat(), b.toFloat())
+        val f = v.map { it.toFloat() }
+        return MatchRect(f.first(), f[1], f[2], f.last())
     }
 }
