@@ -2,6 +2,7 @@ package com.paperly.app.data.reader
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -34,6 +35,7 @@ class EpubTypographyStoreImpl @Inject constructor(
                 fontScale = it[SCALE_KEY] ?: EpubTypography.DEFAULT_SCALE,
                 lineSpacing = it[LINE_KEY] ?: EpubTypography.DEFAULT_LINE,
                 margin = it[MARGIN_KEY] ?: EpubTypography.DEFAULT_MARGIN,
+                scroll = it[SCROLL_KEY] ?: false,
             ).coerced()
         }
 
@@ -44,6 +46,7 @@ class EpubTypographyStoreImpl @Inject constructor(
             it[SCALE_KEY] = safe.fontScale
             it[LINE_KEY] = safe.lineSpacing
             it[MARGIN_KEY] = safe.margin
+            it[SCROLL_KEY] = safe.scroll
         }
     }
 
@@ -52,6 +55,7 @@ class EpubTypographyStoreImpl @Inject constructor(
         val SCALE_KEY = floatPreferencesKey("epub_font_scale")
         val LINE_KEY = floatPreferencesKey("epub_line_spacing")
         val MARGIN_KEY = floatPreferencesKey("epub_margin")
+        val SCROLL_KEY = booleanPreferencesKey("epub_scroll")
     }
 }
 
