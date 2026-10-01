@@ -95,7 +95,7 @@ class ReaderViewModel @Inject constructor(
                 return@launch
             }
             repository.markOpened(documentId)
-            _uiState.value = if (document.type == DocumentType.PDF) {
+            _uiState.value = if (document.type == DocumentType.PDF || document.type == DocumentType.SCANNED_PDF) {
                 openPdf(document)
             } else {
                 failed(document, ReaderError.UNSUPPORTED)
