@@ -2,6 +2,7 @@ package com.paperly.app.data.reader
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.PointF
 import android.graphics.RectF
 import android.net.Uri
 import android.util.Size
@@ -11,6 +12,7 @@ import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderCapabilities
 import com.paperly.app.domain.reader.ReaderEngine
+import com.paperly.app.domain.reader.TextSelection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -24,7 +26,7 @@ class PdfReaderEngine @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ReaderEngine {
 
-    override val capabilities = ReaderCapabilities(supportsSearch = true)
+    override val capabilities = ReaderCapabilities(supportsSearch = true, supportsTextSelection = true)
     private var document: PdfDocument? = null
 
     override suspend fun open(file: File, password: String?): OpenResult {
@@ -92,6 +94,26 @@ class PdfReaderEngine @Inject constructor(
                 result[page] = normalized(doc, page, boxes)
             }
             result
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override suspend fun selectText(page: Int, x1: Float, y1: Float, x2: Float, y2: Float): TextSelection? {
+        val doc = document ?: return null
+        return try {
+            val info = doc.getPageInfo(page)
+            if (info.width <= 0 || info.height <= 0) return null
+            val w = info.width.toFloat()
+            val h = info.height.toFloat()
+            val picked = doc.getSelectionBounds(page, PointF(x1 * w, y1 * h), PointF(x2 * w, y2 * h)) ?: return null
+            val parts = picked.selectedTextContents
+            val rects = parts.flatMap { it.bounds }
+                .map { MatchRect(it.left / w, it.top / h, it.right / w, it.bottom / h) }
+                .filter { it.right > it.left && it.bottom > it.top }
+            if (rects.isEmpty()) null else TextSelection(rects, parts.joinToString(" ") { it.text })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
