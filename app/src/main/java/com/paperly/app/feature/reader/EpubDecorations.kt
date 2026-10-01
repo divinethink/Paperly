@@ -63,8 +63,7 @@ internal fun EpubAnnotationHost(editor: EpubAnnotationEditor?, controller: EpubA
     AnnotationEditorDialog(
         key = current,
         existing = current.existing?.toDialogModel(),
-        onSave = { controller.save(current, it) },
-        onDelete = controller::delete,
-        onClose = controller::close,
+        initialType = controller.style.value.type,
+        callbacks = EditorCallbacks({ controller.save(current, it) }, controller::delete, controller::close),
     )
 }

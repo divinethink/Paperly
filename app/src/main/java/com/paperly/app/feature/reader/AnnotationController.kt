@@ -1,8 +1,11 @@
 package com.paperly.app.feature.reader
 
+import com.paperly.app.domain.reader.AnnotateStyle
+import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationRepository
+import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +24,7 @@ data class AnnotationEditor(val page: Int, val rect: MatchRect, val existing: An
 class AnnotationController(
     private val scope: CoroutineScope,
     private val repository: AnnotationRepository,
+    private val styleStore: AnnotateStyleStore,
     private val documentId: String,
 ) {
     val items: StateFlow<List<Annotation>> =
@@ -33,6 +37,22 @@ class AnnotationController(
     val annotateMode: StateFlow<Boolean> = annotateOn.asStateFlow()
 
     fun toggleMode() = annotateOn.update { !it }
+
+    /** Type + color chosen in the pencil strip; persisted, so no per-annotation color prompt. */
+    val style: StateFlow<AnnotateStyle> =
+        styleStore.style.stateIn(scope, SharingStarted.Eagerly, AnnotateStyle())
+
+    fun setStyle(style: AnnotateStyle) {
+        scope.launch { styleStore.save(style) }
+    }
+
+    /** Saves a dragged [rect] with the chosen style at once; false = a Note, which still needs its text dialog. */
+    fun saveDirect(page: Int, rect: MatchRect): Boolean {
+        val chosen = style.value
+        if (chosen.type == AnnotationType.NOTE) return false
+        scope.launch { repository.add(documentId, page, rect, AnnotationContent(chosen.type, chosen.color, null)) }
+        return true
+    }
 
     fun save(editor: AnnotationEditor, content: AnnotationContent) {
         scope.launch {

@@ -9,6 +9,7 @@ import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
+import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderEngine
@@ -51,6 +52,7 @@ class ReaderViewModel @Inject constructor(
     private val repository: DocumentRepository,
     private val readerState: ReaderStateRepository,
     annotationRepository: AnnotationRepository,
+    annotateStyleStore: AnnotateStyleStore,
     private val preferences: ReaderPreferences,
     private val fileStore: DocumentFileStore,
     // Provider = lazy: the engine is created only when a PDF is actually opened (Rule #10).
@@ -73,7 +75,7 @@ class ReaderViewModel @Inject constructor(
         currentPage = { currentPage.value ?: 0 },
     )
 
-    val annotations = AnnotationController(viewModelScope, annotationRepository, documentId)
+    val annotations = AnnotationController(viewModelScope, annotationRepository, annotateStyleStore, documentId)
 
     val theme: StateFlow<ReaderTheme> = preferences.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ReaderTheme.AUTO)

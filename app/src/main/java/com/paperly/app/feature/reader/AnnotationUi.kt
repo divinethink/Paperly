@@ -151,22 +151,30 @@ fun AnnotationEditorHost(editor: AnnotationEditor?, controller: AnnotationContro
     AnnotationEditorDialog(
         key = current,
         existing = current.existing,
-        onSave = { controller.save(current, it) },
-        onDelete = controller::delete,
-        onClose = onClose,
+        initialType = controller.style.value.type,
+        callbacks = EditorCallbacks({ controller.save(current, it) }, controller::delete, onClose),
     )
 }
+
+/** Dialog exits bundled, so the dialog signature stays within the detekt parameter limit. */
+internal class EditorCallbacks(
+    val onSave: (AnnotationContent) -> Unit,
+    val onDelete: (String) -> Unit,
+    val onClose: () -> Unit,
+)
 
 /** Shared by PDF and EPUB: [key] resets the fields when a different annotation is edited. */
 @Composable
 internal fun AnnotationEditorDialog(
     key: Any,
     existing: Annotation?,
-    onSave: (AnnotationContent) -> Unit,
-    onDelete: (String) -> Unit,
-    onClose: () -> Unit,
+    initialType: AnnotationType,
+    callbacks: EditorCallbacks,
 ) {
-    var type by remember(key) { mutableStateOf(existing?.type ?: AnnotationType.UNDERLINE) }
+    val onSave = callbacks.onSave
+    val onDelete = callbacks.onDelete
+    val onClose = callbacks.onClose
+    var type by remember(key) { mutableStateOf(existing?.type ?: initialType) }
     var color by remember(key) { mutableStateOf(existing?.color) }
     var note by remember(key) { mutableStateOf(existing?.noteText.orEmpty()) }
     val isNote = type == AnnotationType.NOTE

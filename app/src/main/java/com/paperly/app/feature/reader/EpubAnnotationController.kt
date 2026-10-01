@@ -1,34 +1,41 @@
 package com.paperly.app.feature.reader
 
+import com.paperly.app.domain.reader.AnnotateStyle
+import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.Annotation
-import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.EpubAnnotation
 import com.paperly.app.domain.reader.EpubAnnotationRepository
 import com.paperly.app.domain.reader.MatchRect
 import kotlinx.coroutines.CoroutineScope
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** [locatorJson] = the new selection (existing == null), or [existing] being edited. */
 data class EpubAnnotationEditor(val locatorJson: String?, val existing: EpubAnnotation?)
 
-/** Annotate-mode style: type + color applied straight to a text selection. */
-data class EpubAnnotateStyle(
-    val type: AnnotationType = AnnotationType.UNDERLINE,
-    val color: AnnotationColor = AnnotationColor.RED,
-)
+/** Injected into the ViewModel (keeps its constructor small); builds the per-document controller. */
+class EpubAnnotationControllerFactory @Inject constructor(
+    private val repository: EpubAnnotationRepository,
+    private val styleStore: AnnotateStyleStore,
+) {
+    fun create(scope: CoroutineScope, documentId: String) =
+        EpubAnnotationController(scope, repository, styleStore, documentId)
+}
 
 /** Reader-side EPUB annotation state; persistence via [EpubAnnotationRepository]. */
 class EpubAnnotationController(
     private val scope: CoroutineScope,
     private val repository: EpubAnnotationRepository,
+    private val styleStore: AnnotateStyleStore,
     private val documentId: String,
 ) {
     val items: StateFlow<List<EpubAnnotation>> =
@@ -40,24 +47,28 @@ class EpubAnnotationController(
 
     private val _mode = MutableStateFlow(false)
     val mode: StateFlow<Boolean> = _mode.asStateFlow()
-    private val _style = MutableStateFlow(EpubAnnotateStyle())
-    val style: StateFlow<EpubAnnotateStyle> = _style.asStateFlow()
+
+    // Readium has no strikethrough decoration, so a style picked in the PDF reader reads as underline here.
+    val style: StateFlow<AnnotateStyle> = styleStore.style
+        .map { if (it.type == AnnotationType.STRIKETHROUGH) it.copy(type = AnnotationType.UNDERLINE) else it }
+        .stateIn(scope, SharingStarted.Eagerly, AnnotateStyle())
 
     fun toggleMode() {
         _mode.value = !_mode.value
     }
 
-    fun setStyle(style: EpubAnnotateStyle) {
-        _style.value = style
+    fun setStyle(style: AnnotateStyle) {
+        scope.launch { styleStore.save(style) }
     }
 
-    /** Annotate mode ON: save with the chosen style at once (Note still asks for text); OFF: open the dialog. */
+    /** Menu "Annotate": save with the chosen style at once, never asking for a color (Note still asks for text). */
     fun onSelection(locatorJson: String) {
-        val style = _style.value
-        if (!_mode.value || style.type == AnnotationType.NOTE) {
+        val chosen = style.value
+        if (chosen.type == AnnotationType.NOTE) {
             startNew(locatorJson)
         } else {
-            scope.launch { repository.add(documentId, locatorJson, AnnotationContent(style.type, style.color, null)) }
+            val content = AnnotationContent(chosen.type, chosen.color, null)
+            scope.launch { repository.add(documentId, locatorJson, content) }
         }
     }
 

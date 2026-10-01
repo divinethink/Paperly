@@ -15,13 +15,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
 
-// Strikethrough is omitted: Readium decorations have no strikethrough style.
-private val STRIP_TYPES = listOf(
+// EPUB omits strikethrough: Readium decorations have no strikethrough style.
+private val EPUB_STRIP_TYPES = listOf(
     AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
     AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
+    AnnotationType.NOTE to R.string.reader_annotation_note,
+)
+private val PDF_STRIP_TYPES = listOf(
+    AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
+    AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
+    AnnotationType.STRIKETHROUGH to R.string.reader_annotation_strikethrough,
     AnnotationType.NOTE to R.string.reader_annotation_note,
 )
 
@@ -32,15 +39,24 @@ internal fun EpubTopOverlay(bar: EpubBarState, actions: EpubBarActions, annotati
     val style by annotations.style.collectAsStateWithLifecycle()
     Column {
         EpubTopBar(bar.copy(annotating = annotating), actions)
-        if (annotating) EpubAnnotateStrip(style, annotations::setStyle)
+        if (annotating) AnnotateStrip(style, EPUB_STRIP_TYPES, annotations::setStyle)
     }
 }
 
+/** PDF Annotate strip (same look as EPUB); shown only while the pencil is on. */
 @Composable
-private fun EpubAnnotateStrip(style: EpubAnnotateStyle, onStyle: (EpubAnnotateStyle) -> Unit) {
+internal fun PdfAnnotateStrip(style: AnnotateStyle, onStyle: (AnnotateStyle) -> Unit) =
+    AnnotateStrip(style, PDF_STRIP_TYPES, onStyle)
+
+@Composable
+private fun AnnotateStrip(
+    style: AnnotateStyle,
+    types: List<Pair<AnnotationType, Int>>,
+    onStyle: (AnnotateStyle) -> Unit,
+) {
     Column(Modifier.fillMaxWidth().background(barColor()).padding(horizontal = 8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            STRIP_TYPES.forEach { (type, label) ->
+            types.forEach { (type, label) ->
                 FilterChip(
                     selected = style.type == type,
                     onClick = { onStyle(style.copy(type = type)) },

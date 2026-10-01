@@ -8,7 +8,6 @@ import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.data.reader.EpubPublicationOpener
 import com.paperly.app.domain.document.DocumentRepository
-import com.paperly.app.domain.reader.EpubAnnotationRepository
 import com.paperly.app.domain.reader.ReaderStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -48,12 +47,12 @@ class EpubReaderViewModel @Inject constructor(
     private val fileStore: DocumentFileStore,
     private val opener: EpubPublicationOpener,
     private val readerState: ReaderStateRepository,
-    annotationRepository: EpubAnnotationRepository,
+    annotationFactory: EpubAnnotationControllerFactory,
 ) : ViewModel() {
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
     private val _uiState = MutableStateFlow(EpubUiState())
     val uiState: StateFlow<EpubUiState> = _uiState.asStateFlow()
-    val annotations = EpubAnnotationController(viewModelScope, annotationRepository, documentId)
+    val annotations = annotationFactory.create(viewModelScope, documentId)
     private val latest = MutableStateFlow<Locator?>(null)
     private var searchJob: Job? = null
     private val _searchState = MutableStateFlow(EpubSearchState())

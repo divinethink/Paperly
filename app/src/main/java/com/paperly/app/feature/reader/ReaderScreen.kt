@@ -132,6 +132,7 @@ private fun ReaderContent(
     val annotations by viewModel.annotations.items.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
+    val annotateStyle by viewModel.annotations.style.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
     var editor by remember { mutableStateOf<AnnotationEditor?>(null) }
     Column(Modifier.fillMaxSize()) {
@@ -150,6 +151,7 @@ private fun ReaderContent(
             }
         }
         if (search.open) SearchBar(viewModel.search, search)
+        if (annotate) PdfAnnotateStrip(annotateStyle, viewModel.annotations::setStyle)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val doc = state.document
             when {
@@ -157,12 +159,7 @@ private fun ReaderContent(
                 doc == null -> Text(stringResource(R.string.reader_missing))
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
-                    val hooks = AnnotationHooks(
-                        items = annotations.groupBy { it.page },
-                        annotate = annotate,
-                        onCreate = { page, rect -> editor = AnnotationEditor(page, rect, null) },
-                        onTap = { editor = AnnotationEditor(it.page, it.rect, it) },
-                    )
+                    val hooks = annotationHooks(annotations, annotate, viewModel) { editor = it }
                     val look = PageLook(fitHeight, pageFilter, highlights, hooks)
                     PdfOrReflow(viewModel, state, listState, look)
                 }
@@ -181,6 +178,21 @@ private fun ReaderContent(
     }
     AnnotationEditorHost(editor, viewModel.annotations) { editor = null }
 }
+
+/** A dragged area saves at once with the pencil-strip style; only a Note (or tapping one) opens the dialog. */
+private fun annotationHooks(
+    items: List<Annotation>,
+    annotate: Boolean,
+    viewModel: ReaderViewModel,
+    openEditor: (AnnotationEditor) -> Unit,
+) = AnnotationHooks(
+    items = items.groupBy { it.page },
+    annotate = annotate,
+    onCreate = { page, rect ->
+        if (!viewModel.annotations.saveDirect(page, rect)) openEditor(AnnotationEditor(page, rect, null))
+    },
+    onTap = { openEditor(AnnotationEditor(it.page, it.rect, it)) },
+)
 
 /** Page images (default) or the text Reflow view (P3-G); Reflow is its own path and never alters PDF progress. */
 @Composable
