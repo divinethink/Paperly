@@ -40,9 +40,24 @@ class DocumentRepositoryImpl @Inject constructor(
 
     override suspend fun importDocument(sourceUri: String, allowDuplicate: Boolean): ImportResult {
         val uri = Uri.parse(sourceUri)
-        val (name, mime) = withContext(Dispatchers.IO) { queryName(uri) to context.contentResolver.getType(uri) }
+        val (name, mime) = withContext(Dispatchers.IO) {
+            queryName(context, uri) to context.contentResolver.getType(uri)
+        }
         val type = detectType(name, mime) ?: return ImportResult.UnsupportedType
+        return storeAndInsert(uri, name, type, allowDuplicate)
+    }
 
+    override suspend fun importScan(pdfUri: String, title: String): ImportResult {
+        val uri = Uri.parse(pdfUri)
+        val result = storeAndInsert(uri, "$title.pdf", DocumentType.SCANNED_PDF, allowDuplicate = false)
+        // The scanner's temp PDF is app-private: drop it once our own copy is safely stored (best-effort).
+        if (result !is ImportResult.Failed && uri.scheme == "file") {
+            withContext(Dispatchers.IO) { runCatching { uri.path?.let { java.io.File(it).delete() } } }
+        }
+        return result
+    }
+
+    private suspend fun storeAndInsert(uri: Uri, name: String?, type: String, allowDuplicate: Boolean): ImportResult {
         val id = UUID.randomUUID().toString()
         val stored = try {
             fileStore.store(uri, id)
@@ -101,22 +116,22 @@ class DocumentRepositoryImpl @Inject constructor(
     private suspend fun cleanup(id: String) {
         withContext(NonCancellable) { fileStore.delete(id) }
     }
+}
 
-    private fun queryName(uri: Uri): String? = try {
-        context.contentResolver
-            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-    } catch (e: Exception) {
-        null
-    }
+private fun queryName(context: Context, uri: Uri): String? = try {
+    context.contentResolver
+        .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+} catch (e: Exception) {
+    null
+}
 
-    private fun detectType(name: String?, mime: String?): String? {
-        val ext = name?.substringAfterLast('.', "")?.lowercase()
-        return when {
-            ext == "pdf" || mime == "application/pdf" -> DocumentType.PDF
-            ext == "epub" || mime == "application/epub+zip" -> DocumentType.EPUB
-            else -> null
-        }
+private fun detectType(name: String?, mime: String?): String? {
+    val ext = name?.substringAfterLast('.', "")?.lowercase()
+    return when {
+        ext == "pdf" || mime == "application/pdf" -> DocumentType.PDF
+        ext == "epub" || mime == "application/epub+zip" -> DocumentType.EPUB
+        else -> null
     }
 }
 
