@@ -46,7 +46,7 @@ import org.readium.r2.shared.publication.Locator
 
 private const val BAR_ALPHA = 0.95f
 private const val PERCENT = 100
-private const val NAV_BUTTON_DP = 44
+private const val NAV_BUTTON_DP = 48
 private const val CONTENTS_PULL_DP = 6
 
 @Composable
