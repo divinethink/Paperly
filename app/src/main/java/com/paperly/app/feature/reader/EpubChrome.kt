@@ -114,7 +114,7 @@ internal fun EpubTopBar(bar: EpubBarState, actions: EpubBarActions, modifier: Mo
 
 /** Thin progress line + "chapter ... percent" (from the live locator; whole-book progress). */
 @Composable
-internal fun EpubBottomBar(locator: Locator?, modifier: Modifier = Modifier) {
+internal fun EpubBottomBar(locator: Locator?, minutesLeft: Int?, modifier: Modifier = Modifier) {
     val fraction = (locator?.locations?.totalProgression ?: 0.0).toFloat().coerceIn(0f, 1f)
     Column(modifier.fillMaxWidth().background(barColor()).navigationBarsPadding()) {
         LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
@@ -126,7 +126,9 @@ internal fun EpubBottomBar(locator: Locator?, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelMedium,
             )
-            Text("${(fraction * PERCENT).roundToInt()}%", style = MaterialTheme.typography.labelMedium)
+            val percent = "${(fraction * PERCENT).roundToInt()}%"
+            val label = minutesLeft?.let { stringResource(R.string.reader_minutes_and_percent, it, percent) } ?: percent
+            Text(label, style = MaterialTheme.typography.labelMedium)
         }
     }
 }

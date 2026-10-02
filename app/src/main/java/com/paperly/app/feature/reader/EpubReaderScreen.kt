@@ -60,6 +60,7 @@ fun ReaderRoute(
             else -> EpubReaderScreen(state, viewModel, onBack)
         }
         BlueLightOverlay(comfort.blueLight)
+        OrientationToggle(Modifier.align(Alignment.BottomEnd))
     }
 }
 
@@ -69,12 +70,14 @@ private fun EpubReaderScreen(
     viewModel: EpubReaderViewModel,
     onBack: () -> Unit,
     settingsViewModel: EpubSettingsViewModel = hiltViewModel(),
+    pace: ReadingPaceViewModel = hiltViewModel(),
 ) {
     val typography by settingsViewModel.typography.collectAsStateWithLifecycle()
     val theme by settingsViewModel.theme.collectAsStateWithLifecycle()
     val bookmarked by viewModel.isBookmarked.collectAsStateWithLifecycle()
     val position by viewModel.position.collectAsStateWithLifecycle()
     val editor by viewModel.annotations.editor.collectAsStateWithLifecycle()
+    val minutesLeft = rememberMinutesLeft(position, pace)
     val prefs = typography.toReadium(theme, isSystemInDarkTheme())
     val toc = remember(state.publication) { state.publication?.let { flattenToc(it.tableOfContents) }.orEmpty() }
     var showSettings by rememberSaveable { mutableStateOf(false) }
@@ -110,7 +113,7 @@ private fun EpubReaderScreen(
             EpubTopOverlay(EpubBarState(state.searchable, bookmarked), actions, viewModel.annotations)
         }
         AnimatedVisibility(barsVisible, Modifier.align(Alignment.BottomStart), enter = fadeIn(), exit = fadeOut()) {
-            EpubBottomBar(position)
+            EpubBottomBar(position, minutesLeft)
         }
         EpubContentsPage(showContents, toc, viewModel) { showContents = false }
         EpubSettingsPage(showSettings, settingsViewModel) { showSettings = false }

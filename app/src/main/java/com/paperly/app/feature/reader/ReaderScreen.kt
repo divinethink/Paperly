@@ -203,6 +203,7 @@ private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listSt
         ReflowPages(viewModel.search, state.pageCount)
     } else {
         PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
+        PdfPaceOverlay(listState, state.pageCount)
     }
 }
 
