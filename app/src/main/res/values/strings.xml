@@ -72,6 +72,9 @@
     <string name="storage_dup_group">%1$d copies of the same file</string>
     <string name="storage_keep_this">Keep this one, trash the rest</string>
     <string name="storage_type_row">%1$s \u00b7 %2$d</string>
+    <string name="state_loading">Loading</string>
+    <string name="state_retry">Retry</string>
+    <string name="library_load_error">Could not load your library</string>
     <string name="export_failed">Could not export this file</string>
     <string name="trash_title">Trash</string>
     <string name="trash_empty">Trash is empty</string>
