@@ -60,29 +60,21 @@ internal fun BatchBar(
     var dialog by remember { mutableStateOf<BatchDialog?>(null) }
     val chosen = docs.filter { it.id in batch.selected }
     BackHandler { batch.clear() }
-    when (dialog) {
-        BatchDialog.Move -> MoveFolderDialog(
-            currentFolderId = null,
-            folders = folders,
-            onPick = {
-                viewModel.move(chosen, it)
-                dialog = null
-                batch.clear()
-            },
-            onDismiss = { dialog = null },
-        )
-        BatchDialog.Tags -> TagsDialog(
-            initial = "",
-            onConfirm = {
-                viewModel.addTags(chosen, it)
-                dialog = null
-                batch.clear()
-            },
-            onDismiss = { dialog = null },
-            title = R.string.batch_tags,
-        )
-        null -> Unit
-    }
+    BatchDialogHost(
+        dialog = dialog,
+        folders = folders,
+        onMove = {
+            viewModel.move(chosen, it)
+            dialog = null
+            batch.clear()
+        },
+        onTags = {
+            viewModel.addTags(chosen, it)
+            dialog = null
+            batch.clear()
+        },
+        onDismiss = { dialog = null },
+    )
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -115,5 +107,30 @@ internal fun BatchBar(
             enabled = enabled,
         ) { Text(stringResource(R.string.batch_trash)) }
         TextButton(onClick = { batch.clear() }) { Text(stringResource(R.string.batch_done)) }
+    }
+}
+
+@Composable
+private fun BatchDialogHost(
+    dialog: BatchDialog?,
+    folders: List<Folder>,
+    onMove: (String?) -> Unit,
+    onTags: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    when (dialog) {
+        BatchDialog.Move -> MoveFolderDialog(
+            currentFolderId = null,
+            folders = folders,
+            onPick = onMove,
+            onDismiss = onDismiss,
+        )
+        BatchDialog.Tags -> TagsDialog(
+            initial = "",
+            onConfirm = onTags,
+            onDismiss = onDismiss,
+            title = R.string.batch_tags,
+        )
+        null -> Unit
     }
 }
