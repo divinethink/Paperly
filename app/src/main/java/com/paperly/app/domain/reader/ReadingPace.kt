@@ -22,7 +22,8 @@ class ReadingPace {
     fun record(fraction: Float, nowMs: Long) {
         val step = fraction - lastFraction
         val gap = nowMs - lastAt
-        if (lastFraction >= 0f && step > 0f && step <= MAX_STEP && gap in MIN_GAP_MS..MAX_GAP_MS) {
+        val forward = step > 0f && step <= MAX_STEP
+        if (lastFraction >= 0f && forward && gap in MIN_GAP_MS..MAX_GAP_MS) {
             progress += step
             activeMs += gap
         }
