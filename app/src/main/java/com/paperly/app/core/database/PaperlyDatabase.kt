@@ -15,7 +15,7 @@ import com.paperly.app.core.model.StorageState
 import kotlinx.coroutines.flow.Flow
 
 const val DATABASE_NAME = "paperly.db"
-const val DATABASE_VERSION = 6
+const val DATABASE_VERSION = 7
 
 /** Local Document table. Fields follow Architecture §২.১; times are UTC epoch millis. */
 @Entity(
@@ -96,6 +96,10 @@ interface DocumentDao {
     @Query("UPDATE documents SET tags = :tags WHERE documentId = :id AND deletedAt IS NULL")
     suspend fun updateTags(id: String, tags: String?): Int
 
+    /** Used before a folder is deleted, so the documents it un-assigns can be queued for sync. */
+    @Query("SELECT documentId FROM documents WHERE folderId = :folderId")
+    suspend fun getIdsByFolder(folderId: String): List<String>
+
     /** IGNORE = idempotent: a retry/double-tap never overwrites an existing row. Returns -1 if ignored. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: DocumentEntity): Long
@@ -131,6 +135,7 @@ interface AggregateDao {
         BookmarkEntity::class,
         AnnotationEntity::class,
         ScanPageEntity::class,
+        SyncItemEntity::class,
     ],
     version = DATABASE_VERSION,
     exportSchema = true,
@@ -150,6 +155,8 @@ abstract class PaperlyDatabase : RoomDatabase() {
     abstract fun annotationDao(): AnnotationDao
 
     abstract fun scanPageDao(): ScanPageDao
+
+    abstract fun syncItemDao(): SyncItemDao
 
     abstract fun backupExtrasDao(): BackupExtrasDao
 }

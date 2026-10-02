@@ -79,6 +79,18 @@ object PaperlyMigrations {
         }
     }
 
+    /** v6 → v7: add `sync_items` (the sync queue). New table only; no FK so a DELETE item outlives its document. */
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `sync_items` (`syncId` TEXT NOT NULL, `entityType` TEXT NOT NULL, " +
+                    "`entityId` TEXT NOT NULL, `operation` TEXT NOT NULL, `state` TEXT NOT NULL, " +
+                    "`attempts` INTEGER NOT NULL, `nextRetryAt` INTEGER, `lastError` TEXT, " +
+                    "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`syncId`))",
+            )
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 }
