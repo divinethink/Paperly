@@ -234,4 +234,14 @@
     <string name="reader_blue_light">Blue-light filter</string>
     <string name="reader_keep_awake">Keep screen on</string>
     <string name="reader_hide_bars">Hide status and navigation bars</string>
+    <string name="settings_dynamic_color">Use system colours (Material You)</string>
+    <string name="settings_dynamic_color_hint">Off by default. Applies to the app screens; reading themes are unchanged.</string>
+    <string name="reader_rotate_landscape">Rotate to landscape</string>
+    <string name="reader_rotate_portrait">Rotate to portrait</string>
+    <plurals name="reader_pages_left">
+        <item quantity="one">%d page left</item>
+        <item quantity="other">%d pages left</item>
+    </plurals>
+    <string name="reader_pages_and_minutes">%1$s · about %2$d min</string>
+    <string name="reader_minutes_and_percent">About %1$d min left · %2$s</string>
 </resources>
