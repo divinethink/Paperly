@@ -8,15 +8,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,10 +36,12 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     backupViewModel: BackupViewModel = hiltViewModel(),
     readingTime: ReadingTimeViewModel = hiltViewModel(),
+    appearance: AppearanceViewModel = hiltViewModel(),
 ) {
     val usage by viewModel.usage.collectAsStateWithLifecycle()
     val minutesToday by readingTime.todayMinutes.collectAsStateWithLifecycle()
     val backup by backupViewModel.state.collectAsStateWithLifecycle()
+    val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
         it?.let(backupViewModel::export)
@@ -49,7 +55,8 @@ fun SettingsScreen(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp),
         )
-        Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 16.dp))
+        Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 8.dp))
+        DynamicColorRow(dynamicColor, appearance::setDynamicColor)
         Text(
             stringResource(R.string.settings_storage_header),
             style = MaterialTheme.typography.titleMedium,
@@ -74,6 +81,22 @@ fun SettingsScreen(
             onExport = { exportLauncher.launch(backupFileName()) },
             onRestore = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
         )
+    }
+}
+
+/** Optional Material You colours; the brand palette stays the default. */
+@Composable
+private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Column(Modifier.padding(bottom = 16.dp)) {
+        Row(
+            Modifier.fillMaxWidth().toggleable(enabled, role = Role.Switch, onValueChange = onChange),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.settings_dynamic_color), Modifier.weight(1f))
+            Switch(checked = enabled, onCheckedChange = null)
+        }
+        Text(stringResource(R.string.settings_dynamic_color_hint), style = MaterialTheme.typography.bodySmall)
     }
 }
 
