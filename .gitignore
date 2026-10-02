@@ -12,3 +12,5 @@
 google-services.json
 app/build/
 benchmark/build/
+firestore-rules-test/node_modules/
+
