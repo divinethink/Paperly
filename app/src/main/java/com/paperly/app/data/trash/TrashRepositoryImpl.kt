@@ -4,6 +4,7 @@ import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.data.document.toDomain
 import com.paperly.app.domain.document.Document
+import com.paperly.app.domain.sync.SyncQueue
 import com.paperly.app.domain.trash.TrashRepository
 import dagger.Binds
 import dagger.Module
@@ -20,6 +21,7 @@ import kotlinx.coroutines.withContext
 class TrashRepositoryImpl @Inject constructor(
     private val dao: TrashDao,
     private val fileStore: DocumentFileStore,
+    private val syncQueue: SyncQueue,
 ) : TrashRepository {
 
     override fun observeTrash(): Flow<List<Document>> =
@@ -27,17 +29,21 @@ class TrashRepositoryImpl @Inject constructor(
 
     override suspend fun trash(id: String) {
         dao.softDelete(id, System.currentTimeMillis())
+        syncQueue.documentChanged(id)
     }
 
     override suspend fun restore(id: String) {
         dao.restore(id, System.currentTimeMillis())
+        syncQueue.documentChanged(id)
     }
 
     /** File first, row second: a failure between them leaves a retryable Trash row, never an invisible orphan file. */
     override suspend fun deleteForever(id: String): Boolean {
         if (dao.countTrashed(id) == 0) return false // never touch a document that is not in Trash
         val fileGone = withContext(Dispatchers.IO) { fileStore.resolve(id) == null } || fileStore.delete(id)
-        return fileGone && dao.deleteTrashedRow(id) > 0
+        val deleted = fileGone && dao.deleteTrashedRow(id) > 0
+        if (deleted) syncQueue.documentDeleted(id)
+        return deleted
     }
 
     override suspend fun emptyTrash(): Boolean = dao.getTrashedIds().map { deleteForever(it) }.all { it }
