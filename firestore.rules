@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// Paperly: everything lives under users/{uid}; only that signed-in user may touch it. Default = deny.
+// Field names must match MetaFields in DocumentMetaMapper.kt. New collections are added with their sync step.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validDocument(docId, d) {
+      return d.keys().hasOnly([
+          'documentId', 'title', 'type', 'sizeBytes', 'checksum', 'folderId', 'tags',
+          'isFavorite', 'createdAt', 'updatedAt', 'deletedAt', 'schemaVersion'])
+        && d.keys().hasAll([
+          'documentId', 'title', 'type', 'sizeBytes', 'checksum',
+          'isFavorite', 'createdAt', 'updatedAt', 'schemaVersion'])
+        && d.documentId == docId
+        && d.title is string && d.title.size() <= 300
+        && d.type is string && d.type.size() <= 32
+        && d.sizeBytes is int && d.sizeBytes >= 0
+        && d.checksum is string && d.checksum.size() <= 128
+        && d.isFavorite is bool
+        && d.createdAt is int
+        && d.updatedAt is int
+        && d.schemaVersion is int
+        && (!('folderId' in d) || d.folderId == null || (d.folderId is string && d.folderId.size() <= 64))
+        && (!('tags' in d) || d.tags == null || (d.tags is list && d.tags.size() <= 50))
+        && (!('deletedAt' in d) || d.deletedAt == null || d.deletedAt is int);
+    }
+
+    match /users/{uid}/documents/{docId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && docId.size() <= 64 && validDocument(docId, request.resource.data);
+      allow delete: if isOwner(uid);
+    }
+  }
+}
