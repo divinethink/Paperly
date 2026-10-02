@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.storage.StorageUsage
+import com.paperly.app.feature.common.LoadingPlaceholder
 
 @StringRes
 private fun typeLabelRes(type: String): Int? = when (type) {
@@ -63,14 +64,21 @@ fun StorageScreen(onBack: () -> Unit, viewModel: StorageViewModel = hiltViewMode
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.usage?.let { item { UsageSection(it, context) } }
-            item { SectionTitle(R.string.storage_by_type) }
-            state.byType.forEach { item { TypeRow(it, context) } }
-            item { SectionTitle(R.string.storage_largest) }
-            state.largest.forEach { item { SizeRow(it.title, Formatter.formatShortFileSize(context, it.sizeBytes)) } }
-            item { SectionTitle(R.string.storage_duplicates) }
-            if (state.duplicates.isEmpty()) item { Text(stringResource(R.string.storage_no_duplicates)) }
-            state.duplicates.forEach { group -> item { DuplicateCard(group, context, viewModel::keepOnly) } }
+            val usage = state.usage
+            if (usage == null) {
+                item { LoadingPlaceholder() }
+            } else {
+                item { UsageSection(usage, context) }
+                item { SectionTitle(R.string.storage_by_type) }
+                state.byType.forEach { item { TypeRow(it, context) } }
+                item { SectionTitle(R.string.storage_largest) }
+                state.largest.forEach { doc ->
+                    item { SizeRow(doc.title, Formatter.formatShortFileSize(context, doc.sizeBytes)) }
+                }
+                item { SectionTitle(R.string.storage_duplicates) }
+                if (state.duplicates.isEmpty()) item { Text(stringResource(R.string.storage_no_duplicates)) }
+                state.duplicates.forEach { group -> item { DuplicateCard(group, context, viewModel::keepOnly) } }
+            }
         }
     }
 }
