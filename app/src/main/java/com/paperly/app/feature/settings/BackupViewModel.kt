@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.paperly.app.domain.backup.BackupRepository
 import com.paperly.app.domain.backup.BackupResult
 import com.paperly.app.domain.backup.RestoreResult
+import com.paperly.app.domain.sync.SyncQueue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,13 +28,18 @@ data class BackupUiState(val busy: Boolean = false, val message: BackupMessage? 
 @HiltViewModel
 class BackupViewModel @Inject constructor(
     private val repository: BackupRepository,
+    private val syncQueue: SyncQueue,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BackupUiState())
     val state: StateFlow<BackupUiState> = _state.asStateFlow()
 
     fun export(target: Uri) = launchOp { repository.export(target.toString()).toMessage() }
 
-    fun restore(source: Uri) = launchOp { repository.restore(source.toString()).toMessage() }
+    fun restore(source: Uri) = launchOp {
+        val result = repository.restore(source.toString())
+        if (result is RestoreResult.Done && result.summary.restored > 0) syncQueue.allDocumentsChanged()
+        result.toMessage()
+    }
 
     /** Ignored while busy: a double-tap can never start a second operation. */
     private fun launchOp(block: suspend () -> BackupMessage) {

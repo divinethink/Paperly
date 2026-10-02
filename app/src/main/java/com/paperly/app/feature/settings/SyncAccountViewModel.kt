@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.paperly.app.domain.auth.AuthRepository
 import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.SignInResult
+import com.paperly.app.domain.sync.SyncQueue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ data class SyncAccountUiState(val busy: Boolean = false, val result: SignInResul
 @HiltViewModel
 class SyncAccountViewModel @Inject constructor(
     private val auth: AuthRepository,
+    private val syncQueue: SyncQueue,
 ) : ViewModel() {
     /** null until the first emission, so the UI never flashes a wrong "signed out". */
     val account: StateFlow<AuthState?> = auth.state
@@ -33,6 +35,7 @@ class SyncAccountViewModel @Inject constructor(
         _ui.value = SyncAccountUiState(busy = true)
         viewModelScope.launch {
             val result = auth.signIn(activity)
+            if (result == SignInResult.SIGNED_IN) syncQueue.kick()
             _ui.update { SyncAccountUiState(busy = false, result = result.takeIf { it != SignInResult.SIGNED_IN }) }
         }
     }
