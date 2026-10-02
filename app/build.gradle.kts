@@ -89,6 +89,11 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.auth) // P8-A: optional Google sign-in
+    implementation(libs.firebase.firestore) // P8-B: metadata sync (data layer only)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
