@@ -14,4 +14,7 @@ data class StorageUsage(
 
 interface StorageUsageRepository {
     fun observeUsage(): Flow<StorageUsage>
+
+    /** Groups of active document ids with identical content (each group has 2+ ids). */
+    fun observeDuplicateGroups(): Flow<List<List<String>>>
 }
