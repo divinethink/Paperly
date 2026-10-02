@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.core.crash.CrashMarker
 import com.paperly.app.core.crash.CrashNoticeDialog
@@ -20,6 +21,7 @@ import com.paperly.app.core.intent.extractImportUri
 import com.paperly.app.core.intent.isContinueReading
 import com.paperly.app.core.ui.theme.PaperlyTheme
 import com.paperly.app.feature.reader.EpubFragmentHost
+import com.paperly.app.feature.settings.AppearanceViewModel
 import com.paperly.app.navigation.PaperlyRoot
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -38,7 +40,9 @@ class MainActivity : FragmentActivity() {
         // Only a fresh launch: after rotation/process restore the same intent must not import again.
         if (savedInstanceState == null) postIntent(intent)
         setContent {
-            PaperlyTheme {
+            val appearance: AppearanceViewModel = hiltViewModel()
+            val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
+            PaperlyTheme(dynamicColor = dynamicColor) {
                 val pendingImport by incomingImports.pending.collectAsStateWithLifecycle()
                 PaperlyRoot(hasIncomingImport = pendingImport != null)
                 // consume() runs once per fresh process; rememberSaveable keeps the notice across rotation.
