@@ -125,6 +125,14 @@
     <string name="settings_backup_restore_invalid">This is not a valid Paperly backup.</string>
     <string name="settings_backup_restore_newer">This backup was made by a newer version of Paperly. Please update the app.</string>
     <string name="settings_backup_restore_failed">Restore failed. Nothing was changed except any documents already listed as restored.</string>
+    <string name="settings_sync_header">Sync</string>
+    <string name="settings_sync_hint">Optional. Paperly works fully without an account; signing in only prepares cloud sync.</string>
+    <string name="settings_sync_unavailable">Sync is not set up in this build.</string>
+    <string name="settings_sync_sign_in">Sign in with Google</string>
+    <string name="settings_sync_sign_out">Sign out</string>
+    <string name="settings_sync_signed_in_as">Signed in as %1$s</string>
+    <string name="settings_sync_no_account">No Google account was found on this device.</string>
+    <string name="settings_sync_failed">Sign-in failed. Please try again.</string>
     <string name="settings_storage_header">Storage</string>
     <string name="settings_storage_total">Total</string>
     <plurals name="settings_storage_documents">
