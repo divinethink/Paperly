@@ -10,6 +10,9 @@ interface ReaderStateRepository {
     /** Idempotent upsert. */
     suspend fun saveProgress(documentId: String, page: Int, pageCount: Int)
 
+    /** Saved reading progress 0..1 (null = never read); emits on every change. */
+    fun observeProgress(documentId: String): Flow<Float?>
+
     fun observeBookmarkedPages(documentId: String): Flow<Set<Int>>
 
     /** Returns true if the page is bookmarked after the call. */
