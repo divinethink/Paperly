@@ -7,6 +7,7 @@ import com.paperly.app.core.database.FolderEntity
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
 import com.paperly.app.domain.folder.normalizeFolderName
+import com.paperly.app.domain.sync.SyncQueue
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.map
 class FolderRepositoryImpl @Inject constructor(
     private val folderDao: FolderDao,
     private val documentDao: DocumentDao,
+    private val syncQueue: SyncQueue,
 ) : FolderRepository {
 
     override fun observeFolders(): Flow<List<Folder>> =
@@ -33,16 +35,20 @@ class FolderRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteFolder(id: String) {
+        val affected = documentDao.getIdsByFolder(id) // read first: afterwards they are no longer in the folder
         folderDao.deleteAndUnassign(id)
+        syncQueue.documentsChanged(affected)
     }
 
     override suspend fun moveDocument(documentId: String, folderId: String?) {
         if (folderId != null && folderDao.countById(folderId) == 0) return // folder deleted meanwhile
         documentDao.updateFolder(documentId, folderId)
+        syncQueue.documentChanged(documentId)
     }
 
     override suspend fun setTags(documentId: String, tags: List<String>) {
         documentDao.updateTags(documentId, Converters().fromTags(tags.takeIf { it.isNotEmpty() }))
+        syncQueue.documentChanged(documentId)
     }
 }
 
