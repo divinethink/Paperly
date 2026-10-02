@@ -3,6 +3,7 @@ package com.paperly.app.feature.reader
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -11,12 +12,12 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,9 +28,15 @@ import com.paperly.app.domain.reader.ReaderTheme
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
-    TextButton(onClick = { viewModel.toggleBookmark(page) }) {
-        val label = if (page in bookmarks) R.string.reader_bookmark_remove else R.string.reader_bookmark_add
-        Text(stringResource(label))
+    val bookmarked = page in bookmarks
+    IconButton(onClick = { viewModel.toggleBookmark(page) }) {
+        Icon(
+            Icons.Filled.Star,
+            contentDescription = stringResource(
+                if (bookmarked) R.string.reader_bookmark_remove else R.string.reader_bookmark_add,
+            ),
+            tint = if (bookmarked) MaterialTheme.colorScheme.primary else Color.Gray,
+        )
     }
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     IconToggleButton(

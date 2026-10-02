@@ -1,11 +1,13 @@
 package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,7 +57,7 @@ private fun AnnotateStrip(
     onStyle: (AnnotateStyle) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().background(barColor()).padding(horizontal = 8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             types.forEach { (type, label) ->
                 FilterChip(
                     selected = style.type == type,
