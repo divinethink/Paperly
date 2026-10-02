@@ -60,6 +60,9 @@ abstract class ReaderDao {
     @Query("SELECT * FROM reading_state WHERE documentId = :id")
     abstract suspend fun getState(id: String): ReadingStateEntity?
 
+    @Query("SELECT progressPercent FROM reading_state WHERE documentId = :id")
+    abstract fun observeProgress(id: String): Flow<Float?>
+
     @Query("SELECT locator FROM bookmarks WHERE documentId = :id")
     abstract fun observeBookmarkLocators(id: String): Flow<List<String>>
 
