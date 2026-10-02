@@ -47,6 +47,16 @@
     <string name="export_images_failed">Image export failed</string>
     <string name="export_cancel">Cancel</string>
     <string name="export_dismiss">Dismiss</string>
+    <string name="sort_label">Sort</string>
+    <string name="sort_default">Default</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_added">Date added</string>
+    <string name="sort_opened">Last opened</string>
+    <string name="sort_size">Size</string>
+    <string name="type_pdf">PDF</string>
+    <string name="type_epub">EPUB</string>
+    <string name="type_scan">Scan</string>
+    <string name="continue_reading_percent">%1$d%% read</string>
     <string name="export_failed">Could not export this file</string>
     <string name="trash_title">Trash</string>
     <string name="trash_empty">Trash is empty</string>
