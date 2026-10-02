@@ -19,7 +19,10 @@ data class DocumentMeta(
     val schemaVersion: Int = 1,
 )
 
-/** OK = stored; RETRY = transient (offline, timeout, server busy); DENIED = rules rejected it (do not retry blindly). */
+/**
+ * OK = stored; RETRY = transient (offline, timeout, server busy);
+ * DENIED = rules rejected it (do not retry blindly).
+ */
 enum class RemoteResult { OK, RETRY, DENIED }
 
 /** Firestore access for document metadata. Every call is scoped to one signed-in [uid]; writes are idempotent. */
@@ -28,6 +31,9 @@ interface RemoteMetadataStore {
 
     suspend fun deleteDocument(uid: String, documentId: String): RemoteResult
 
-    /** Complete set of documents with updatedAt > [updatedAfter] (no limit: a truncated set would be wrong). null = failed. */
+    /**
+     * Complete set of documents with updatedAt > [updatedAfter]
+     * (no limit: a truncated set would be wrong). null = failed.
+     */
     suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>?
 }
