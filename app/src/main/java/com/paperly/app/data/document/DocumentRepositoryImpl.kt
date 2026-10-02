@@ -11,6 +11,7 @@ import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
 import com.paperly.app.domain.document.MAX_TITLE_LENGTH
+import com.paperly.app.domain.sync.SyncQueue
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -30,6 +31,7 @@ class DocumentRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: DocumentDao,
     private val fileStore: DocumentFileStore,
+    private val syncQueue: SyncQueue,
 ) : DocumentRepository {
 
     override fun observeDocuments(): Flow<List<Document>> =
@@ -78,7 +80,7 @@ class DocumentRepositoryImpl @Inject constructor(
             createdAt = now,
             updatedAt = now,
         )
-        return try {
+        val result = try {
             val existing = if (allowDuplicate) null else dao.findActiveByChecksum(stored.checksum)
             when {
                 existing != null -> {
@@ -98,15 +100,21 @@ class DocumentRepositoryImpl @Inject constructor(
             cleanup(id) // no orphan file if the DB write failed
             ImportResult.Failed
         }
+        // After the try: a queue problem must never be mistaken for a failed insert (which would delete the file).
+        if (result is ImportResult.Success) syncQueue.documentChanged(id)
+        return result
     }
 
     override suspend fun renameDocument(id: String, newTitle: String): Boolean {
         val title = newTitle.trim().take(MAX_TITLE_LENGTH)
-        return title.isNotEmpty() && dao.updateTitle(id, title, System.currentTimeMillis()) > 0
+        val renamed = title.isNotEmpty() && dao.updateTitle(id, title, System.currentTimeMillis()) > 0
+        if (renamed) syncQueue.documentChanged(id)
+        return renamed
     }
 
     override suspend fun setFavorite(id: String, favorite: Boolean) {
         dao.updateFavorite(id, favorite) // idempotent; deliberately no updatedAt bump (keeps list order stable)
+        syncQueue.documentChanged(id)
     }
 
     override suspend fun markOpened(id: String) {
