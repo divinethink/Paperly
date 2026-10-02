@@ -39,13 +39,17 @@ import com.paperly.app.feature.library.LibraryScreen
 import com.paperly.app.feature.reader.ReaderRoute
 import com.paperly.app.feature.scanner.ScanScreen
 import com.paperly.app.feature.settings.SettingsScreen
+import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
+
+private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE)
 
 object Routes {
     const val LIBRARY = "library"
     const val SCAN = "scan"
     const val SETTINGS = "settings"
     const val TRASH = "trash"
+    const val STORAGE = "storage"
     const val READER = "reader/{documentId}"
     fun reader(documentId: String) = "reader/$documentId"
 }
@@ -66,7 +70,7 @@ private fun NavHostController.navigateTopLevel(route: String) = navigate(route) 
 fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     val navController = rememberNavController()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    val showNav = currentRoute != Routes.READER && currentRoute != Routes.TRASH // full-screen flows
+    val showNav = currentRoute !in FullScreenRoutes // full-screen flows
     val useRail = rememberScreenSize() != ScreenSize.Compact // adaptive: rail on medium/expanded
 
     ContinueReadingEffect(navController, currentRoute)
@@ -138,11 +142,13 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         LibraryScreen(
             onOpenReader = { navController.navigate(Routes.reader(it)) },
             onOpenTrash = { navController.navigate(Routes.TRASH) },
+            onOpenStorage = { navController.navigate(Routes.STORAGE) },
         )
     }
     composable(Routes.SCAN) { ScanScreen(onSaved = { navController.navigateTopLevel(Routes.LIBRARY) }) }
     composable(Routes.SETTINGS) { SettingsScreen() }
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
+    composable(Routes.STORAGE) { StorageScreen(onBack = { navController.popBackStack() }) }
     composable(
         Routes.READER,
         arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
