@@ -51,6 +51,17 @@ jobs:
           gradle-version: 8.14.3
           dependency-graph: generate-and-submit
 
+      # Optional repo secrets (P8-A). Absent = build exactly as before (sync shows "not set up").
+      # GOOGLE_SERVICES_JSON = contents of app/google-services.json; DEBUG_KEYSTORE_B64 = base64 of a fixed debug
+      # keystore, so every CI APK has the same SHA-1 (Google sign-in is bound to it).
+      - name: Firebase config and stable debug key
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          DKS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > app/google-services.json; fi
+          if [ -n "$DKS" ]; then mkdir -p ~/.android && printf '%s' "$DKS" | base64 -d > ~/.android/debug.keystore; fi
+
       - name: Unit tests + debug APK
         run: gradle testDebugUnitTest assembleDebug --stacktrace
 
