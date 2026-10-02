@@ -240,6 +240,7 @@ private fun DocumentRow(doc: Document, actions: DocumentActions, batch: BatchSta
         Modifier.fillMaxWidth().combinedClickable(
             role = Role.Button,
             onClick = { if (batch.active) batch.toggle(doc.id) else actions.onOpen(doc) },
+            onLongClickLabel = stringResource(R.string.batch_select),
             onLongClick = { batch.toggle(doc.id) },
         ),
     ) {
