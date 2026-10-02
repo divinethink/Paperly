@@ -162,7 +162,7 @@ private fun LibraryList(
 
 @Composable
 private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
-    val searching = state.query.isNotBlank() || state.selectedFolderId != null
+    val searching = state.query.isNotBlank() || state.selectedFolderId != null || state.view.type != null
     val emptyRes = when {
         state.totalCount == 0 -> R.string.library_empty
         searching -> R.string.search_empty
