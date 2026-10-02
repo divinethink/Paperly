@@ -204,6 +204,26 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v7SyncItemsTableWorksAndDeleteItemOutlivesItsDocument() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.syncItemDao()
+            dao.enqueue("document", "d1", "PUT", 1L)
+            dao.enqueue("document", "d1", "DELETE", 2L) // coalesced into the same row
+            db.trashDao().softDelete("d1", 5L)
+            db.trashDao().deleteTrashedRow("d1") // no FK: the queue row must survive the document
+            assertEquals(1, dao.countWaiting("FAILED"))
+            assertEquals("DELETE", dao.getDue("FAILED", 10L, 10).single().operation)
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =
