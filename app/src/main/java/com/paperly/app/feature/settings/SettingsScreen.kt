@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -49,7 +51,7 @@ fun SettingsScreen(
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
         it?.let(backupViewModel::restore)
     }
-    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text(
             stringResource(R.string.settings_reading_header),
             style = MaterialTheme.typography.titleMedium,
@@ -76,6 +78,7 @@ fun SettingsScreen(
                 Formatter.formatShortFileSize(context, u.totalBytes),
             )
         }
+        SyncSection()
         BackupSection(
             state = backup,
             onExport = { exportLauncher.launch(backupFileName()) },
