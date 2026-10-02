@@ -86,19 +86,25 @@ abstract class SyncItemDao {
     @Query("DELETE FROM sync_items WHERE syncId = :syncId AND updatedAt = :version")
     abstract suspend fun complete(syncId: String, version: Long): Int
 
-    /** Retry/failed bookkeeping; does not bump the version, and is a no-op if the item changed meanwhile. */
+    /** Transient failure: wait until [nextRetryAt]. No-op if the item changed meanwhile (version mismatch). */
     @Query(
-        "UPDATE sync_items SET state = :state, attempts = :attempts, nextRetryAt = :nextRetryAt, " +
-            "lastError = :lastError WHERE syncId = :syncId AND updatedAt = :version",
+        "UPDATE sync_items SET state = '${SyncItemState.RETRYING}', attempts = :attempts, " +
+            "nextRetryAt = :nextRetryAt, lastError = :lastError WHERE syncId = :syncId AND updatedAt = :version",
     )
-    abstract suspend fun markState(
+    abstract suspend fun markRetry(
         syncId: String,
         version: Long,
-        state: String,
         attempts: Int,
-        nextRetryAt: Long?,
+        nextRetryAt: Long,
         lastError: String?,
     ): Int
+
+    /** Rejected for good: stays FAILED until the entity is enqueued again. Same version guard as above. */
+    @Query(
+        "UPDATE sync_items SET state = '${SyncItemState.FAILED}', attempts = :attempts, nextRetryAt = NULL, " +
+            "lastError = :lastError WHERE syncId = :syncId AND updatedAt = :version",
+    )
+    abstract suspend fun markFailed(syncId: String, version: Long, attempts: Int, lastError: String?): Int
 
     /** Items still waiting to be synced (aggregate, no LIMIT). */
     @Query("SELECT COUNT(*) FROM sync_items WHERE state <> :failed")
