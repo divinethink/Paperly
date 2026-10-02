@@ -52,6 +52,9 @@ data class StorageUsageRow(
     val trashCount: Int,
 )
 
+/** An active document sharing its content checksum with another active document (complete set, no LIMIT). */
+data class DuplicateRow(val documentId: String, val checksum: String)
+
 class Converters {
     @TypeConverter
     fun fromTags(value: List<String>?): String? = value?.joinToString(TAG_SEPARATOR)
@@ -108,6 +111,12 @@ interface AggregateDao {
             "COUNT(CASE WHEN deletedAt IS NOT NULL THEN 1 END) AS trashCount FROM documents",
     )
     fun observeStorageUsage(): Flow<StorageUsageRow>
+
+    @Query(
+        "SELECT documentId, checksum FROM documents WHERE deletedAt IS NULL AND checksum IN " +
+            "(SELECT checksum FROM documents WHERE deletedAt IS NULL GROUP BY checksum HAVING COUNT(*) > 1)",
+    )
+    fun observeDuplicateRows(): Flow<List<DuplicateRow>>
 
     /** Backup source: complete list on purpose (no LIMIT — a truncated backup would be silent data loss). */
     @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt")
