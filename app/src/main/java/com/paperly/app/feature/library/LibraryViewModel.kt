@@ -7,17 +7,27 @@ import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
+import com.paperly.app.domain.document.LibrarySort
+import com.paperly.app.domain.document.LibraryType
+import com.paperly.app.domain.document.LibraryView
+import com.paperly.app.domain.document.LibraryViewStore
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
+import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.trash.TrashRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,16 +46,33 @@ internal fun List<Document>.filterFor(
     kind: LibraryFilter,
     query: String = "",
     folderId: String? = null,
+    view: LibraryView = LibraryView(),
 ): List<Document> {
     val needle = query.trim()
-    val base = filter { (folderId == null || it.folderId == folderId) && it.matches(needle) }
+    val base = filter { it.inFolder(folderId) && it.matches(needle) && it.isType(view.type) }
     return when (kind) {
-        LibraryFilter.All -> base
-        LibraryFilter.Favorites -> base.filter { it.isFavorite }
+        LibraryFilter.All -> base.sortedFor(view)
+        LibraryFilter.Favorites -> base.filter { it.isFavorite }.sortedFor(view)
         LibraryFilter.Recent -> base.filter { it.lastOpenedAt != null }
             .sortedByDescending { it.lastOpenedAt }
             .take(RECENT_LIMIT)
     }
+}
+
+private fun Document.inFolder(folderId: String?): Boolean = folderId == null || this.folderId == folderId
+
+private fun Document.isType(type: LibraryType?): Boolean = type == null || type.docType == this.type
+
+/** Recent keeps its own newest-opened order, so only All/Favorites are sorted. */
+internal fun List<Document>.sortedFor(view: LibraryView): List<Document> {
+    val order: Comparator<Document> = when (view.sort) {
+        LibrarySort.DEFAULT -> return this
+        LibrarySort.NAME -> compareBy<Document, String>(String.CASE_INSENSITIVE_ORDER) { it.title }
+        LibrarySort.ADDED -> compareBy<Document> { it.createdAt }
+        LibrarySort.OPENED -> compareBy<Document> { it.lastOpenedAt ?: Long.MIN_VALUE }
+        LibrarySort.SIZE -> compareBy<Document> { it.sizeBytes }
+    }
+    return sortedWith(if (view.ascending) order else order.reversed())
 }
 
 private fun Document.matches(needle: String): Boolean =
@@ -56,6 +83,9 @@ private data class Selection(
     val query: String = "",
     val folderId: String? = null,
 )
+
+/** [progress] is 0..1, null when never read. */
+data class ContinueInfo(val document: Document, val progress: Float?)
 
 private class Transient(val importing: Boolean, val error: ImportError?, val duplicate: DuplicatePrompt?)
 
@@ -72,6 +102,7 @@ data class LibraryUiState(
     val query: String = "",
     val folders: List<Folder> = emptyList(),
     val selectedFolderId: String? = null,
+    val view: LibraryView = LibraryView(),
 )
 
 @HiltViewModel
@@ -80,6 +111,8 @@ class LibraryViewModel @Inject constructor(
     private val trashRepository: TrashRepository,
     folderRepository: FolderRepository,
     private val incomingImports: IncomingImportRequests,
+    viewStore: LibraryViewStore,
+    readerState: ReaderStateRepository,
 ) : ViewModel() {
 
     private val importing = MutableStateFlow(false)
@@ -94,11 +127,12 @@ class LibraryViewModel @Inject constructor(
             folderRepository.observeFolders(),
             selection,
             transient,
-        ) { docs, folders, sel, t ->
+            viewStore.view,
+        ) { docs, folders, sel, t, view ->
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> folders.any { it.id == id } }
             LibraryUiState(
-                documents = docs.filterFor(sel.kind, sel.query, folderId),
+                documents = docs.filterFor(sel.kind, sel.query, folderId, view),
                 totalCount = docs.size,
                 filter = sel.kind,
                 isImporting = t.importing,
@@ -107,8 +141,19 @@ class LibraryViewModel @Inject constructor(
                 query = sel.query,
                 folders = folders,
                 selectedFolderId = folderId,
+                view = view,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+
+    /** Most recently opened document + its saved progress, for the "Continue reading" card. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val continueReading: StateFlow<ContinueInfo?> = repository.observeDocuments()
+        .map { docs -> docs.filter { it.lastOpenedAt != null }.maxByOrNull { it.lastOpenedAt ?: 0L } }
+        .distinctUntilChanged()
+        .flatMapLatest { doc ->
+            if (doc == null) flowOf(null) else readerState.observeProgress(doc.id).map { ContinueInfo(doc, it) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         // Open-With / Share: wait for any running import (the double-tap guard would drop it), then import.

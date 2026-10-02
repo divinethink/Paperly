@@ -116,6 +116,8 @@ fun LibraryScreen(
             onNew = { dialog = LibraryDialog.NewFolder },
             onDelete = { state.selectedFolderId?.let(organize::deleteFolder) },
         )
+        ViewRow(state.view)
+        ContinueSection(viewModel.continueReading, state.query, onOpenReader)
         ImageExportStatus()
         LibraryList(state, actions)
     }
