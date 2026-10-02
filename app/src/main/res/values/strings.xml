@@ -59,6 +59,7 @@
     <string name="continue_reading_percent">%1$d%% read</string>
     <string name="menu_storage">Storage &amp; duplicates</string>
     <string name="batch_selected">%1$d selected</string>
+    <string name="batch_select">Select</string>
     <string name="batch_favorite">Favorite</string>
     <string name="batch_move">Move</string>
     <string name="batch_tags">Add tags</string>
