@@ -18,9 +18,11 @@ import com.paperly.app.domain.trash.TrashRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,6 +38,17 @@ import kotlinx.coroutines.launch
 enum class ImportError { Unsupported, Failed }
 
 enum class LibraryFilter { All, Favorites, Recent }
+
+/** Loading until the first database emission, so an empty Library is never shown while still loading. */
+enum class LibraryLoad { Loading, Ready, Failed }
+
+private sealed interface DocsResult {
+    data object Loading : DocsResult
+
+    class Ready(val docs: List<Document>) : DocsResult
+
+    data object Failed : DocsResult
+}
 
 private const val RECENT_LIMIT = 20
 
@@ -103,6 +117,7 @@ data class LibraryUiState(
     val folders: List<Folder> = emptyList(),
     val selectedFolderId: String? = null,
     val view: LibraryView = LibraryView(),
+    val load: LibraryLoad = LibraryLoad.Loading,
 )
 
 @HiltViewModel
@@ -120,15 +135,25 @@ class LibraryViewModel @Inject constructor(
     private val duplicate = MutableStateFlow<DuplicatePrompt?>(null)
     private val selection = MutableStateFlow(Selection())
     private val transient = combine(importing, error, duplicate) { i, e, d -> Transient(i, e, d) }
+    private val reload = MutableStateFlow(0)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val documentsResult: Flow<DocsResult> = reload.flatMapLatest {
+        repository.observeDocuments()
+            .map<List<Document>, DocsResult> { DocsResult.Ready(it) }
+            .onStart { emit(DocsResult.Loading) }
+            .catch { emit(DocsResult.Failed) }
+    }
 
     val uiState: StateFlow<LibraryUiState> =
         combine(
-            repository.observeDocuments(),
+            documentsResult,
             folderRepository.observeFolders(),
             selection,
             transient,
             viewStore.view,
-        ) { docs, folders, sel, t, view ->
+        ) { result, folders, sel, t, view ->
+            val docs = (result as? DocsResult.Ready)?.docs.orEmpty()
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> folders.any { it.id == id } }
             LibraryUiState(
@@ -142,6 +167,11 @@ class LibraryViewModel @Inject constructor(
                 folders = folders,
                 selectedFolderId = folderId,
                 view = view,
+                load = when (result) {
+                    DocsResult.Loading -> LibraryLoad.Loading
+                    is DocsResult.Ready -> LibraryLoad.Ready
+                    DocsResult.Failed -> LibraryLoad.Failed
+                },
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
@@ -198,6 +228,10 @@ class LibraryViewModel @Inject constructor(
         val pending = duplicate.value ?: return
         duplicate.value = null
         importDocument(pending.sourceUri, allowDuplicate = true)
+    }
+
+    fun retry() {
+        reload.update { it + 1 }
     }
 
     fun setFilter(value: LibraryFilter) {

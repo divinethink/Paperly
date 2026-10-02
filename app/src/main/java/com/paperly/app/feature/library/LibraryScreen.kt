@@ -46,6 +46,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
+import com.paperly.app.feature.common.EmptyState
+import com.paperly.app.feature.common.ErrorRetry
+import com.paperly.app.feature.common.LoadingPlaceholder
 import com.paperly.app.feature.common.documentMeta
 
 @StringRes
@@ -129,12 +132,18 @@ fun LibraryScreen(
         ViewRow(state.view)
         ContinueSection(viewModel.continueReading, state.query, onOpenReader)
         ImageExportStatus()
-        LibraryList(state, actions, batch)
+        LibraryList(state, actions, batch, { picker.launch(ImportMimeTypes) }, viewModel::retry)
     }
 }
 
 @Composable
-private fun LibraryList(state: LibraryUiState, actions: DocumentActions, batch: BatchState) {
+private fun LibraryList(
+    state: LibraryUiState,
+    actions: DocumentActions,
+    batch: BatchState,
+    onImport: () -> Unit,
+    onRetry: () -> Unit,
+) {
     if (state.isImporting) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.error?.let { err ->
         Text(
@@ -143,19 +152,24 @@ private fun LibraryList(state: LibraryUiState, actions: DocumentActions, batch: 
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
     }
-    if (state.documents.isEmpty()) {
-        val searching = state.query.isNotBlank() || state.selectedFolderId != null
-        val emptyRes = when {
-            state.totalCount == 0 -> R.string.library_empty
-            searching -> R.string.search_empty
-            else -> state.filter.emptyRes()
-        }
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(emptyRes), style = MaterialTheme.typography.bodyLarge)
-        }
-    } else {
-        DocumentList(state.documents, actions, batch)
+    when {
+        state.load == LibraryLoad.Loading -> LoadingPlaceholder()
+        state.load == LibraryLoad.Failed -> ErrorRetry(stringResource(R.string.library_load_error), onRetry)
+        state.documents.isEmpty() -> LibraryEmpty(state, onImport)
+        else -> DocumentList(state.documents, actions, batch)
     }
+}
+
+@Composable
+private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
+    val searching = state.query.isNotBlank() || state.selectedFolderId != null
+    val emptyRes = when {
+        state.totalCount == 0 -> R.string.library_empty
+        searching -> R.string.search_empty
+        else -> state.filter.emptyRes()
+    }
+    val cta = if (state.totalCount == 0) stringResource(R.string.library_import) else null
+    EmptyState(stringResource(emptyRes), cta, onImport)
 }
 
 @Composable
