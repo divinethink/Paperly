@@ -19,6 +19,10 @@ class StorageUsageRepositoryImpl @Inject constructor(
     override fun observeUsage(): Flow<StorageUsage> = dao.observeStorageUsage().map {
         StorageUsage(it.activeBytes, it.activeCount, it.trashBytes, it.trashCount)
     }
+
+    override fun observeDuplicateGroups(): Flow<List<List<String>>> = dao.observeDuplicateRows().map { rows ->
+        rows.groupBy { it.checksum }.values.map { group -> group.map { it.documentId } }
+    }
 }
 
 @Module
