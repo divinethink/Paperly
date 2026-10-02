@@ -82,21 +82,13 @@ class SyncProcessor @Inject constructor(
         val attempts = item.attempts + 1
         when (outcome) {
             RemoteResult.OK -> syncDao.complete(item.syncId, item.updatedAt)
-            RemoteResult.DENIED -> syncDao.markState(
-                syncId = item.syncId,
-                version = item.updatedAt,
-                state = SyncItemState.FAILED,
-                attempts = attempts,
-                nextRetryAt = null,
-                lastError = ERROR_DENIED,
-            )
-            RemoteResult.RETRY -> syncDao.markState(
-                syncId = item.syncId,
-                version = item.updatedAt,
-                state = SyncItemState.RETRYING,
-                attempts = attempts,
-                nextRetryAt = now() + SyncBackoff.delayMs(attempts),
-                lastError = ERROR_RETRY,
+            RemoteResult.DENIED -> syncDao.markFailed(item.syncId, item.updatedAt, attempts, ERROR_DENIED)
+            RemoteResult.RETRY -> syncDao.markRetry(
+                item.syncId,
+                item.updatedAt,
+                attempts,
+                now() + SyncBackoff.delayMs(attempts),
+                ERROR_RETRY,
             )
         }
         return outcome != RemoteResult.RETRY
