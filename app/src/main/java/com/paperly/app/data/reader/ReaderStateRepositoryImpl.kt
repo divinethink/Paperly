@@ -47,6 +47,8 @@ class ReaderStateRepositoryImpl @Inject constructor(
             ),
         )
 
+    override fun observeProgress(documentId: String): Flow<Float?> = dao.observeProgress(documentId)
+
     override fun observeBookmarkedPages(documentId: String): Flow<Set<Int>> =
         dao.observeBookmarkLocators(documentId).map { list -> list.mapNotNull { it.toIntOrNull() }.toSet() }
 
