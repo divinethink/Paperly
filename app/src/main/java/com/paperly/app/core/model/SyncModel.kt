@@ -1,0 +1,22 @@
+package com.paperly.app.core.model
+
+/** What a sync-queue row is about. Runtime-validated strings (extensible: folders etc. arrive with their sync step). */
+object SyncEntityType {
+    const val DOCUMENT = "document"
+}
+
+object SyncOperation {
+    const val PUT = "PUT"
+    const val DELETE = "DELETE"
+}
+
+/** QUEUED/RETRYING = waiting, RUNNING = claimed by the worker, FAILED = rejected for good (until re-enqueued). */
+object SyncItemState {
+    const val QUEUED = "QUEUED"
+    const val RUNNING = "RUNNING"
+    const val RETRYING = "RETRYING"
+    const val FAILED = "FAILED"
+}
+
+/** One row per entity: the id is deterministic, so enqueueing the same entity twice can never create a duplicate. */
+fun syncIdOf(entityType: String, entityId: String): String = "$entityType:$entityId"
