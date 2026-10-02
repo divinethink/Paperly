@@ -1,5 +1,6 @@
 package com.paperly.app.data.sync
 
+import com.paperly.app.core.database.DocumentEntity
 import com.paperly.app.domain.sync.DocumentMeta
 
 /** Firestore field names. Keep in sync with firestore.rules (validDocument). */
@@ -65,3 +66,19 @@ internal fun documentMetaFromMap(id: String, data: Map<String, Any?>): DocumentM
         )
     }
 }
+
+/** Only the syncable part of a row: never the local path, cloud ref or unused/sensitive columns. */
+internal fun DocumentEntity.toMeta(): DocumentMeta = DocumentMeta(
+    documentId = documentId,
+    title = title,
+    type = type,
+    sizeBytes = sizeBytes,
+    checksum = checksum,
+    folderId = folderId,
+    tags = tags,
+    isFavorite = isFavorite,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    deletedAt = deletedAt,
+    schemaVersion = schemaVersion,
+)
