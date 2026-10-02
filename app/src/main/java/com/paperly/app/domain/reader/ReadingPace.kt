@@ -8,6 +8,7 @@ private const val MIN_GAP_MS = 1_000L
 private const val MIN_PROGRESS = 0.01f
 private const val MIN_ACTIVE_MS = 30_000L
 private const val MS_PER_MINUTE = 60_000f
+private const val ROUND_EPSILON = 0.01f // float noise (8.0000001 min) must not round up to 9
 
 /**
  * Session-local reading pace. Only small forward steps count (jumps and long idle gaps are ignored),
@@ -35,6 +36,7 @@ class ReadingPace {
     fun minutesLeft(fraction: Float): Int? {
         if (progress < MIN_PROGRESS || activeMs < MIN_ACTIVE_MS) return null
         val remaining = (1f - fraction).coerceAtLeast(0f)
-        return ceil(remaining * activeMs / progress / MS_PER_MINUTE).toInt()
+        val minutes = remaining * activeMs / progress / MS_PER_MINUTE
+        return ceil(minutes - ROUND_EPSILON).toInt().coerceAtLeast(0)
     }
 }
