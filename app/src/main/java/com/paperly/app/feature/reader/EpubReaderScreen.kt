@@ -44,13 +44,22 @@ import org.readium.r2.shared.publication.Publication
 
 /** Reader route: EPUB -> Readium navigator; everything else -> the existing PDF reader (unchanged). */
 @Composable
-fun ReaderRoute(onBack: () -> Unit, viewModel: EpubReaderViewModel = hiltViewModel()) {
+fun ReaderRoute(
+    onBack: () -> Unit,
+    viewModel: EpubReaderViewModel = hiltViewModel(),
+    comfortViewModel: ReaderComfortViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val comfort by comfortViewModel.comfort.collectAsStateWithLifecycle()
     ReadingTimeEffect()
-    when {
-        state.loading -> Unit
-        !state.isEpub -> ReaderScreen(onBack = onBack)
-        else -> EpubReaderScreen(state, viewModel, onBack)
+    ReaderComfortEffect(comfort)
+    Box(Modifier.fillMaxSize()) {
+        when {
+            state.loading -> Unit
+            !state.isEpub -> ReaderScreen(onBack = onBack)
+            else -> EpubReaderScreen(state, viewModel, onBack)
+        }
+        BlueLightOverlay(comfort.blueLight)
     }
 }
 

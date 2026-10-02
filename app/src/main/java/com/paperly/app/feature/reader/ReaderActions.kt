@@ -23,7 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.ReaderTheme
 
-/** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Theme). */
+/** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
@@ -42,11 +42,19 @@ fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onT
     ) {
         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.reader_annotate_mode))
     }
-    OverflowMenu(viewModel, page, fitHeight, onToggleFit)
+    var showComfort by remember { mutableStateOf(false) }
+    if (showComfort) ComfortSheet { showComfort = false }
+    OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
 }
 
 @Composable
-private fun OverflowMenu(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
+private fun OverflowMenu(
+    viewModel: ReaderViewModel,
+    page: Int,
+    fitHeight: Boolean,
+    onToggleFit: () -> Unit,
+    onComfort: () -> Unit,
+) {
     val current by viewModel.theme.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
@@ -89,16 +97,25 @@ private fun OverflowMenu(viewModel: ReaderViewModel, page: Int, fitHeight: Boole
                 open = false
             },
         )
-        ReaderTheme.entries.forEach { option ->
-            val name = stringResource(R.string.reader_theme_item, stringResource(themeName(option)))
-            DropdownMenuItem(
-                text = { Text(if (option == current) "✓ $name" else name) },
-                onClick = {
-                    viewModel.setTheme(option)
-                    open = false
-                },
-            )
+        ComfortMenuItem {
+            onComfort()
+            open = false
         }
+        ThemeMenuItems(current, viewModel::setTheme) { open = false }
+    }
+}
+
+@Composable
+private fun ThemeMenuItems(current: ReaderTheme, onPick: (ReaderTheme) -> Unit, onDone: () -> Unit) {
+    ReaderTheme.entries.forEach { option ->
+        val name = stringResource(R.string.reader_theme_item, stringResource(themeName(option)))
+        DropdownMenuItem(
+            text = { Text(if (option == current) "✓ $name" else name) },
+            onClick = {
+                onPick(option)
+                onDone()
+            },
+        )
     }
 }
 

@@ -71,6 +71,7 @@ internal fun EpubSettingsPage(visible: Boolean, settings: EpubSettingsViewModel,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             EpubSettingsRows(typography, theme, settings::updateTypography, settings::setTheme, showMode = true)
+            ComfortRowsHost()
         }
     }
 }
