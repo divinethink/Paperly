@@ -18,8 +18,9 @@ class TrashViewModel @Inject constructor(
     private val repository: TrashRepository,
 ) : ViewModel() {
 
-    val documents: StateFlow<List<Document>> = repository.observeTrash()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** null = still loading (so "Trash is empty" is never shown before the first emission). */
+    val documents: StateFlow<List<Document>?> = repository.observeTrash()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _deleteFailed = MutableStateFlow(false)
     val deleteFailed: StateFlow<Boolean> = _deleteFailed.asStateFlow()

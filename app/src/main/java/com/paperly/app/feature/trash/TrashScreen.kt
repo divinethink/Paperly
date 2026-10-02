@@ -36,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
+import com.paperly.app.feature.common.LoadingPlaceholder
 import com.paperly.app.feature.common.documentMeta
 
 private sealed interface Confirm {
@@ -45,7 +46,8 @@ private sealed interface Confirm {
 
 @Composable
 fun TrashScreen(onBack: () -> Unit, viewModel: TrashViewModel = hiltViewModel()) {
-    val docs by viewModel.documents.collectAsStateWithLifecycle()
+    val loaded by viewModel.documents.collectAsStateWithLifecycle()
+    val docs = loaded.orEmpty()
     val failed by viewModel.deleteFailed.collectAsStateWithLifecycle()
     var confirm by remember { mutableStateOf<Confirm?>(null) }
 
@@ -76,7 +78,9 @@ fun TrashScreen(onBack: () -> Unit, viewModel: TrashViewModel = hiltViewModel())
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
-        if (docs.isEmpty()) {
+        if (loaded == null) {
+            LoadingPlaceholder()
+        } else if (docs.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.trash_empty), style = MaterialTheme.typography.bodyLarge)
             }
