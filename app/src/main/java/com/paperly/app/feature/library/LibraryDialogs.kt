@@ -1,5 +1,6 @@
 package com.paperly.app.feature.library
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -92,7 +93,7 @@ internal fun LibraryDialogHost(
             onDismiss = onDismiss,
         )
         is LibraryDialog.Move -> MoveFolderDialog(
-            doc = dialog.doc,
+            currentFolderId = dialog.doc.folderId,
             folders = folders,
             onPick = {
                 organize.moveDocument(dialog.doc, it)
@@ -101,7 +102,7 @@ internal fun LibraryDialogHost(
             onDismiss = onDismiss,
         )
         is LibraryDialog.Tags -> TagsDialog(
-            doc = dialog.doc,
+            initial = dialog.doc.tags.joinToString(", "),
             onConfirm = {
                 organize.setTags(dialog.doc, it)
                 onDismiss()
@@ -119,7 +120,12 @@ internal fun LibraryDialogHost(
 }
 
 @Composable
-private fun MoveFolderDialog(doc: Document, folders: List<Folder>, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
+internal fun MoveFolderDialog(
+    currentFolderId: String?,
+    folders: List<Folder>,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.move_title)) },
@@ -130,7 +136,7 @@ private fun MoveFolderDialog(doc: Document, folders: List<Folder>, onPick: (Stri
                     folders.map { it.id to it.name }
                 options.forEach { (id, name) ->
                     TextButton(onClick = { onPick(id) }, Modifier.fillMaxWidth()) {
-                        Text(if (id == doc.folderId) "\u2713 $name" else name)
+                        Text(if (id == currentFolderId) "\u2713 $name" else name)
                     }
                 }
             }
@@ -141,11 +147,16 @@ private fun MoveFolderDialog(doc: Document, folders: List<Folder>, onPick: (Stri
 }
 
 @Composable
-private fun TagsDialog(doc: Document, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf(doc.tags.joinToString(", ")) }
+internal fun TagsDialog(
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    @StringRes title: Int = R.string.tags_title,
+) {
+    var text by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.tags_title)) },
+        title = { Text(stringResource(title)) },
         text = {
             OutlinedTextField(
                 value = text,

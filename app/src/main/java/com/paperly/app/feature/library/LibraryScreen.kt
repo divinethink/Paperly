@@ -3,7 +3,8 @@ package com.paperly.app.feature.library
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -75,11 +77,13 @@ internal class DocumentActions(
 fun LibraryScreen(
     onOpenReader: (documentId: String) -> Unit,
     onOpenTrash: () -> Unit,
+    onOpenStorage: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel(),
     organize: OrganizeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<LibraryDialog?>(null) }
+    val batch = rememberBatchState()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.importDocument(it.toString()) }
     }
@@ -106,7 +110,13 @@ fun LibraryScreen(
     dialog?.let { LibraryDialogHost(it, state.folders, viewModel, organize) { dialog = null } }
 
     Column(Modifier.fillMaxSize()) {
-        LibraryHeader(state.totalCount, state.isImporting, onOpenTrash) { picker.launch(ImportMimeTypes) }
+        if (batch.active) {
+            BatchBar(batch, state.documents, state.folders)
+        } else {
+            LibraryHeader(state.totalCount, state.isImporting, onOpenTrash, onOpenStorage) {
+                picker.launch(ImportMimeTypes)
+            }
+        }
         SearchField(state.query, viewModel::setQuery)
         FilterRow(state.filter, viewModel::setFilter)
         FolderRow(
@@ -119,12 +129,12 @@ fun LibraryScreen(
         ViewRow(state.view)
         ContinueSection(viewModel.continueReading, state.query, onOpenReader)
         ImageExportStatus()
-        LibraryList(state, actions)
+        LibraryList(state, actions, batch)
     }
 }
 
 @Composable
-private fun LibraryList(state: LibraryUiState, actions: DocumentActions) {
+private fun LibraryList(state: LibraryUiState, actions: DocumentActions, batch: BatchState) {
     if (state.isImporting) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.error?.let { err ->
         Text(
@@ -144,12 +154,18 @@ private fun LibraryList(state: LibraryUiState, actions: DocumentActions) {
             Text(stringResource(emptyRes), style = MaterialTheme.typography.bodyLarge)
         }
     } else {
-        DocumentList(state.documents, actions)
+        DocumentList(state.documents, actions, batch)
     }
 }
 
 @Composable
-private fun LibraryHeader(totalCount: Int, isImporting: Boolean, onOpenTrash: () -> Unit, onImport: () -> Unit) {
+private fun LibraryHeader(
+    totalCount: Int,
+    isImporting: Boolean,
+    onOpenTrash: () -> Unit,
+    onOpenStorage: () -> Unit,
+    onImport: () -> Unit,
+) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -177,6 +193,13 @@ private fun LibraryHeader(totalCount: Int, isImporting: Boolean, onOpenTrash: ()
                             onOpenTrash()
                         },
                     )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.menu_storage)) },
+                        onClick = {
+                            menuOpen = false
+                            onOpenStorage()
+                        },
+                    )
                 }
             }
         }
@@ -184,25 +207,35 @@ private fun LibraryHeader(totalCount: Int, isImporting: Boolean, onOpenTrash: ()
 }
 
 @Composable
-private fun DocumentList(docs: List<Document>, actions: DocumentActions) {
+private fun DocumentList(docs: List<Document>, actions: DocumentActions, batch: BatchState) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(docs, key = { it.id }) { doc -> DocumentRow(doc, actions) }
+        items(docs, key = { it.id }) { doc -> DocumentRow(doc, actions, batch) }
     }
 }
 
 @Composable
-private fun DocumentRow(doc: Document, actions: DocumentActions) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun DocumentRow(doc: Document, actions: DocumentActions, batch: BatchState) {
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
     val export = rememberDocumentExport(doc)
-    Card(Modifier.fillMaxWidth().clickable(role = Role.Button) { actions.onOpen(doc) }) {
+    Card(
+        Modifier.fillMaxWidth().combinedClickable(
+            role = Role.Button,
+            onClick = { if (batch.active) batch.toggle(doc.id) else actions.onOpen(doc) },
+            onLongClick = { batch.toggle(doc.id) },
+        ),
+    ) {
         Row(
             Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (batch.active) {
+                Checkbox(checked = doc.id in batch.selected, onCheckedChange = { batch.toggle(doc.id) })
+            }
             Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
                 Text(
                     doc.title,
@@ -212,12 +245,14 @@ private fun DocumentRow(doc: Document, actions: DocumentActions) {
                 )
                 Text(documentMeta(context, doc), style = MaterialTheme.typography.bodySmall)
             }
-            FavoriteButton(doc.isFavorite) { actions.onToggleFavorite(doc) }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doc_more))
+            if (!batch.active) {
+                FavoriteButton(doc.isFavorite) { actions.onToggleFavorite(doc) }
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doc_more))
+                    }
+                    DocumentMenu(menuOpen, doc, actions, export) { menuOpen = false }
                 }
-                DocumentMenu(menuOpen, doc, actions, export) { menuOpen = false }
             }
         }
     }
