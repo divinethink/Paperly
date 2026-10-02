@@ -228,4 +228,10 @@
     <string name="continue_reading_label">Continue reading</string>
     <string name="settings_reading_header">Reading</string>
     <string name="settings_reading_today">Read today: %1$d min</string>
+    <string name="reader_comfort">Brightness and comfort</string>
+    <string name="reader_brightness_auto">Use system brightness</string>
+    <string name="reader_brightness">Brightness</string>
+    <string name="reader_blue_light">Blue-light filter</string>
+    <string name="reader_keep_awake">Keep screen on</string>
+    <string name="reader_hide_bars">Hide status and navigation bars</string>
 </resources>
