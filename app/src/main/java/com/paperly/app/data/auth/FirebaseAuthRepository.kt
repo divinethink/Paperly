@@ -1,6 +1,7 @@
 package com.paperly.app.data.auth
 
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -21,6 +22,7 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -48,6 +50,10 @@ class FirebaseAuthRepository @Inject constructor(
             .takeIf { it != 0 }
             ?.let(appContext::getString)
 
+    @Volatile
+    override var lastErrorDetail: String? = null
+        private set
+
     override val state: Flow<AuthState> =
         if (!configured) {
             flowOf(AuthState.Unavailable)
@@ -61,6 +67,7 @@ class FirebaseAuthRepository @Inject constructor(
         }
 
     override suspend fun signIn(activity: Context): SignInResult {
+        lastErrorDetail = null
         val clientId = webClientId
         if (!configured || clientId == null) return SignInResult.FAILED
         return try {
@@ -71,6 +78,7 @@ class FirebaseAuthRepository @Inject constructor(
                 ?.takeIf { it.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL }
                 ?.let { GoogleIdTokenCredential.createFrom(it.data).idToken }
             if (idToken == null) {
+                lastErrorDetail = describe("no Google ID token")
                 SignInResult.FAILED
             } else {
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
@@ -78,12 +86,14 @@ class FirebaseAuthRepository @Inject constructor(
                 SignInResult.SIGNED_IN
             }
         } catch (e: GetCredentialCancellationException) {
+            lastErrorDetail = describe(e)
             SignInResult.CANCELLED
         } catch (e: NoCredentialException) {
             SignInResult.NO_ACCOUNT
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            lastErrorDetail = describe(e)
             SignInResult.FAILED
         }
     }
@@ -96,11 +106,26 @@ class FirebaseAuthRepository @Inject constructor(
             .onFailure { if (it is CancellationException) throw it }
     }
 
+    private fun describe(e: Throwable): String =
+        describe("${e.javaClass.simpleName}: ${e.message.orEmpty().take(MAX_DETAIL)}")
+
+    private fun describe(reason: String): String = "$reason | APK SHA-1: ${apkSha1() ?: "unknown"}"
+
+    // The signing key of the installed APK; Google sign-in only works when it matches the registered SHA-1.
+    private fun apkSha1(): String? = runCatching {
+        val pm = appContext.packageManager
+        val info = pm.getPackageInfo(appContext.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+        info.signingInfo?.apkContentsSigners?.firstOrNull()?.let { signer ->
+            MessageDigest.getInstance("SHA-1").digest(signer.toByteArray()).joinToString("") { "%02x".format(it) }
+        }
+    }.getOrNull()
+
     private fun FirebaseUser?.toState(): AuthState =
         if (this == null) AuthState.SignedOut else AuthState.SignedIn(uid, email)
 
     private companion object {
         const val WEB_CLIENT_ID_RES = "default_web_client_id"
+        const val MAX_DETAIL = 160
     }
 }
 
