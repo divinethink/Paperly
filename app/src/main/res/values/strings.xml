@@ -139,6 +139,16 @@
     <string name="settings_sync_wifi_only">Sync over Wi-Fi only</string>
     <string name="settings_sync_wifi_only_off">Syncing may use mobile data.</string>
     <string name="settings_sync_pause">Pause sync</string>
+    <string name="settings_sync_status_done">Everything is synced.</string>
+    <string name="settings_sync_status_pending">Waiting to sync: %1$d</string>
+    <string name="settings_sync_status_failed">%1$d could not be synced.</string>
+    <string name="settings_sync_status_conflicts">%1$d need your decision: changed on another device too.</string>
+    <string name="settings_sync_status_paused">Sync is paused.</string>
+    <string name="settings_sync_retry">Try again</string>
+    <string name="settings_sync_conflict_title">\"%1$s\" was changed here and on another device.</string>
+    <string name="settings_sync_keep_device">Keep this device</string>
+    <string name="settings_sync_keep_cloud">Keep cloud</string>
+    <string name="settings_sync_conflict_failed">Could not reach the cloud. Please try again.</string>
     <string name="settings_sync_failed">Sign-in failed. Please try again.</string>
     <string name="settings_storage_header">Storage</string>
     <string name="settings_storage_total">Total</string>
