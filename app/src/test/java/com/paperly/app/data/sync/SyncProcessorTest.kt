@@ -11,6 +11,7 @@ import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.database.SyncBaseEntity
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.StoredFile
+import com.paperly.app.core.model.SYNC_ERROR_CONFLICT
 import com.paperly.app.core.model.StorageState
 import com.paperly.app.core.model.SyncEntityType
 import com.paperly.app.core.model.SyncItemState
@@ -22,6 +23,7 @@ import com.paperly.app.domain.sync.ConflictCheck
 import com.paperly.app.domain.sync.DocumentMeta
 import com.paperly.app.domain.sync.DownloadTarget
 import com.paperly.app.domain.sync.FileSyncResult
+import com.paperly.app.domain.sync.RemoteDocument
 import com.paperly.app.domain.sync.RemoteFileStore
 import com.paperly.app.domain.sync.RemoteMetadataStore
 import com.paperly.app.domain.sync.RemoteResult
@@ -78,6 +80,8 @@ private class FakeRemote(var result: RemoteResult = RemoteResult.OK) : RemoteMet
         return result
     }
 
+    override suspend fun fetchDocument(uid: String, documentId: String) = RemoteDocument.Absent
+
     override suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>? = emptyList()
 }
 
@@ -132,7 +136,9 @@ class SyncProcessorTest {
         }
         filesDir = tmp.newFolder()
         val step = FileSyncStep(db.documentDao(), db.cloudSyncDao(), FakeFiles(filesDir), remoteFiles)
-        processor = SyncProcessor(db.syncItemDao(), db.documentDao(), remote, auth, settings, step)
+        val pull = PullStep(db.documentDao(), db.syncItemDao(), db.cloudSyncDao(), remote, settings)
+        val downloads = DownloadStep(db.cloudSyncDao(), FakeFiles(filesDir), remoteFiles)
+        processor = SyncProcessor(db.syncItemDao(), db.documentDao(), remote, auth, settings, step, pull, downloads)
     }
 
     @After
