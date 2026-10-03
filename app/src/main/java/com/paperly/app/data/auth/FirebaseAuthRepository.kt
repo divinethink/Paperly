@@ -1,9 +1,6 @@
 package com.paperly.app.data.auth
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.PackageManager
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -16,7 +13,6 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.OAuthProvider
 import com.paperly.app.domain.auth.AuthRepository
 import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.SignInResult
@@ -25,7 +21,6 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -53,10 +48,6 @@ class FirebaseAuthRepository @Inject constructor(
             .takeIf { it != 0 }
             ?.let(appContext::getString)
 
-    @Volatile
-    private var lastError: String? = null
-    override val lastSignInError: String? get() = lastError
-
     override val state: Flow<AuthState> =
         if (!configured) {
             flowOf(AuthState.Unavailable)
@@ -70,12 +61,8 @@ class FirebaseAuthRepository @Inject constructor(
         }
 
     override suspend fun signIn(activity: Context): SignInResult {
-        lastError = null
         val clientId = webClientId
-        if (!configured || clientId == null) {
-            lastError = "no web client id in build"
-            return SignInResult.FAILED
-        }
+        if (!configured || clientId == null) return SignInResult.FAILED
         return try {
             val option = GetSignInWithGoogleOption.Builder(clientId).build()
             val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
@@ -84,7 +71,6 @@ class FirebaseAuthRepository @Inject constructor(
                 ?.takeIf { it.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL }
                 ?.let { GoogleIdTokenCredential.createFrom(it.data).idToken }
             if (idToken == null) {
-                lastError = "no Google ID token"
                 SignInResult.FAILED
             } else {
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
@@ -92,36 +78,12 @@ class FirebaseAuthRepository @Inject constructor(
                 SignInResult.SIGNED_IN
             }
         } catch (e: GetCredentialCancellationException) {
-            lastError = describe(e)
             SignInResult.CANCELLED
         } catch (e: NoCredentialException) {
-            lastError = describe(e)
             SignInResult.NO_ACCOUNT
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            lastError = describe(e)
-            SignInResult.FAILED
-        }
-    }
-
-    override suspend fun signInWithBrowser(activity: Context): SignInResult {
-        lastError = null
-        val host = activity.findActivity()
-        if (!configured || host == null) {
-            lastError = "browser sign-in unavailable"
-            return SignInResult.FAILED
-        }
-        return try {
-            val auth = FirebaseAuth.getInstance()
-            val pending = auth.pendingAuthResult
-            (pending ?: auth.startActivityForSignInWithProvider(host, OAuthProvider.newBuilder("google.com").build()))
-                .await()
-            SignInResult.SIGNED_IN
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            lastError = describe(e)
             SignInResult.FAILED
         }
     }
@@ -137,33 +99,9 @@ class FirebaseAuthRepository @Inject constructor(
     private fun FirebaseUser?.toState(): AuthState =
         if (this == null) AuthState.SignedOut else AuthState.SignedIn(uid, email)
 
-    // Appended to every failure so a key/package mismatch is visible on screen (SHA-1 and client id are public).
-    private fun describe(e: Exception): String =
-        "${e.javaClass.simpleName}: ${e.message.orEmpty().take(MAX_DETAIL)}\n" +
-            "pkg=${appContext.packageName}\napp SHA1=${signingSha1()}\nweb client=${webClientId?.take(CLIENT_PREFIX)}"
-
-    private fun signingSha1(): String = runCatching {
-        val info = appContext.packageManager
-            .getPackageInfo(appContext.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-        val signer = info.signingInfo?.apkContentsSigners?.firstOrNull()
-        if (signer == null) {
-            "none"
-        } else {
-            MessageDigest.getInstance("SHA-1").digest(signer.toByteArray()).joinToString(":") { "%02X".format(it) }
-        }
-    }.getOrDefault("unknown")
-
     private companion object {
-        const val MAX_DETAIL = 160
-        const val CLIENT_PREFIX = 40
         const val WEB_CLIENT_ID_RES = "default_web_client_id"
     }
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
 
 @Module
