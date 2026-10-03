@@ -4,9 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.room.Room
 import com.paperly.app.core.database.DocumentEntity
 import com.paperly.app.core.database.PaperlyDatabase
+import com.paperly.app.core.database.SyncBaseEntity
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.StoredFile
 import com.paperly.app.core.model.StorageState
@@ -16,6 +18,7 @@ import com.paperly.app.core.model.SyncOperation
 import com.paperly.app.domain.auth.AuthRepository
 import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.SignInResult
+import com.paperly.app.domain.sync.ConflictCheck
 import com.paperly.app.domain.sync.DocumentMeta
 import com.paperly.app.domain.sync.DownloadTarget
 import com.paperly.app.domain.sync.FileSyncResult
@@ -57,9 +60,17 @@ private class FakeRemote(var result: RemoteResult = RemoteResult.OK) : RemoteMet
     val puts = mutableListOf<DocumentMeta>()
     val deletes = mutableListOf<String>()
 
-    override suspend fun putDocument(uid: String, meta: DocumentMeta): RemoteResult {
-        if (result == RemoteResult.OK) puts += meta
-        return result
+    /** Stands in for Firestore: documentId -> cloud updatedAt, checked with the real [ConflictCheck]. */
+    val cloud = mutableMapOf<String, Long>()
+    val basesSeen = mutableListOf<Long?>()
+
+    override suspend fun putDocument(uid: String, meta: DocumentMeta, baseUpdatedAt: Long?): RemoteResult {
+        if (result != RemoteResult.OK) return result
+        basesSeen += baseUpdatedAt
+        if (!ConflictCheck.canWrite(baseUpdatedAt, cloud[meta.documentId], meta.updatedAt)) return RemoteResult.CONFLICT
+        cloud[meta.documentId] = meta.updatedAt
+        puts += meta
+        return RemoteResult.OK
     }
 
     override suspend fun deleteDocument(uid: String, documentId: String): RemoteResult {
@@ -137,6 +148,9 @@ class SyncProcessorTest {
         updatedAt = 2,
     )
 
+    /** Marks u1 as the account this device already synced with (otherwise the first run resets all bases). */
+    private suspend fun knownAccount() = settings.edit { it[stringPreferencesKey("sync_last_uid")] = "u1" }
+
     private suspend fun enqueue(id: String, op: String = SyncOperation.PUT, now: Long = 10L) =
         db.syncItemDao().enqueue(SyncEntityType.DOCUMENT, id, op, now)
 
@@ -161,6 +175,72 @@ class SyncProcessorTest {
         enqueue("d1", now = 20L) // the owner edits the document while the worker is uploading
         assertEquals(0, dao.complete(read.syncId, read.updatedAt))
         assertEquals(SyncItemState.QUEUED, dao.getDue(SyncItemState.FAILED, 100L, 10).single().state)
+    }
+
+    @Test
+    fun successfulPutRemembersTheCloudVersionItWrote() = runBlocking {
+        db.documentDao().insert(doc("d1")) // updatedAt = 2
+        enqueue("d1")
+        processor.run { 100L }
+        assertEquals(2L, db.syncItemDao().getBase("d1"))
+        assertEquals(listOf<Long?>(null), remote.basesSeen) // first write: nothing seen before
+    }
+
+    @Test
+    fun changedCloudCopyStopsTheItemAsConflictAndKeepsBothSides() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1"))
+        db.syncItemDao().setBase(SyncBaseEntity("d1", 1L)) // we last saw cloud version 1
+        remote.cloud["d1"] = 5L // another device has since written version 5
+        enqueue("d1")
+        assertEquals(SyncRunResult.DONE, processor.run { 100L })
+        val item = db.syncItemDao().getDue("none", Long.MAX_VALUE, 10).single { it.entityType == SyncEntityType.DOCUMENT }
+        assertEquals(SyncItemState.FAILED, item.state)
+        assertEquals(SYNC_ERROR_CONFLICT, item.lastError)
+        assertEquals(5L, remote.cloud["d1"]) // cloud untouched
+        assertEquals(1L, db.syncItemDao().getBase("d1")) // base untouched
+        assertEquals("T-d1", db.documentDao().getById("d1")?.title) // local untouched
+    }
+
+    @Test
+    fun conflictItemIsNotRetriedByLaterRuns() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1"))
+        db.syncItemDao().setBase(SyncBaseEntity("d1", 1L))
+        remote.cloud["d1"] = 5L
+        enqueue("d1")
+        processor.run { 100L }
+        remote.basesSeen.clear()
+        processor.run { 200L }
+        assertTrue(remote.basesSeen.isEmpty())
+    }
+
+    @Test
+    fun retryAfterACrashBetweenCloudWriteAndBookkeepingIsNotAConflict() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1")) // updatedAt = 2
+        db.syncItemDao().setBase(SyncBaseEntity("d1", 1L))
+        remote.cloud["d1"] = 2L // our write landed, the base was never updated
+        enqueue("d1")
+        processor.run { 100L }
+        assertEquals(2L, db.syncItemDao().getBase("d1"))
+        assertEquals(0, waiting())
+    }
+
+    @Test
+    fun permanentDeleteForgetsTheBase() = runBlocking {
+        knownAccount()
+        db.syncItemDao().setBase(SyncBaseEntity("d1", 2L))
+        enqueue("d1", SyncOperation.DELETE)
+        processor.run { 100L }
+        assertEquals(null, db.syncItemDao().getBase("d1"))
+    }
+
+    @Test
+    fun newAccountStartsWithoutOldBases() = runBlocking {
+        db.syncItemDao().setBase(SyncBaseEntity("d1", 2L))
+        processor.run { 100L } // first run for this account
+        assertEquals(null, db.syncItemDao().getBase("d1"))
     }
 
     @Test
