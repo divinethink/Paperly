@@ -9,6 +9,7 @@
 .cxx/
 *.jks
 *.keystore
+!app/paperly-debug.keystore
 google-services.json
 app/build/
 benchmark/build/
