@@ -21,5 +21,8 @@ interface AuthRepository {
     /** [activity] is only used to show the account chooser; it is not retained. */
     suspend fun signIn(activity: Context): SignInResult
 
+    /** Short technical reason of the last non-successful [signIn], for on-screen diagnosis; null otherwise. */
+    val lastSignInError: String? get() = null
+
     suspend fun signOut(activity: Context)
 }
