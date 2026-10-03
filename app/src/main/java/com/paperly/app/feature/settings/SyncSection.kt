@@ -21,13 +21,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.SignInResult
+import com.paperly.app.domain.sync.SyncQueueCounts
 
 /** Settings -> Sync. Sign-in is optional; nothing else in the app depends on it. */
 @Composable
@@ -63,6 +67,8 @@ private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, vi
     val wifiOnly by viewModel.wifiOnly.collectAsStateWithLifecycle()
     val paused by viewModel.paused.collectAsStateWithLifecycle()
     val counts by viewModel.fileCounts.collectAsStateWithLifecycle()
+    val queue by viewModel.queueCounts.collectAsStateWithLifecycle()
+    val conflicts by viewModel.conflicts.collectAsStateWithLifecycle()
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         viewModel.onConsentResult(it.data)
     }
@@ -71,6 +77,11 @@ private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, vi
     Text(stringResource(R.string.settings_sync_signed_in_as, name), Modifier.padding(top = 8.dp))
     Text(stringResource(R.string.settings_sync_files_hint), Modifier.padding(top = 8.dp))
     Text(stringResource(R.string.settings_sync_files_count, counts.synced, counts.total), Modifier.padding(top = 8.dp))
+    SyncStatusRows(queue, paused, onRetry = viewModel::retryFailed)
+    conflicts.forEach { c ->
+        ConflictRow(c.title, onThisDevice = { viewModel.keepThisDevice(c.documentId) }, onCloud = { viewModel.keepCloud(c.documentId) })
+    }
+    if (ui.resolveFailed) Text(stringResource(R.string.settings_sync_conflict_failed), Modifier.padding(top = 8.dp))
     ui.consent?.let { sender ->
         Button(
             onClick = { consentLauncher.launch(IntentSenderRequest.Builder(sender).build()) },
@@ -87,6 +98,35 @@ private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, vi
         onClick = { viewModel.signOut(context) },
         modifier = Modifier.padding(top = 8.dp),
     ) { Text(stringResource(R.string.settings_sync_sign_out)) }
+}
+
+/** One line that says where sync stands, so nothing happens silently. */
+@Composable
+private fun SyncStatusRows(queue: SyncQueueCounts, paused: Boolean, onRetry: () -> Unit) {
+    val text = when {
+        paused -> stringResource(R.string.settings_sync_status_paused)
+        queue.conflicts > 0 -> stringResource(R.string.settings_sync_status_conflicts, queue.conflicts)
+        queue.failed > 0 -> stringResource(R.string.settings_sync_status_failed, queue.failed)
+        queue.pending > 0 -> stringResource(R.string.settings_sync_status_pending, queue.pending)
+        else -> stringResource(R.string.settings_sync_status_done)
+    }
+    Text(text, Modifier.padding(top = 8.dp).semantics { liveRegion = LiveRegionMode.Polite })
+    if (queue.failed > 0) {
+        OutlinedButton(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
+            Text(stringResource(R.string.settings_sync_retry))
+        }
+    }
+}
+
+@Composable
+private fun ConflictRow(title: String, onThisDevice: () -> Unit, onCloud: () -> Unit) {
+    Column(Modifier.padding(top = 12.dp)) {
+        Text(stringResource(R.string.settings_sync_conflict_title, title))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+            OutlinedButton(onClick = onThisDevice) { Text(stringResource(R.string.settings_sync_keep_device)) }
+            OutlinedButton(onClick = onCloud) { Text(stringResource(R.string.settings_sync_keep_cloud)) }
+        }
+    }
 }
 
 @Composable

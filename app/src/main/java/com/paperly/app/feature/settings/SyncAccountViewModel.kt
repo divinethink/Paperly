@@ -10,8 +10,11 @@ import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.DriveAuth
 import com.paperly.app.domain.auth.DriveToken
 import com.paperly.app.domain.auth.SignInResult
+import com.paperly.app.domain.sync.ConflictInfo
+import com.paperly.app.domain.sync.ConflictResolver
 import com.paperly.app.domain.sync.FileSyncCounts
 import com.paperly.app.domain.sync.SyncQueue
+import com.paperly.app.domain.sync.SyncQueueCounts
 import com.paperly.app.domain.sync.SyncSettings
 import com.paperly.app.domain.sync.SyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +32,7 @@ data class SyncAccountUiState(
     val result: SignInResult? = null,
     val consent: IntentSender? = null,
     val consentDenied: Boolean = false,
+    val resolveFailed: Boolean = false,
 )
 
 @HiltViewModel
@@ -37,6 +41,7 @@ class SyncAccountViewModel @Inject constructor(
     private val syncQueue: SyncQueue,
     private val driveAuth: DriveAuth,
     private val syncSettings: SyncSettings,
+    private val conflictResolver: ConflictResolver,
     syncStatus: SyncStatus,
 ) : ViewModel() {
     /** null until the first emission, so the UI never flashes a wrong "signed out". */
@@ -51,6 +56,12 @@ class SyncAccountViewModel @Inject constructor(
 
     val fileCounts: StateFlow<FileSyncCounts> = syncStatus.fileCounts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), FileSyncCounts(0, 0))
+
+    val queueCounts: StateFlow<SyncQueueCounts> = syncStatus.queueCounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SyncQueueCounts(0, 0, 0))
+
+    val conflicts: StateFlow<List<ConflictInfo>> = syncStatus.conflicts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
     private val _ui = MutableStateFlow(SyncAccountUiState())
     val ui: StateFlow<SyncAccountUiState> = _ui
@@ -92,6 +103,22 @@ class SyncAccountViewModel @Inject constructor(
         viewModelScope.launch {
             syncSettings.setPaused(value)
             syncQueue.kick()
+        }
+    }
+
+    fun retryFailed() {
+        viewModelScope.launch { syncQueue.retryFailed() }
+    }
+
+    fun keepThisDevice(documentId: String) = resolve { conflictResolver.keepThisDevice(documentId) }
+
+    fun keepCloud(documentId: String) = resolve { conflictResolver.keepCloud(documentId) }
+
+    private fun resolve(action: suspend () -> Boolean) {
+        viewModelScope.launch {
+            val ok = action()
+            _ui.update { it.copy(resolveFailed = !ok) }
+            if (ok) syncQueue.kick()
         }
     }
 
