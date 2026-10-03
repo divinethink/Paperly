@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.paperly.app.core.database.DocumentDao
+import com.paperly.app.core.database.SyncBaseEntity
 import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.database.SyncItemEntity
 import com.paperly.app.core.model.SyncEntityType
@@ -23,6 +24,9 @@ import kotlinx.coroutines.sync.withLock
 
 /** `lastError` of an item parked until the user allows Drive access; `SyncQueue.resumeDeferred` releases them. */
 internal const val SYNC_ERROR_NEEDS_ACCESS = "needs drive access"
+
+/** `lastError` of a FAILED item whose cloud copy changed elsewhere; the user decides (P8-E3). */
+internal const val SYNC_ERROR_CONFLICT = "conflict"
 
 enum class SyncRunResult {
     /** Nothing left to do. */
@@ -70,6 +74,7 @@ class SyncProcessor @Inject constructor(
     private suspend fun queueEverythingForNewAccount(uid: String, now: Long) {
         if (settings.data.first()[LAST_UID] == uid) return
         files.forgetCloudCopies()
+        syncDao.clearBases()
         syncDao.enqueueAllDocuments(now)
         settings.edit { it[LAST_UID] = uid } // after the enqueue: a crash in between just repeats it (idempotent)
     }
@@ -103,6 +108,8 @@ class SyncProcessor @Inject constructor(
                 now() + SyncBackoff.delayMs(attempts),
                 ERROR_RETRY,
             )
+            // The cloud copy changed elsewhere: stop for this item (no retry, no overwrite) until the user decides.
+            RemoteResult.CONFLICT -> syncDao.markFailed(item.syncId, item.updatedAt, item.attempts, SYNC_ERROR_CONFLICT)
             // Not a failure: waits for the user (attempts unchanged); the run goes on with the other items.
             RemoteResult.DEFERRED -> syncDao.markRetry(
                 item.syncId,
@@ -127,9 +134,14 @@ class SyncProcessor @Inject constructor(
         // A PUT whose row has since been removed becomes a remote delete; DELETE never needs the row.
         val entity = if (item.operation == SyncOperation.PUT) documentDao.getById(item.entityId) else null
         return if (entity == null) {
-            remote.deleteDocument(uid, item.entityId)
+            remote.deleteDocument(uid, item.entityId).also {
+                if (it == RemoteResult.OK) syncDao.deleteBase(item.entityId)
+            }
         } else {
-            remote.putDocument(uid, entity.toMeta())
+            val meta = entity.toMeta()
+            remote.putDocument(uid, meta, syncDao.getBase(item.entityId)).also {
+                if (it == RemoteResult.OK) syncDao.setBase(SyncBaseEntity(item.entityId, meta.updatedAt))
+            }
         }
     }
 

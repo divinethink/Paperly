@@ -4,7 +4,9 @@ import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Transaction
 import com.paperly.app.data.auth.await
+import com.paperly.app.domain.sync.ConflictCheck
 import com.paperly.app.domain.sync.DocumentMeta
 import com.paperly.app.domain.sync.RemoteMetadataStore
 import com.paperly.app.domain.sync.RemoteResult
@@ -22,18 +24,38 @@ import kotlinx.coroutines.withTimeout
 /**
  * Layout: users/{uid}/documents/{documentId}. Writes are `set` on a fixed id, so retries and double-taps are
  * idempotent. Every call has a timeout: Firestore's write task never completes while offline.
- * Not wired to any screen yet (the sync queue arrives in P8-C).
  */
 @Singleton
 class FirestoreMetadataStore @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : RemoteMetadataStore {
 
-    override suspend fun putDocument(uid: String, meta: DocumentMeta): RemoteResult =
-        call { documents(uid).document(meta.documentId).set(meta.toFirestoreMap()).await() }
+    /**
+     * One transaction: read the cloud copy, let [ConflictCheck] decide, write only if allowed. A transaction needs
+     * the network, so offline it fails -> RETRY (never a silent local-only write).
+     */
+    override suspend fun putDocument(uid: String, meta: DocumentMeta, baseUpdatedAt: Long?): RemoteResult = call {
+        val ref = documents(uid).document(meta.documentId)
+        val written = FirebaseFirestore.getInstance().runTransaction(
+            Transaction.Function { tx ->
+                val snapshot = tx.get(ref)
+                val remote = if (snapshot.exists()) {
+                    (snapshot.get(MetaFields.UPDATED_AT) as? Number)?.toLong() ?: Long.MAX_VALUE // unreadable = doubt
+                } else {
+                    null
+                }
+                val allowed = ConflictCheck.canWrite(baseUpdatedAt, remote, meta.updatedAt)
+                if (allowed) tx.set(ref, meta.toFirestoreMap())
+                allowed
+            },
+        ).await()
+        if (written) RemoteResult.OK else RemoteResult.CONFLICT
+    }
 
-    override suspend fun deleteDocument(uid: String, documentId: String): RemoteResult =
-        call { documents(uid).document(documentId).delete().await() }
+    override suspend fun deleteDocument(uid: String, documentId: String): RemoteResult = call {
+        documents(uid).document(documentId).delete().await()
+        RemoteResult.OK
+    }
 
     override suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>? = try {
         if (!configured()) {
@@ -61,12 +83,11 @@ class FirestoreMetadataStore @Inject constructor(
     // Without google-services.json there is no FirebaseApp and getInstance() would throw.
     private fun configured(): Boolean = FirebaseApp.getApps(context).isNotEmpty()
 
-    private suspend fun call(block: suspend () -> Unit): RemoteResult = try {
+    private suspend fun call(block: suspend () -> RemoteResult): RemoteResult = try {
         if (!configured()) {
             RemoteResult.RETRY
         } else {
             withTimeout(TIMEOUT_MS) { block() }
-            RemoteResult.OK
         }
     } catch (e: TimeoutCancellationException) {
         RemoteResult.RETRY
