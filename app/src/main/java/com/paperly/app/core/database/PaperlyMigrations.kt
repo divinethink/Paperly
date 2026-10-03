@@ -91,6 +91,24 @@ object PaperlyMigrations {
         }
     }
 
+    /** v7 → v8: add `sync_base` (last seen cloud version per document, for conflict detection). New table only. */
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `sync_base` (`documentId` TEXT NOT NULL, " +
+                    "`remoteUpdatedAt` INTEGER NOT NULL, PRIMARY KEY(`documentId`))",
+            )
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
-    val ALL = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+    val ALL = arrayOf(
+        MIGRATION_1_2,
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5,
+        MIGRATION_5_6,
+        MIGRATION_6_7,
+        MIGRATION_7_8,
+    )
 }

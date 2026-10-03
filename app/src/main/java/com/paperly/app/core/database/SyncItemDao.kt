@@ -31,8 +31,31 @@ data class SyncItemEntity(
     val updatedAt: Long,
 )
 
+/**
+ * P8-E1: the cloud version (`updatedAt`) of a document's metadata that this device last wrote or read. Basis of
+ * conflict detection. No FK on purpose (same reason as sync_items); rows are small and removable at any time.
+ */
+@Entity(tableName = "sync_base")
+data class SyncBaseEntity(
+    @PrimaryKey val documentId: String,
+    val remoteUpdatedAt: Long,
+)
+
 @Dao
 abstract class SyncItemDao {
+    @Query("SELECT remoteUpdatedAt FROM sync_base WHERE documentId = :id")
+    abstract suspend fun getBase(id: String): Long?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun setBase(entity: SyncBaseEntity)
+
+    @Query("DELETE FROM sync_base WHERE documentId = :id")
+    abstract suspend fun deleteBase(id: String): Int
+
+    /** Another account signed in: versions seen in the old account's cloud mean nothing in the new one. */
+    @Query("DELETE FROM sync_base")
+    abstract suspend fun clearBases(): Int
+
     @Query(
         "UPDATE sync_items SET operation = :operation, state = :queued, attempts = 0, nextRetryAt = NULL, " +
             "lastError = NULL, updatedAt = MAX(:now, updatedAt + 1) WHERE syncId = :syncId",
