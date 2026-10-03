@@ -140,6 +140,7 @@
     <string name="settings_sync_wifi_only_off">Syncing may use mobile data.</string>
     <string name="settings_sync_pause">Pause sync</string>
     <string name="settings_sync_cancelled">Sign-in did not complete. If you did pick an account, the app signing key may not match the Google setup.</string>
+    <string name="settings_sync_sign_in_browser">Try signing in with browser</string>
     <string name="settings_sync_failed">Sign-in failed. Please try again.</string>
     <string name="settings_storage_header">Storage</string>
     <string name="settings_storage_total">Total</string>
