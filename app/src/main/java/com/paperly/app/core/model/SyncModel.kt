@@ -13,7 +13,10 @@ object SyncOperation {
     const val DELETE = "DELETE"
 }
 
-/** QUEUED/RETRYING = waiting, RUNNING = claimed by the worker, FAILED = rejected for good (until re-enqueued). */
+/**
+ * QUEUED/RETRYING = waiting, RUNNING = claimed by the worker, FAILED = rejected for good (until re-enqueued).
+ * A conflict is a FAILED item with lastError = SYNC_ERROR_CONFLICT: it never retries by itself.
+ */
 object SyncItemState {
     const val QUEUED = "QUEUED"
     const val RUNNING = "RUNNING"
