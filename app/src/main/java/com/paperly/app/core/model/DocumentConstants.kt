@@ -16,6 +16,9 @@ object StorageState {
     const val SYNCED = "SYNCED"
     const val RETRYING = "RETRYING"
     const val CONFLICT = "CONFLICT"
-    private val all = setOf(LOCAL_ONLY, QUEUED, RUNNING, SYNCED, RETRYING, CONFLICT)
+
+    /** Pulled from the cloud: the row exists, the file is still to be downloaded (P8-E2). */
+    const val CLOUD_ONLY = "CLOUD_ONLY"
+    private val all = setOf(LOCAL_ONLY, QUEUED, RUNNING, SYNCED, RETRYING, CONFLICT, CLOUD_ONLY)
     fun isValid(value: String): Boolean = value in all
 }

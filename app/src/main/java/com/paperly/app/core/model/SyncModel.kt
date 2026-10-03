@@ -24,5 +24,8 @@ object SyncItemState {
     const val FAILED = "FAILED"
 }
 
+/** `lastError` of a FAILED item whose cloud copy changed elsewhere; the user decides (Settings -> Sync). */
+const val SYNC_ERROR_CONFLICT = "conflict"
+
 /** One row per entity: the id is deterministic, so enqueueing the same entity twice can never create a duplicate. */
 fun syncIdOf(entityType: String, entityId: String): String = "$entityType:$entityId"
