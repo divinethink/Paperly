@@ -154,7 +154,10 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun flush() {
-        currentPage.value?.let { page -> viewModelScope.launch { save(page) } }
+        viewModelScope.launch {
+            currentPage.value?.let { save(it) }
+            readerState.flushSync(documentId)
+        }
     }
 
     private val _reflow = MutableStateFlow(false)

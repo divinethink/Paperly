@@ -100,7 +100,10 @@ class EpubReaderViewModel @Inject constructor(
 
     /** Immediate save (called on ON_PAUSE) so the last position survives app kill. */
     fun flushProgress() {
-        latest.value?.let { viewModelScope.launch { save(it) } }
+        viewModelScope.launch {
+            latest.value?.let { save(it) }
+            readerState.flushSync(documentId)
+        }
     }
 
     fun toggleBookmark() {
