@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.paperly.app.core.database.AggregateDao
 import com.paperly.app.core.database.AnnotationDao
+import com.paperly.app.core.database.CloudSyncDao
 import com.paperly.app.core.database.DATABASE_NAME
 import com.paperly.app.core.database.DATABASE_VERSION
 import com.paperly.app.core.database.DatabaseBackup
@@ -71,6 +72,9 @@ object DatabaseModule {
 
     @Provides
     fun provideSyncItemDao(db: PaperlyDatabase): SyncItemDao = db.syncItemDao()
+
+    @Provides
+    fun provideCloudSyncDao(db: PaperlyDatabase): CloudSyncDao = db.cloudSyncDao()
 }
 
 @Module
