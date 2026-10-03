@@ -22,13 +22,18 @@ data class DocumentMeta(
 /**
  * OK = stored; RETRY = transient (offline, timeout, server busy);
  * DENIED = rules rejected it (do not retry blindly);
- * DEFERRED = cannot proceed until the user acts (e.g. allows Drive access): parked, no failed attempt counted.
+ * DEFERRED = cannot proceed until the user acts (e.g. allows Drive access): parked, no failed attempt counted;
+ * CONFLICT = the cloud copy changed since this device last saw it: nothing was written (see [ConflictCheck]).
  */
-enum class RemoteResult { OK, RETRY, DENIED, DEFERRED }
+enum class RemoteResult { OK, RETRY, DENIED, DEFERRED, CONFLICT }
 
 /** Firestore access for document metadata. Every call is scoped to one signed-in [uid]; writes are idempotent. */
 interface RemoteMetadataStore {
-    suspend fun putDocument(uid: String, meta: DocumentMeta): RemoteResult
+    /**
+     * Stores [meta] only if [ConflictCheck] allows it, atomically. [baseUpdatedAt] = the cloud version this device
+     * last saw (null = never synced). Returns CONFLICT without writing when the cloud copy moved on.
+     */
+    suspend fun putDocument(uid: String, meta: DocumentMeta, baseUpdatedAt: Long?): RemoteResult
 
     suspend fun deleteDocument(uid: String, documentId: String): RemoteResult
 
