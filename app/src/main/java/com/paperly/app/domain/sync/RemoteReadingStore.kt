@@ -6,4 +6,7 @@ interface RemoteReadingStore {
     suspend fun putReading(uid: String, meta: ReadingMeta): RemoteResult
 
     suspend fun deleteReading(uid: String, documentId: String): RemoteResult
+
+    /** Complete set of positions with updatedAt > [updatedAfter], read from the server. null = failed. */
+    suspend fun fetchReadingSince(uid: String, updatedAfter: Long): List<ReadingMeta>?
 }
