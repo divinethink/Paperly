@@ -1,110 +1,164 @@
 package com.paperly.app.data.sync.drive
 
-import com.paperly.app.core.file.SAFE_DOCUMENT_ID
-import com.paperly.app.domain.auth.DriveAuth
 import com.paperly.app.domain.auth.DriveToken
-import com.paperly.app.domain.sync.DownloadTarget
 import com.paperly.app.domain.sync.FileSyncResult
-import com.paperly.app.domain.sync.RemoteFileStore
 import java.io.File
-import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
-private val SHA256_HEX = Regex("[0-9a-f]{64}")
+/** Runs the real HTTP code (resumable protocol, checksum checks, error mapping) against an in-process fake Drive. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
+class DriveFileStoreTest {
+    @get:Rule
+    val tmp = TemporaryFolder()
 
-/**
- * Drive appDataFolder as cloud file storage. Originals are immutable, so a file is uploaded at most once per
- * account: an identical copy already in Drive (found by the `documentId` app property) is adopted, never
- * uploaded twice. Every upload is verified against the expected SHA-256 before it counts as done.
- */
-@Singleton
-class DriveFileStore @Inject constructor(
-    private val api: DriveFileApi,
-    private val auth: DriveAuth,
-    private val sessions: UploadSessionStore,
-) : RemoteFileStore {
-    private val uploader = ResumableUploader(api, sessions)
+    private lateinit var drive: FakeDriveServer
+    private val auth = FakeDriveAuth()
+    private val sessions = MemorySessions()
+    private lateinit var store: DriveFileStore
 
-    override suspend fun upload(documentId: String, file: File, sha256: String): FileSyncResult {
-        val valid = SAFE_DOCUMENT_ID.matches(documentId) && SHA256_HEX.matches(sha256) &&
-            file.isFile && file.length() > 0
-        return if (valid) withToken { uploadWith(it, documentId, file, sha256) } else FileSyncResult.Denied
+    @Before
+    fun setUp() {
+        drive = FakeDriveServer().start()
+        store = DriveFileStore(DriveFileApi(drive.endpoints), auth, sessions)
     }
 
-    override suspend fun download(documentId: String, sha256: String, target: DownloadTarget): FileSyncResult {
-        val valid = SAFE_DOCUMENT_ID.matches(documentId) && SHA256_HEX.matches(sha256)
-        return if (valid) withToken { downloadWith(it, documentId, sha256, target) } else FileSyncResult.Denied
+    @After
+    fun tearDown() = drive.stop()
+
+    private fun file(size: Int): Pair<File, ByteArray> {
+        val bytes = ByteArray(size) { (it * 31 + 7).toByte() }
+        return tmp.newFile().also { it.writeBytes(bytes) } to bytes
     }
 
-    override suspend fun forgetUploads() = sessions.clearAll()
+    private fun upload(id: String, file: File, sha: String) = runBlocking { store.upload(id, file, sha) }
 
-    private suspend fun uploadWith(token: String, documentId: String, file: File, sha256: String): FileSyncResult {
-        // The local file must still be what the library says it is; never upload something corrupted.
-        if (!io { digestOf(file, "SHA-256") }.equals(sha256, ignoreCase = true)) return FileSyncResult.Denied
-        val existing = adoptExisting(token, documentId, file, sha256)
-        val fileId = existing ?: uploader.upload(token, documentId, file, sha256)
-        return if (existing != null || verified(token, fileId, file, sha256)) {
-            sessions.clear(documentId)
-            FileSyncResult.Done(fileId)
-        } else {
-            sessions.clear(documentId)
-            io { api.deleteFile(token, fileId) } // a copy that does not match must not stay
-            FileSyncResult.Retry
+    @Test
+    fun uploadsInChunksAndAdoptsTheExistingCopyNextTime() {
+        val (f, bytes) = file(BIG)
+        val first = upload("doc1", f, sha256Hex(bytes))
+        assertTrue(first is FileSyncResult.Done)
+        assertTrue(drive.files.values.single().bytes.contentEquals(bytes))
+        assertEquals(3, drive.chunkCount)
+        assertTrue(sessions.map.isEmpty())
+        val second = upload("doc1", f, sha256Hex(bytes))
+        assertEquals((first as FileSyncResult.Done).cloudRef, (second as FileSyncResult.Done).cloudRef)
+        assertEquals(1, drive.sessionsCreated)
+    }
+
+    @Test
+    fun interruptedUploadResumesTheSameSession() {
+        val (f, bytes) = file(BIG)
+        drive.failChunkNumber = 2
+        assertTrue(upload("doc2", f, sha256Hex(bytes)) is FileSyncResult.Retry)
+        assertTrue(sessions.map.containsKey("doc2"))
+        assertTrue(upload("doc2", f, sha256Hex(bytes)) is FileSyncResult.Done)
+        assertEquals(1, drive.sessionsCreated)
+        assertTrue(drive.files.values.single().bytes.contentEquals(bytes))
+    }
+
+    @Test
+    fun expiredSessionStartsANewOne() {
+        val (f, bytes) = file(5 * 1024 * 1024)
+        val url = drive.endpoints.upload + "/files?uploadType=resumable&upload_id=gone"
+        sessions.map["doc3"] = UploadSession(url, sha256Hex(bytes), bytes.size.toLong())
+        assertTrue(upload("doc3", f, sha256Hex(bytes)) is FileSyncResult.Done)
+        assertEquals(1, drive.sessionsCreated)
+    }
+
+    @Test
+    fun serverConfirmingFewerBytesGetsTheRest() {
+        val (f, bytes) = file(BIG)
+        drive.acceptOnlyHalfOnce = true
+        assertTrue(upload("doc4", f, sha256Hex(bytes)) is FileSyncResult.Done)
+        assertTrue(drive.files.values.single().bytes.contentEquals(bytes))
+    }
+
+    @Test
+    fun remoteHashMismatchRemovesTheCopyAndRetries() {
+        val (f, bytes) = file(300_000)
+        drive.wrongSha = true
+        assertTrue(upload("doc5", f, sha256Hex(bytes)) is FileSyncResult.Retry)
+        assertTrue(drive.files.isEmpty())
+    }
+
+    @Test
+    fun md5IsUsedWhenDriveReportsNoSha256() {
+        val (f, bytes) = file(300_000)
+        drive.omitSha = true
+        assertTrue(upload("doc6", f, sha256Hex(bytes)) is FileSyncResult.Done)
+        drive.wrongMd5 = true
+        assertTrue(upload("doc7", f, sha256Hex(bytes)) is FileSyncResult.Retry)
+    }
+
+    @Test
+    fun localFileThatDiffersFromItsChecksumIsNeverUploaded() {
+        val (f, bytes) = file(300_000)
+        assertTrue(upload("doc8", f, "a".repeat(64)) is FileSyncResult.Denied)
+        assertTrue(upload("../x", f, sha256Hex(bytes)) is FileSyncResult.Denied)
+        assertEquals(0, drive.requests)
+    }
+
+    @Test
+    fun httpErrorsMapToTheRightOutcome() {
+        val (f, bytes) = file(100_000)
+        val sha = sha256Hex(bytes)
+        drive.failAllWith = 401
+        assertTrue(upload("e1", f, sha) is FileSyncResult.Retry)
+        assertEquals(1, auth.invalidated)
+        drive.failAllWith = 403
+        val cases = mapOf(
+            "insufficientPermissions" to FileSyncResult.NeedsConsent,
+            "rateLimitExceeded" to FileSyncResult.Retry,
+            "storageQuotaExceeded" to FileSyncResult.Retry,
+            "accessNotConfigured" to FileSyncResult.Retry,
+            "forbidden" to FileSyncResult.Denied,
+        )
+        cases.forEach { (reason, expected) ->
+            drive.failAllBody = """{"error":{"errors":[{"reason":"$reason"}]}}"""
+            assertEquals(reason, expected, upload("e1", f, sha))
         }
+        drive.failAllWith = 400
+        assertEquals(FileSyncResult.Denied, upload("e1", f, sha))
+        drive.failAllWith = 429
+        assertEquals(FileSyncResult.Retry, upload("e1", f, sha))
     }
 
-    /** Id of an identical copy that is already in Drive; any other copy with this document id is removed. */
-    private suspend fun adoptExisting(token: String, documentId: String, file: File, sha256: String): String? {
-        val found = io { api.findByDocumentId(token, documentId) }
-        val good = found.firstOrNull { it.matches(file.length(), sha256) { md5Of(file) } }
-        found.filter { it !== good }.forEach { io { api.deleteFile(token, it.id) } }
-        return good?.id
+    @Test
+    fun unavailableAuthMeansRetryLater() {
+        val (f, bytes) = file(1000)
+        auth.token = DriveToken.Unavailable
+        assertEquals(FileSyncResult.Retry, upload("c2", f, sha256Hex(bytes)))
     }
 
-    private suspend fun verified(token: String, fileId: String, file: File, sha256: String): Boolean {
-        val remote = io { api.getFile(token, fileId) }
-        return remote.matches(file.length(), sha256) { md5Of(file) }
+    @Test
+    fun downloadIsVerifiedAndCorruptionIsDiscarded() {
+        val (f, bytes) = file(700_000)
+        val sha = sha256Hex(bytes)
+        upload("dl1", f, sha)
+        val ok = MemoryTarget()
+        assertTrue(runBlocking { store.download("dl1", sha, ok) } is FileSyncResult.Done)
+        assertTrue(ok.stored!!.contentEquals(bytes))
+        drive.wrongSha = true // the fake then also flips a byte of the content it serves
+        val bad = MemoryTarget()
+        assertEquals(FileSyncResult.Retry, runBlocking { store.download("dl1", sha, bad) })
+        assertEquals(1, bad.discarded)
+        assertNull(bad.stored)
+        assertEquals(FileSyncResult.NotFound, runBlocking { store.download("nope", sha, MemoryTarget()) })
     }
 
-    private suspend fun downloadWith(
-        token: String,
-        documentId: String,
-        sha256: String,
-        target: DownloadTarget,
-    ): FileSyncResult {
-        val remote = io { api.findByDocumentId(token, documentId) }.firstOrNull() ?: return FileSyncResult.NotFound
-        val stored = io { api.openMedia(token, remote.id).use { target.store(it) } }
-        if (stored.equals(sha256, ignoreCase = true)) return FileSyncResult.Done(remote.id)
-        target.discard() // corrupted in transit: nothing from this attempt is kept
-        return FileSyncResult.Retry
-    }
-
-    private suspend fun withToken(block: suspend (String) -> FileSyncResult): FileSyncResult =
-        when (val token = auth.token()) {
-            is DriveToken.Ready -> guarded(token.value, block)
-            is DriveToken.NeedsConsent -> FileSyncResult.NeedsConsent
-            DriveToken.Unavailable -> FileSyncResult.Retry
-        }
-
-    private suspend fun guarded(token: String, block: suspend (String) -> FileSyncResult): FileSyncResult = try {
-        block(token)
-    } catch (e: DriveException) {
-        when (e.failure) {
-            DriveFailure.AUTH_EXPIRED -> {
-                auth.invalidate(token)
-                FileSyncResult.Retry
-            }
-            DriveFailure.NEEDS_CONSENT -> FileSyncResult.NeedsConsent
-            DriveFailure.DENIED -> FileSyncResult.Denied
-            DriveFailure.NOT_FOUND, DriveFailure.SESSION_LOST, DriveFailure.RETRY -> FileSyncResult.Retry
-        }
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: IOException) {
-        FileSyncResult.Retry
+    private companion object {
+        const val BIG = 9 * 1024 * 1024 + 123
     }
 }
-
-private fun md5Of(file: File): String = digestOf(file, "MD5")
