@@ -18,6 +18,9 @@ enum class SignInResult { SIGNED_IN, CANCELLED, NO_ACCOUNT, FAILED }
 interface AuthRepository {
     val state: Flow<AuthState>
 
+    /** Technical reason of the last failed [signIn] (error type + APK SHA-1) for Settings; no user data. */
+    val lastErrorDetail: String? get() = null
+
     /** [activity] is only used to show the account chooser; it is not retained. */
     suspend fun signIn(activity: Context): SignInResult
 
