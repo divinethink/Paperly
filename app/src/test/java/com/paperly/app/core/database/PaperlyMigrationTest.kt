@@ -224,6 +224,26 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v8SyncBaseTableWorks() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.syncItemDao()
+            assertEquals(null, dao.getBase("d1")) // existing documents start without a base
+            dao.setBase(SyncBaseEntity("d1", 2L))
+            dao.setBase(SyncBaseEntity("d1", 3L)) // replaces, never duplicates
+            assertEquals(3L, dao.getBase("d1"))
+            assertEquals(1, dao.deleteBase("d1"))
+            assertEquals(1, db.aggregateDao().getAllActive().size)
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =
