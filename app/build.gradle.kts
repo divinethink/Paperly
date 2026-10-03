@@ -19,6 +19,20 @@ android {
         versionName = "0.1.0"
     }
 
+    // Fixed debug key kept in the repo (a debug key protects nothing): every build, local or CI, has the same
+    // SHA-1, so Google sign-in stays bound to it. Release signing is separate and never lives in the repo.
+    signingConfigs {
+        getByName("debug") {
+            val fixedKey = file("paperly-debug.keystore")
+            if (fixedKey.exists()) {
+                storeFile = fixedKey
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
