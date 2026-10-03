@@ -56,11 +56,15 @@ class SyncAccountViewModel @Inject constructor(
     private val _ui = MutableStateFlow(SyncAccountUiState())
     val ui: StateFlow<SyncAccountUiState> = _ui
 
-    fun signIn(activity: Context) {
+    fun signIn(activity: Context) = launchSignIn { auth.signIn(activity) }
+
+    fun signInWithBrowser(activity: Context) = launchSignIn { auth.signInWithBrowser(activity) }
+
+    private fun launchSignIn(attempt: suspend () -> SignInResult) {
         if (_ui.value.busy) return // double-tap guard
         _ui.update { it.copy(busy = true, result = null, detail = null) }
         viewModelScope.launch {
-            val result = auth.signIn(activity)
+            val result = attempt()
             if (result == SignInResult.SIGNED_IN) syncQueue.kick()
             val failed = result != SignInResult.SIGNED_IN
             _ui.update {

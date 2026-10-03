@@ -54,6 +54,13 @@ fun SyncSection(viewModel: SyncAccountViewModel = hiltViewModel()) {
             is AuthState.SignedIn -> SignedInRows(a, ui, viewModel)
         }
         signInMessage(ui.result)?.let { Text(it, Modifier.padding(top = 8.dp)) }
+        if (ui.result == SignInResult.CANCELLED || ui.result == SignInResult.FAILED) {
+            OutlinedButton(
+                onClick = { viewModel.signInWithBrowser(context) },
+                enabled = !ui.busy,
+                modifier = Modifier.padding(top = 8.dp),
+            ) { Text(stringResource(R.string.settings_sync_sign_in_browser)) }
+        }
         ui.detail?.let { Text(it, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall) }
     }
 }
