@@ -48,6 +48,7 @@ data class QueueCountsRow(val pending: Int, val failed: Int, val conflicts: Int)
 data class ConflictRow(val documentId: String, val title: String)
 
 @Dao
+@Suppress("TooManyFunctions") // one DAO per table: queue, retry and conflict bookkeeping
 abstract class SyncItemDao {
     @Query("SELECT COUNT(*) FROM sync_items WHERE syncId = :syncId")
     abstract suspend fun countItem(syncId: String): Int
@@ -71,8 +72,8 @@ abstract class SyncItemDao {
 
     /** Rejected items (not conflicts) go back to QUEUED with a fresh version. */
     @Query(
-        "UPDATE sync_items SET state = '${SyncItemState.QUEUED}', attempts = 0, nextRetryAt = NULL, lastError = NULL, " +
-            "updatedAt = MAX(:now, updatedAt + 1) WHERE state = '${SyncItemState.FAILED}' " +
+        "UPDATE sync_items SET state = '${SyncItemState.QUEUED}', attempts = 0, nextRetryAt = NULL, " +
+            "lastError = NULL, updatedAt = MAX(:now, updatedAt + 1) WHERE state = '${SyncItemState.FAILED}' " +
             "AND IFNULL(lastError, '') <> '$SYNC_ERROR_CONFLICT'",
     )
     abstract suspend fun retryFailed(now: Long): Int

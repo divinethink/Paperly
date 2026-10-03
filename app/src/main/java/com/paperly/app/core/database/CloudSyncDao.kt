@@ -23,6 +23,7 @@ data class AwaitingDownloadRow(val documentId: String, val checksum: String)
  * look like a user edit and never re-queue document metadata.
  */
 @Dao
+@Suppress("TooManyFunctions") // one DAO for all cloud bookkeeping of documents
 abstract class CloudSyncDao {
     @Query("UPDATE documents SET storageState = :state WHERE documentId = :id")
     abstract suspend fun setStorageState(id: String, state: String): Int
@@ -49,6 +50,7 @@ abstract class CloudSyncDao {
         "UPDATE documents SET title = :title, tags = :tags, isFavorite = :favorite, deletedAt = :deletedAt, " +
             "updatedAt = :updatedAt WHERE documentId = :id",
     )
+    @Suppress("LongParameterList") // one parameter per column of the query
     abstract suspend fun applyRemote(
         id: String,
         title: String,
