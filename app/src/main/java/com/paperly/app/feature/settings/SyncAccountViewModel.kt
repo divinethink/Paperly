@@ -29,6 +29,7 @@ data class SyncAccountUiState(
     val result: SignInResult? = null,
     val consent: IntentSender? = null,
     val consentDenied: Boolean = false,
+    val detail: String? = null,
 )
 
 @HiltViewModel
@@ -57,11 +58,18 @@ class SyncAccountViewModel @Inject constructor(
 
     fun signIn(activity: Context) {
         if (_ui.value.busy) return // double-tap guard
-        _ui.update { it.copy(busy = true, result = null) }
+        _ui.update { it.copy(busy = true, result = null, detail = null) }
         viewModelScope.launch {
             val result = auth.signIn(activity)
             if (result == SignInResult.SIGNED_IN) syncQueue.kick()
-            _ui.update { it.copy(busy = false, result = result.takeIf { r -> r != SignInResult.SIGNED_IN }) }
+            val failed = result != SignInResult.SIGNED_IN
+            _ui.update {
+                it.copy(
+                    busy = false,
+                    result = result.takeIf { failed },
+                    detail = auth.lastSignInError.takeIf { failed },
+                )
+            }
         }
     }
 
