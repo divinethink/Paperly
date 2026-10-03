@@ -9,7 +9,16 @@ interface SyncQueue {
 
     suspend fun documentsChanged(ids: List<String>)
 
-    /** The document row is gone for good (permanent delete). */
+    /**
+     * The reading position of [id] changed. Throttled (see [ReadingDebounce]): most calls only note "changed" and
+     * wait for [readingFlush], so page turns never cost one cloud write each.
+     */
+    suspend fun readingChanged(id: String)
+
+    /** The reader was paused/closed: send the latest position now, if a throttled change is waiting. */
+    suspend fun readingFlush(id: String)
+
+    /** The document row is gone for good (permanent delete). Its reading position goes with it. */
     suspend fun documentDeleted(id: String)
 
     /** After a bulk change (e.g. a backup restore): queue every document. */
