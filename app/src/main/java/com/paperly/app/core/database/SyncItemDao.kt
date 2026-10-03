@@ -7,10 +7,12 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
+import com.paperly.app.core.model.SYNC_ERROR_CONFLICT
 import com.paperly.app.core.model.SyncEntityType
 import com.paperly.app.core.model.SyncItemState
 import com.paperly.app.core.model.SyncOperation
 import com.paperly.app.core.model.syncIdOf
+import kotlinx.coroutines.flow.Flow
 
 /**
  * P8-C: the sync queue. Deliberately NO foreign key to documents — a DELETE item must outlive the document row.
@@ -41,8 +43,47 @@ data class SyncBaseEntity(
     val remoteUpdatedAt: Long,
 )
 
+data class QueueCountsRow(val pending: Int, val failed: Int, val conflicts: Int)
+
+data class ConflictRow(val documentId: String, val title: String)
+
 @Dao
 abstract class SyncItemDao {
+    @Query("SELECT COUNT(*) FROM sync_items WHERE syncId = :syncId")
+    abstract suspend fun countItem(syncId: String): Int
+
+    @Query(
+        "SELECT COUNT(CASE WHEN state <> '${SyncItemState.FAILED}' THEN 1 END) AS pending, " +
+            "COUNT(CASE WHEN state = '${SyncItemState.FAILED}' AND IFNULL(lastError, '') <> '$SYNC_ERROR_CONFLICT' " +
+            "THEN 1 END) AS failed, " +
+            "COUNT(CASE WHEN state = '${SyncItemState.FAILED}' AND lastError = '$SYNC_ERROR_CONFLICT' THEN 1 END) " +
+            "AS conflicts FROM sync_items",
+    )
+    abstract fun observeQueueCounts(): Flow<QueueCountsRow>
+
+    @Query(
+        "SELECT s.entityId AS documentId, d.title AS title FROM sync_items s " +
+            "JOIN documents d ON d.documentId = s.entityId " +
+            "WHERE s.entityType = '${SyncEntityType.DOCUMENT}' AND s.state = '${SyncItemState.FAILED}' " +
+            "AND s.lastError = '$SYNC_ERROR_CONFLICT' ORDER BY d.title",
+    )
+    abstract fun observeConflicts(): Flow<List<ConflictRow>>
+
+    /** Rejected items (not conflicts) go back to QUEUED with a fresh version. */
+    @Query(
+        "UPDATE sync_items SET state = '${SyncItemState.QUEUED}', attempts = 0, nextRetryAt = NULL, lastError = NULL, " +
+            "updatedAt = MAX(:now, updatedAt + 1) WHERE state = '${SyncItemState.FAILED}' " +
+            "AND IFNULL(lastError, '') <> '$SYNC_ERROR_CONFLICT'",
+    )
+    abstract suspend fun retryFailed(now: Long): Int
+
+    /** Only a still-unchanged conflict item is dropped: an edit made meanwhile re-queued it and must stay. */
+    @Query(
+        "DELETE FROM sync_items WHERE syncId = :syncId AND state = '${SyncItemState.FAILED}' " +
+            "AND lastError = '$SYNC_ERROR_CONFLICT'",
+    )
+    abstract suspend fun dropConflict(syncId: String): Int
+
     @Query("SELECT remoteUpdatedAt FROM sync_base WHERE documentId = :id")
     abstract suspend fun getBase(id: String): Long?
 

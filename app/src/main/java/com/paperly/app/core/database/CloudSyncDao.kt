@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.paperly.app.core.model.StorageState
 import com.paperly.app.core.model.SyncEntityType
 import com.paperly.app.core.model.SyncItemState
 import com.paperly.app.core.model.SyncOperation
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 
 /** Aggregate over all active documents (no LIMIT: a truncated count would be wrong). */
 data class FileCountsRow(val synced: Int, val total: Int)
+
+data class AwaitingDownloadRow(val documentId: String, val checksum: String)
 
 /**
  * P8-D: cloud-file bookkeeping. No schema change: it only uses columns that already exist
@@ -31,8 +34,39 @@ abstract class CloudSyncDao {
     @Query("UPDATE documents SET cloudRef = NULL, storageState = :state")
     abstract suspend fun forgetCloudCopies(state: String): Int
 
-    @Query("SELECT documentId FROM documents WHERE cloudRef IS NULL AND deletedAt IS NULL")
+    /** Rows waiting for their file download (CLOUD_ONLY) have nothing to upload, so they are left out. */
+    @Query(
+        "SELECT documentId FROM documents WHERE cloudRef IS NULL AND deletedAt IS NULL " +
+            "AND storageState <> '${StorageState.CLOUD_ONLY}'",
+    )
     abstract suspend fun idsWithoutCloudCopy(): List<String>
+
+    /**
+     * P8-E2/E3: take the cloud's values for the synced fields. Never touches the folder (folders are not synced yet),
+     * the file columns or the checksum. Does not queue anything: this is the cloud's own state coming in.
+     */
+    @Query(
+        "UPDATE documents SET title = :title, tags = :tags, isFavorite = :favorite, deletedAt = :deletedAt, " +
+            "updatedAt = :updatedAt WHERE documentId = :id",
+    )
+    abstract suspend fun applyRemote(
+        id: String,
+        title: String,
+        tags: List<String>?,
+        favorite: Boolean,
+        deletedAt: Long?,
+        updatedAt: Long,
+    ): Int
+
+    /** A resolved conflict ("keep this device"): this device's version becomes the newest everywhere. */
+    @Query("UPDATE documents SET updatedAt = :updatedAt WHERE documentId = :id")
+    abstract suspend fun setUpdatedAt(id: String, updatedAt: Long): Int
+
+    @Query("SELECT documentId, checksum FROM documents WHERE storageState = :state")
+    abstract suspend fun awaitingDownload(state: String): List<AwaitingDownloadRow>
+
+    @Query("UPDATE documents SET localUri = :path, cloudRef = :cloudRef, storageState = :state WHERE documentId = :id")
+    abstract suspend fun setDownloaded(id: String, path: String?, cloudRef: String, state: String): Int
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertItem(entity: SyncItemEntity): Long
