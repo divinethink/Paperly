@@ -55,6 +55,7 @@ class SyncProcessor @Inject constructor(
     private val files: FileSyncStep,
     private val pull: PullStep,
     private val downloads: DownloadStep,
+    private val reading: ReadingPushStep,
 ) {
     private val lock = Mutex()
 
@@ -82,6 +83,7 @@ class SyncProcessor @Inject constructor(
         syncDao.clearBases()
         pull.reset()
         syncDao.enqueueAllDocuments(now)
+        syncDao.enqueueAllReading(now)
         settings.edit { it[LAST_UID] = uid } // after the enqueue: a crash in between just repeats it (idempotent)
     }
 
@@ -132,6 +134,7 @@ class SyncProcessor @Inject constructor(
         SyncEntityType.DOCUMENT -> executeDocument(uid, item)
         SyncEntityType.FILE ->
             if (item.operation == SyncOperation.PUT) files.sync(item.entityId) else RemoteResult.DENIED
+        SyncEntityType.READING -> reading.sync(uid, item)
         // Unknown kind of item: rejected, never retried blindly.
         else -> RemoteResult.DENIED
     }

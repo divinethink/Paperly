@@ -14,6 +14,7 @@ import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.model.SyncEntityType
 import com.paperly.app.core.model.SyncItemState
 import com.paperly.app.core.model.SyncOperation
+import com.paperly.app.domain.sync.ReadingThrottle
 import com.paperly.app.domain.sync.SyncQueue
 import dagger.Binds
 import dagger.Module
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.first
  * (batch actions) collapses into one run; a run cancelled by REPLACE is safe because items are only
  * completed by version and a half-done item is picked up again.
  */
+@Suppress("TooManyFunctions") // the SyncQueue surface (one method per kind of change) + two private helpers
 @Singleton
 class SyncQueueImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -38,6 +40,7 @@ class SyncQueueImpl @Inject constructor(
     private val cloud: CloudSyncDao,
     private val settings: DataStore<Preferences>,
 ) : SyncQueue {
+    private val readingThrottle = ReadingThrottle()
 
     override suspend fun documentChanged(id: String) = guarded {
         dao.enqueue(SyncEntityType.DOCUMENT, id, SyncOperation.PUT, System.currentTimeMillis())
@@ -47,12 +50,28 @@ class SyncQueueImpl @Inject constructor(
         ids.forEach { dao.enqueue(SyncEntityType.DOCUMENT, it, SyncOperation.PUT, System.currentTimeMillis()) }
     }
 
+    override suspend fun readingChanged(id: String) {
+        if (readingThrottle.onChange(id)) enqueueReading(id)
+    }
+
+    override suspend fun readingFlush(id: String) {
+        if (readingThrottle.onFlush(id)) enqueueReading(id)
+    }
+
+    private suspend fun enqueueReading(id: String) = guarded {
+        dao.enqueue(SyncEntityType.READING, id, SyncOperation.PUT, System.currentTimeMillis())
+    }
+
     override suspend fun documentDeleted(id: String) = guarded {
-        dao.enqueue(SyncEntityType.DOCUMENT, id, SyncOperation.DELETE, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        dao.enqueue(SyncEntityType.DOCUMENT, id, SyncOperation.DELETE, now)
+        dao.enqueue(SyncEntityType.READING, id, SyncOperation.DELETE, now)
     }
 
     override suspend fun allDocumentsChanged() = guarded {
-        dao.enqueueAllDocuments(System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        dao.enqueueAllDocuments(now)
+        dao.enqueueAllReading(now)
     }
 
     override suspend fun kick() = guarded { }
