@@ -3,6 +3,7 @@ package com.paperly.app.data.auth
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.PackageManager
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -24,6 +25,7 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -135,10 +137,25 @@ class FirebaseAuthRepository @Inject constructor(
     private fun FirebaseUser?.toState(): AuthState =
         if (this == null) AuthState.SignedOut else AuthState.SignedIn(uid, email)
 
-    private fun describe(e: Exception): String = "${e.javaClass.simpleName}: ${e.message.orEmpty().take(MAX_DETAIL)}"
+    // Appended to every failure so a key/package mismatch is visible on screen (SHA-1 and client id are public).
+    private fun describe(e: Exception): String =
+        "${e.javaClass.simpleName}: ${e.message.orEmpty().take(MAX_DETAIL)}\n" +
+            "pkg=${appContext.packageName}\napp SHA1=${signingSha1()}\nweb client=${webClientId?.take(CLIENT_PREFIX)}"
+
+    private fun signingSha1(): String = runCatching {
+        val info = appContext.packageManager
+            .getPackageInfo(appContext.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+        val signer = info.signingInfo?.apkContentsSigners?.firstOrNull()
+        if (signer == null) {
+            "none"
+        } else {
+            MessageDigest.getInstance("SHA-1").digest(signer.toByteArray()).joinToString(":") { "%02X".format(it) }
+        }
+    }.getOrDefault("unknown")
 
     private companion object {
         const val MAX_DETAIL = 160
+        const val CLIENT_PREFIX = 40
         const val WEB_CLIENT_ID_RES = "default_web_client_id"
     }
 }
