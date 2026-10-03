@@ -8,6 +8,7 @@ import com.paperly.app.core.database.DocumentDao
 import com.paperly.app.core.database.SyncBaseEntity
 import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.database.SyncItemEntity
+import com.paperly.app.core.model.SYNC_ERROR_CONFLICT
 import com.paperly.app.core.model.SyncEntityType
 import com.paperly.app.core.model.SyncItemState
 import com.paperly.app.core.model.SyncOperation
@@ -24,9 +25,6 @@ import kotlinx.coroutines.sync.withLock
 
 /** `lastError` of an item parked until the user allows Drive access; `SyncQueue.resumeDeferred` releases them. */
 internal const val SYNC_ERROR_NEEDS_ACCESS = "needs drive access"
-
-/** `lastError` of a FAILED item whose cloud copy changed elsewhere; the user decides (P8-E3). */
-internal const val SYNC_ERROR_CONFLICT = "conflict"
 
 enum class SyncRunResult {
     /** Nothing left to do. */
@@ -54,6 +52,8 @@ class SyncProcessor @Inject constructor(
     private val auth: AuthRepository,
     private val settings: DataStore<Preferences>,
     private val files: FileSyncStep,
+    private val pull: PullStep,
+    private val downloads: DownloadStep,
 ) {
     private val lock = Mutex()
 
@@ -65,7 +65,11 @@ class SyncProcessor @Inject constructor(
             else -> {
                 queueEverythingForNewAccount(uid, now())
                 files.enqueueMissing(now())
-                drain(uid, now)
+                val pushed = drain(uid, now)
+                // Pull and download even when some push items wait: they do not depend on each other.
+                val pulled = pull.pull(uid)
+                val downloaded = downloads.run()
+                if (pushed == SyncRunResult.DONE && pulled && downloaded) SyncRunResult.DONE else SyncRunResult.WAIT
             }
         }
     }
@@ -75,6 +79,7 @@ class SyncProcessor @Inject constructor(
         if (settings.data.first()[LAST_UID] == uid) return
         files.forgetCloudCopies()
         syncDao.clearBases()
+        pull.reset()
         syncDao.enqueueAllDocuments(now)
         settings.edit { it[LAST_UID] = uid } // after the enqueue: a crash in between just repeats it (idempotent)
     }

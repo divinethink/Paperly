@@ -57,6 +57,8 @@ class SyncQueueImpl @Inject constructor(
 
     override suspend fun kick() = guarded { }
 
+    override suspend fun retryFailed() = guarded { dao.retryFailed(System.currentTimeMillis()) }
+
     override suspend fun resumeDeferred() = guarded {
         cloud.releaseDeferred(SyncEntityType.FILE, SyncItemState.RETRYING, SYNC_ERROR_NEEDS_ACCESS)
     }

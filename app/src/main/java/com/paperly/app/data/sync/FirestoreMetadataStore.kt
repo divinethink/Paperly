@@ -4,11 +4,13 @@ import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.Transaction
 import com.paperly.app.data.auth.await
 import com.paperly.app.domain.sync.ConflictCheck
 import com.paperly.app.domain.sync.DocumentMeta
 import com.paperly.app.domain.sync.RemoteMetadataStore
+import com.paperly.app.domain.sync.RemoteDocument
 import com.paperly.app.domain.sync.RemoteResult
 import dagger.Binds
 import dagger.Module
@@ -57,6 +59,28 @@ class FirestoreMetadataStore @Inject constructor(
         RemoteResult.OK
     }
 
+    override suspend fun fetchDocument(uid: String, documentId: String): RemoteDocument = try {
+        if (!configured()) {
+            RemoteDocument.Failed
+        } else {
+            withTimeout(TIMEOUT_MS) {
+                val snapshot = documents(uid).document(documentId).get(Source.SERVER).await()
+                if (!snapshot.exists()) {
+                    RemoteDocument.Absent
+                } else {
+                    documentMetaFromMap(snapshot.id, snapshot.data.orEmpty())?.let { RemoteDocument.Found(it) }
+                        ?: RemoteDocument.Failed
+                }
+            }
+        }
+    } catch (e: TimeoutCancellationException) {
+        RemoteDocument.Failed
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        RemoteDocument.Failed
+    }
+
     override suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>? = try {
         if (!configured()) {
             null
@@ -64,7 +88,7 @@ class FirestoreMetadataStore @Inject constructor(
             withTimeout(TIMEOUT_MS) {
                 val snapshot = documents(uid)
                     .whereGreaterThan(MetaFields.UPDATED_AT, updatedAfter)
-                    .get()
+                    .get(Source.SERVER) // server truth: an offline cache must not look like "nothing new"
                     .await()
                 snapshot.documents.mapNotNull { documentMetaFromMap(it.id, it.data.orEmpty()) }
             }
