@@ -21,9 +21,10 @@ data class DocumentMeta(
 
 /**
  * OK = stored; RETRY = transient (offline, timeout, server busy);
- * DENIED = rules rejected it (do not retry blindly).
+ * DENIED = rules rejected it (do not retry blindly);
+ * DEFERRED = cannot proceed until the user acts (e.g. allows Drive access): parked, no failed attempt counted.
  */
-enum class RemoteResult { OK, RETRY, DENIED }
+enum class RemoteResult { OK, RETRY, DENIED, DEFERRED }
 
 /** Firestore access for document metadata. Every call is scoped to one signed-in [uid]; writes are idempotent. */
 interface RemoteMetadataStore {
