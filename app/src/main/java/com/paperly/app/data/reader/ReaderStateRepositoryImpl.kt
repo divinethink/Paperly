@@ -4,6 +4,7 @@ import com.paperly.app.core.database.BookmarkEntity
 import com.paperly.app.core.database.ReaderDao
 import com.paperly.app.core.database.ReadingStateEntity
 import com.paperly.app.domain.reader.ReaderStateRepository
+import com.paperly.app.domain.sync.SyncQueue
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.map
 @Singleton
 class ReaderStateRepositoryImpl @Inject constructor(
     private val dao: ReaderDao,
+    private val syncQueue: SyncQueue,
 ) : ReaderStateRepository {
 
     override suspend fun getSavedPage(documentId: String): Int? =
@@ -26,13 +28,17 @@ class ReaderStateRepositoryImpl @Inject constructor(
         if (page < 0 || pageCount <= 0) return
         val percent = ((page + 1).toFloat() / pageCount).coerceIn(0f, 1f)
         dao.upsertState(ReadingStateEntity(documentId, page.toString(), percent, System.currentTimeMillis()))
+        syncQueue.readingChanged(documentId)
     }
 
     override suspend fun getSavedLocator(documentId: String): String? = dao.getState(documentId)?.locator
 
     override suspend fun saveLocator(documentId: String, locator: String, progress: Float) {
         dao.upsertState(ReadingStateEntity(documentId, locator, progress.coerceIn(0f, 1f), System.currentTimeMillis()))
+        syncQueue.readingChanged(documentId)
     }
+
+    override suspend fun flushSync(documentId: String) = syncQueue.readingFlush(documentId)
 
     override fun observeBookmarkLocators(documentId: String): Flow<List<String>> =
         dao.observeBookmarkLocators(documentId)
