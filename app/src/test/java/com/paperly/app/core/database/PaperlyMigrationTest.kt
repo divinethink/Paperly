@@ -217,7 +217,7 @@ class PaperlyMigrationTest {
             dao.enqueue("document", "d1", "DELETE", 2L) // coalesced into the same row
             db.trashDao().softDelete("d1", 5L)
             db.trashDao().deleteTrashedRow("d1") // no FK: the queue row must survive the document
-            assertEquals(1, dao.countWaiting("FAILED"))
+            assertEquals(1, dao.getDue("FAILED", Long.MAX_VALUE, 100).size)
             assertEquals("DELETE", dao.getDue("FAILED", 10L, 10).single().operation)
         } finally {
             db.close()
