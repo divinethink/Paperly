@@ -3,6 +3,9 @@ package com.paperly.app.core.model
 /** What a sync-queue row is about. Runtime-validated strings (extensible: folders etc. arrive with their sync step). */
 object SyncEntityType {
     const val DOCUMENT = "document"
+
+    /** The file behind a document (P8-D). Separate from DOCUMENT so metadata sync never waits for a big upload. */
+    const val FILE = "file"
 }
 
 object SyncOperation {
