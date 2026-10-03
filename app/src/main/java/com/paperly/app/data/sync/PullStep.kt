@@ -63,7 +63,7 @@ class PullStep @Inject constructor(
                 markSeen(meta)
             }
             PullAction.APPLY -> {
-                cloud.applyRemote(meta.documentId, meta.title, meta.tags, meta.isFavorite, meta.deletedAt, meta.updatedAt)
+                with(meta) { cloud.applyRemote(documentId, title, tags, isFavorite, deletedAt, updatedAt) }
                 markSeen(meta)
             }
             PullAction.MARK_SEEN -> markSeen(meta)

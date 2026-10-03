@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.map
 
 @Singleton
 class RoomSyncStatus @Inject constructor(cloud: CloudSyncDao, items: SyncItemDao) : SyncStatus {
-    override val fileCounts: Flow<FileSyncCounts> = cloud.observeFileCounts().map { FileSyncCounts(it.synced, it.total) }
+    override val fileCounts: Flow<FileSyncCounts> =
+        cloud.observeFileCounts().map { FileSyncCounts(it.synced, it.total) }
 
     override val queueCounts: Flow<SyncQueueCounts> =
         items.observeQueueCounts().map { SyncQueueCounts(it.pending, it.failed, it.conflicts) }

@@ -24,7 +24,7 @@ class DownloadStep @Inject constructor(
     suspend fun run(): Boolean {
         for (row in cloud.awaitingDownload(StorageState.CLOUD_ONLY)) {
             if (files.resolve(row.documentId) != null) {
-                // A file is already here (e.g. restored from a backup): it is the original, the normal upload takes over.
+                // A file is already here (e.g. restored from a backup): it is the original; normal upload takes over.
                 cloud.setStorageState(row.documentId, StorageState.LOCAL_ONLY)
                 continue
             }

@@ -9,8 +9,8 @@ import com.google.firebase.firestore.Transaction
 import com.paperly.app.data.auth.await
 import com.paperly.app.domain.sync.ConflictCheck
 import com.paperly.app.domain.sync.DocumentMeta
-import com.paperly.app.domain.sync.RemoteMetadataStore
 import com.paperly.app.domain.sync.RemoteDocument
+import com.paperly.app.domain.sync.RemoteMetadataStore
 import com.paperly.app.domain.sync.RemoteResult
 import dagger.Binds
 import dagger.Module

@@ -44,6 +44,7 @@ enum class SyncRunResult {
  * Drains the sync queue: document metadata (Firestore) and document files (Drive). Safe to run twice or be
  * cancelled: remote writes are idempotent and an item is only completed by the version that was read.
  */
+@Suppress("LongParameterList") // Hilt DI collaborators
 @Singleton
 class SyncProcessor @Inject constructor(
     private val syncDao: SyncItemDao,
