@@ -18,6 +18,9 @@ interface SyncQueue {
     /** Ask for a sync run now (e.g. right after sign-in, or after a Wi-Fi/pause setting changed). */
     suspend fun kick()
 
+    /** The user asked to try the rejected (FAILED, not conflict) items again. */
+    suspend fun retryFailed()
+
     /** The user allowed Drive access: items parked because of it become due again. */
     suspend fun resumeDeferred()
 }

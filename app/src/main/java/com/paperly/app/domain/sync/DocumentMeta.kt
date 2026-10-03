@@ -27,6 +27,15 @@ data class DocumentMeta(
  */
 enum class RemoteResult { OK, RETRY, DENIED, DEFERRED, CONFLICT }
 
+/** One document looked up in the cloud: Absent = it is not there, Failed = could not find out (offline etc.). */
+sealed interface RemoteDocument {
+    data class Found(val meta: DocumentMeta) : RemoteDocument
+
+    data object Absent : RemoteDocument
+
+    data object Failed : RemoteDocument
+}
+
 /** Firestore access for document metadata. Every call is scoped to one signed-in [uid]; writes are idempotent. */
 interface RemoteMetadataStore {
     /**
@@ -36,6 +45,9 @@ interface RemoteMetadataStore {
     suspend fun putDocument(uid: String, meta: DocumentMeta, baseUpdatedAt: Long?): RemoteResult
 
     suspend fun deleteDocument(uid: String, documentId: String): RemoteResult
+
+    /** The current cloud copy of one document, read from the server (never from a stale cache). */
+    suspend fun fetchDocument(uid: String, documentId: String): RemoteDocument
 
     /**
      * Complete set of documents with updatedAt > [updatedAfter]
