@@ -58,6 +58,7 @@ fun SyncSection(viewModel: SyncAccountViewModel = hiltViewModel()) {
             is AuthState.SignedIn -> SignedInRows(a, ui, viewModel)
         }
         signInMessage(ui.result)?.let { Text(it, Modifier.padding(top = 8.dp)) }
+        ui.detail?.let { Text(it, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodySmall) }
     }
 }
 
