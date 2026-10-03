@@ -21,6 +21,9 @@ interface AuthRepository {
     /** [activity] is only used to show the account chooser; it is not retained. */
     suspend fun signIn(activity: Context): SignInResult
 
+    /** Fallback that signs in through Firebase's browser flow instead of Credential Manager. */
+    suspend fun signInWithBrowser(activity: Context): SignInResult = SignInResult.FAILED
+
     /** Short technical reason of the last non-successful [signIn], for on-screen diagnosis; null otherwise. */
     val lastSignInError: String? get() = null
 
