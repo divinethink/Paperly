@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Paperly: everything lives under users/{uid}; only that signed-in user may touch it. Default = deny.
-// Field names must match MetaFields in DocumentMetaMapper.kt. New collections are added with their sync step.
+// Field names must match MetaFields in DocumentMetaMapper.kt (documents) and the reading-state mapper (readingState).
+// New collections are added with their sync step.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -30,9 +31,26 @@ service cloud.firestore {
         && (!('deletedAt' in d) || d.deletedAt == null || d.deletedAt is int);
     }
 
+    // Reading position only (P8-E4). Newer-wins is decided by the client transaction, not here; rules check shape + owner.
+    function validReading(docId, d) {
+      return d.keys().hasOnly(['documentId', 'locator', 'progressPercent', 'updatedAt', 'schemaVersion'])
+        && d.keys().hasAll(['documentId', 'locator', 'progressPercent', 'updatedAt', 'schemaVersion'])
+        && d.documentId == docId
+        && d.locator is string && d.locator.size() > 0 && d.locator.size() <= 2000
+        && d.progressPercent is number && d.progressPercent >= 0 && d.progressPercent <= 1
+        && d.updatedAt is int
+        && d.schemaVersion is int;
+    }
+
     match /users/{uid}/documents/{docId} {
       allow read: if isOwner(uid);
       allow create, update: if isOwner(uid) && docId.size() <= 64 && validDocument(docId, request.resource.data);
+      allow delete: if isOwner(uid);
+    }
+
+    match /users/{uid}/readingState/{docId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && docId.size() <= 64 && validReading(docId, request.resource.data);
       allow delete: if isOwner(uid);
     }
   }
