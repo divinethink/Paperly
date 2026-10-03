@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.Transaction
 import com.paperly.app.data.auth.await
 import com.paperly.app.domain.sync.ReadingMeta
@@ -51,6 +52,27 @@ class FirestoreReadingStore @Inject constructor(
     override suspend fun deleteReading(uid: String, documentId: String): RemoteResult = call {
         readings(uid).document(documentId).delete().await()
         RemoteResult.OK
+    }
+
+    override suspend fun fetchReadingSince(uid: String, updatedAfter: Long): List<ReadingMeta>? = try {
+        if (!configured()) {
+            null
+        } else {
+            withTimeout(TIMEOUT_MS) {
+                readings(uid)
+                    .whereGreaterThan(ReadingFields.UPDATED_AT, updatedAfter)
+                    .get(Source.SERVER) // server truth: an offline cache must not look like "nothing new"
+                    .await()
+                    .documents
+                    .mapNotNull { readingMetaFromMap(it.id, it.data.orEmpty()) }
+            }
+        }
+    } catch (e: TimeoutCancellationException) {
+        null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 
     private fun readings(uid: String) =

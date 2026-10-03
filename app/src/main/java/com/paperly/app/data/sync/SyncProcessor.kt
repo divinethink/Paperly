@@ -56,6 +56,7 @@ class SyncProcessor @Inject constructor(
     private val pull: PullStep,
     private val downloads: DownloadStep,
     private val reading: ReadingPushStep,
+    private val readingPull: ReadingPullStep,
 ) {
     private val lock = Mutex()
 
@@ -70,8 +71,11 @@ class SyncProcessor @Inject constructor(
                 val pushed = drain(uid, now)
                 // Pull and download even when some push items wait: they do not depend on each other.
                 val pulled = pull.pull(uid)
+                // Positions after documents: a position can only be stored for a document row that exists here.
+                val readingPulled = pulled && readingPull.pull(uid)
                 val downloaded = downloads.run()
-                if (pushed == SyncRunResult.DONE && pulled && downloaded) SyncRunResult.DONE else SyncRunResult.WAIT
+                val allDone = pushed == SyncRunResult.DONE && pulled && readingPulled && downloaded
+                if (allDone) SyncRunResult.DONE else SyncRunResult.WAIT
             }
         }
     }
@@ -82,6 +86,7 @@ class SyncProcessor @Inject constructor(
         files.forgetCloudCopies()
         syncDao.clearBases()
         pull.reset()
+        readingPull.reset()
         syncDao.enqueueAllDocuments(now)
         syncDao.enqueueAllReading(now)
         settings.edit { it[LAST_UID] = uid } // after the enqueue: a crash in between just repeats it (idempotent)
