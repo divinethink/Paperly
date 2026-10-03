@@ -194,7 +194,8 @@ class SyncProcessorTest {
         enqueue("d1")
         remote.result = RemoteResult.RETRY
         assertEquals(SyncRunResult.WAIT, processor.run { 100L })
-        val item = db.syncItemDao().getDue(SyncItemState.FAILED, 100L + SyncBackoff.delayMs(1), 10).single()
+        val dueAt = 100L + SyncBackoff.delayMs(1)
+        val item = db.syncItemDao().getDue(SyncItemState.FAILED, dueAt, 10).single { it.entityType == SyncEntityType.DOCUMENT }
         assertEquals(SyncItemState.RETRYING, item.state)
         assertEquals(1, item.attempts)
         assertEquals(100L + SyncBackoff.delayMs(1), item.nextRetryAt)
