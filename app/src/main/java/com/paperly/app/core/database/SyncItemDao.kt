@@ -135,6 +135,15 @@ abstract class SyncItemDao {
         allDocumentIds().forEach { enqueue(SyncEntityType.DOCUMENT, it, SyncOperation.PUT, now) }
     }
 
+    @Query("SELECT documentId FROM reading_state")
+    abstract suspend fun allReadingIds(): List<String>
+
+    /** Every stored reading position, one PUT each (new account / restore). Whole table on purpose. */
+    @Transaction
+    open suspend fun enqueueAllReading(now: Long) {
+        allReadingIds().forEach { enqueue(SyncEntityType.READING, it, SyncOperation.PUT, now) }
+    }
+
     /** Due = not FAILED and its retry time (if any) has come. RUNNING is included so an interrupted run self-heals. */
     @Query(
         "SELECT * FROM sync_items WHERE state <> :failed AND (nextRetryAt IS NULL OR nextRetryAt <= :now) " +
