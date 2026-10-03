@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/** `lastError` of an item parked until the user allows Drive access; `SyncQueue.resumeDeferred` releases them. */
+internal const val SYNC_ERROR_NEEDS_ACCESS = "needs drive access"
+
 enum class SyncRunResult {
     /** Nothing left to do. */
     DONE,
@@ -30,11 +33,14 @@ enum class SyncRunResult {
 
     /** No signed-in account: the queue is left untouched. */
     NOT_SIGNED_IN,
+
+    /** The user paused sync: the queue is left untouched. */
+    PAUSED,
 }
 
 /**
- * Drains the sync queue (metadata only; file upload arrives in P8-D). Safe to run twice or be cancelled:
- * remote writes are idempotent and an item is only completed by the version that was read.
+ * Drains the sync queue: document metadata (Firestore) and document files (Drive). Safe to run twice or be
+ * cancelled: remote writes are idempotent and an item is only completed by the version that was read.
  */
 @Singleton
 class SyncProcessor @Inject constructor(
@@ -43,22 +49,27 @@ class SyncProcessor @Inject constructor(
     private val remote: RemoteMetadataStore,
     private val auth: AuthRepository,
     private val settings: DataStore<Preferences>,
+    private val files: FileSyncStep,
 ) {
     private val lock = Mutex()
 
     suspend fun run(now: () -> Long = System::currentTimeMillis): SyncRunResult = lock.withLock {
         val uid = (auth.state.first() as? AuthState.SignedIn)?.uid
-        if (uid == null) {
-            SyncRunResult.NOT_SIGNED_IN
-        } else {
-            queueEverythingForNewAccount(uid, now())
-            drain(uid, now)
+        when {
+            settings.data.first()[SyncPrefs.PAUSED] == true -> SyncRunResult.PAUSED
+            uid == null -> SyncRunResult.NOT_SIGNED_IN
+            else -> {
+                queueEverythingForNewAccount(uid, now())
+                files.enqueueMissing(now())
+                drain(uid, now)
+            }
         }
     }
 
     /** A different (or first) account has none of this library in its cloud yet: queue all documents once. */
     private suspend fun queueEverythingForNewAccount(uid: String, now: Long) {
         if (settings.data.first()[LAST_UID] == uid) return
+        files.forgetCloudCopies()
         syncDao.enqueueAllDocuments(now)
         settings.edit { it[LAST_UID] = uid } // after the enqueue: a crash in between just repeats it (idempotent)
     }
@@ -71,7 +82,9 @@ class SyncProcessor @Inject constructor(
             }
             batch = syncDao.getDue(SyncItemState.FAILED, now(), BATCH_SIZE)
         }
-        return if (syncDao.countWaiting(SyncItemState.FAILED) > 0) SyncRunResult.WAIT else SyncRunResult.DONE
+        // Anything not FAILED that is still here is waiting for its retry time.
+        val waiting = syncDao.getDue(SyncItemState.FAILED, Long.MAX_VALUE, 1).isNotEmpty()
+        return if (waiting) SyncRunResult.WAIT else SyncRunResult.DONE
     }
 
     /** false = a transient failure: stop this run (the network is probably down; do not hammer every item). */
@@ -90,13 +103,27 @@ class SyncProcessor @Inject constructor(
                 now() + SyncBackoff.delayMs(attempts),
                 ERROR_RETRY,
             )
+            // Not a failure: waits for the user (attempts unchanged); the run goes on with the other items.
+            RemoteResult.DEFERRED -> syncDao.markRetry(
+                item.syncId,
+                item.updatedAt,
+                item.attempts,
+                now() + DEFER_MS,
+                SYNC_ERROR_NEEDS_ACCESS,
+            )
         }
         return outcome != RemoteResult.RETRY
     }
 
-    private suspend fun execute(uid: String, item: SyncItemEntity): RemoteResult {
+    private suspend fun execute(uid: String, item: SyncItemEntity): RemoteResult = when (item.entityType) {
+        SyncEntityType.DOCUMENT -> executeDocument(uid, item)
+        SyncEntityType.FILE ->
+            if (item.operation == SyncOperation.PUT) files.sync(item.entityId) else RemoteResult.DENIED
         // Unknown kind of item: rejected, never retried blindly.
-        if (item.entityType != SyncEntityType.DOCUMENT) return RemoteResult.DENIED
+        else -> RemoteResult.DENIED
+    }
+
+    private suspend fun executeDocument(uid: String, item: SyncItemEntity): RemoteResult {
         // A PUT whose row has since been removed becomes a remote delete; DELETE never needs the row.
         val entity = if (item.operation == SyncOperation.PUT) documentDao.getById(item.entityId) else null
         return if (entity == null) {
@@ -111,5 +138,6 @@ class SyncProcessor @Inject constructor(
         const val BATCH_SIZE = 20
         const val ERROR_DENIED = "rejected"
         const val ERROR_RETRY = "temporary failure"
+        const val DEFER_MS = 15L * 60 * 1000
     }
 }

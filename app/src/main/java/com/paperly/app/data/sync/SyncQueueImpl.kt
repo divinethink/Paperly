@@ -1,14 +1,18 @@
 package com.paperly.app.data.sync
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.paperly.app.core.database.CloudSyncDao
 import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.model.SyncEntityType
+import com.paperly.app.core.model.SyncItemState
 import com.paperly.app.core.model.SyncOperation
 import com.paperly.app.domain.sync.SyncQueue
 import dagger.Binds
@@ -20,6 +24,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 /**
  * Queue writes + WorkManager scheduling. Scheduling uses REPLACE with a short delay, so a burst of edits
@@ -30,6 +35,8 @@ import kotlinx.coroutines.CancellationException
 class SyncQueueImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: SyncItemDao,
+    private val cloud: CloudSyncDao,
+    private val settings: DataStore<Preferences>,
 ) : SyncQueue {
 
     override suspend fun documentChanged(id: String) = guarded {
@@ -50,6 +57,10 @@ class SyncQueueImpl @Inject constructor(
 
     override suspend fun kick() = guarded { }
 
+    override suspend fun resumeDeferred() = guarded {
+        cloud.releaseDeferred(SyncEntityType.FILE, SyncItemState.RETRYING, SYNC_ERROR_NEEDS_ACCESS)
+    }
+
     private suspend fun guarded(block: suspend () -> Unit) {
         try {
             block()
@@ -61,13 +72,21 @@ class SyncQueueImpl @Inject constructor(
         }
     }
 
-    private fun schedule() {
+    /** Paused = nothing scheduled (the queue stays). Wi-Fi only = the run waits for an unmetered network. */
+    private suspend fun schedule() {
+        val prefs = settings.data.first()
+        val work = WorkManager.getInstance(context)
+        if (prefs[SyncPrefs.PAUSED] == true) {
+            work.cancelUniqueWork(WORK_NAME)
+            return
+        }
+        val network = if (prefs[SyncPrefs.WIFI_ONLY] ?: true) NetworkType.UNMETERED else NetworkType.CONNECTED
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInitialDelay(DEBOUNCE_SECONDS, TimeUnit.SECONDS)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(network).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
             .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+        work.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
     }
 
     private companion object {

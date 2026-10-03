@@ -22,7 +22,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val processor = EntryPointAccessors.fromApplication(applicationContext, Entry::class.java).processor()
         when (processor.run()) {
             SyncRunResult.WAIT -> Result.retry()
-            SyncRunResult.DONE, SyncRunResult.NOT_SIGNED_IN -> Result.success()
+            SyncRunResult.DONE, SyncRunResult.NOT_SIGNED_IN, SyncRunResult.PAUSED -> Result.success()
         }
     } catch (e: CancellationException) {
         throw e
