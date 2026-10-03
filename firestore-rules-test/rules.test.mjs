@@ -82,3 +82,53 @@ describe('field validation', () => {
     await assertFails(setDoc(path(alice()), valid('other')));
   });
 });
+
+const validReading = (id = 'd1') => ({
+  documentId: id,
+  locator: '{"href":"c1.xhtml","type":"application/xhtml+xml","locations":{"progression":0.4}}',
+  progressPercent: 0.4,
+  updatedAt: 10,
+  schemaVersion: 1,
+});
+const rpath = (db, uid = 'alice', id = 'd1') => doc(db, `users/${uid}/readingState/${id}`);
+
+describe('readingState', () => {
+  it('owner can create, update, read and delete', async () => {
+    await assertSucceeds(setDoc(rpath(alice()), validReading()));
+    await assertSucceeds(setDoc(rpath(alice()), { ...validReading(), progressPercent: 0.9, updatedAt: 20 }));
+    await assertSucceeds(getDoc(rpath(alice())));
+    await assertSucceeds(deleteDoc(rpath(alice())));
+  });
+  it('accepts a PDF page-number locator and the 0 / 1 progress bounds', async () => {
+    await assertSucceeds(setDoc(rpath(alice()), { ...validReading(), locator: '12', progressPercent: 0 }));
+    await assertSucceeds(setDoc(rpath(alice()), { ...validReading(), locator: '12', progressPercent: 1 }));
+  });
+  it('signed-out and other users are denied', async () => {
+    await assertSucceeds(setDoc(rpath(alice()), validReading()));
+    await assertFails(getDoc(rpath(anon())));
+    await assertFails(setDoc(rpath(anon()), validReading()));
+    await assertFails(getDoc(rpath(bob())));
+    await assertFails(setDoc(rpath(bob()), validReading()));
+    await assertFails(deleteDoc(rpath(bob())));
+  });
+  it('rejects unknown or missing fields', async () => {
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), text: 'book content' }));
+    const { locator, ...rest } = validReading();
+    await assertFails(setDoc(rpath(alice()), rest));
+  });
+  it('rejects bad types, bounds and sizes', async () => {
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), progressPercent: 1.5 }));
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), progressPercent: -0.1 }));
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), progressPercent: '0.4' }));
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), updatedAt: 'now' }));
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), locator: '' }));
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), locator: 'x'.repeat(2001) }));
+    await assertFails(setDoc(rpath(alice()), { ...validReading(), locator: 5 }));
+  });
+  it('rejects a documentId that differs from the path', async () => {
+    await assertFails(setDoc(rpath(alice()), validReading('other')));
+  });
+  it('does not loosen the documents collection', async () => {
+    await assertFails(setDoc(path(alice()), validReading()));
+  });
+});
