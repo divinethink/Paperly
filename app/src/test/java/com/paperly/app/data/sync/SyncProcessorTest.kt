@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.room.Room
 import com.paperly.app.core.database.DocumentEntity
 import com.paperly.app.core.database.PaperlyDatabase
+import com.paperly.app.core.database.ReadingStateEntity
 import com.paperly.app.core.database.SyncBaseEntity
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.StoredFile
@@ -23,6 +24,7 @@ import com.paperly.app.domain.sync.ConflictCheck
 import com.paperly.app.domain.sync.DocumentMeta
 import com.paperly.app.domain.sync.DownloadTarget
 import com.paperly.app.domain.sync.FileSyncResult
+import com.paperly.app.domain.sync.ReadingMeta
 import com.paperly.app.domain.sync.RemoteDocument
 import com.paperly.app.domain.sync.RemoteFileStore
 import com.paperly.app.domain.sync.RemoteMetadataStore
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -123,6 +126,7 @@ class SyncProcessorTest {
     private val auth = FakeAuth(AuthState.SignedIn("u1", null))
     private val remote = FakeRemote()
     private val remoteFiles = FakeRemoteFiles()
+    private val remoteReading = FakeReadingRemote()
     private lateinit var processor: SyncProcessor
     private lateinit var filesDir: File
     private lateinit var settings: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>
@@ -138,7 +142,20 @@ class SyncProcessorTest {
         val step = FileSyncStep(db.documentDao(), db.cloudSyncDao(), FakeFiles(filesDir), remoteFiles)
         val pull = PullStep(db.documentDao(), db.syncItemDao(), db.cloudSyncDao(), remote, settings)
         val downloads = DownloadStep(db.cloudSyncDao(), FakeFiles(filesDir), remoteFiles)
-        processor = SyncProcessor(db.syncItemDao(), db.documentDao(), remote, auth, settings, step, pull, downloads)
+        val reading = ReadingPushStep(db.readerDao(), remoteReading)
+        val readingPull = ReadingPullStep(db.documentDao(), db.readerDao(), db.syncItemDao(), remoteReading, settings)
+        processor = SyncProcessor(
+            db.syncItemDao(),
+            db.documentDao(),
+            remote,
+            auth,
+            settings,
+            step,
+            pull,
+            downloads,
+            reading,
+            readingPull,
+        )
     }
 
     @After
@@ -418,5 +435,61 @@ class SyncProcessorTest {
         processor.run { 200L }
         assertEquals(forgottenBefore + 1, remoteFiles.forgotten)
         assertEquals("drive-2", storageOf("d1").cloudRef)
+    }
+
+    private val epubLocator = "{\"href\":\"c1.xhtml\",\"type\":\"application/xhtml+xml\"," +
+        "\"locations\":{\"progression\":0.5},\"text\":{\"highlight\":\"secret words\"}}"
+
+    @Test
+    fun readingPositionIsPushedWithoutBookText() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1"))
+        db.readerDao().upsertState(ReadingStateEntity("d1", epubLocator, 0.5f, 77L))
+        db.syncItemDao().enqueue(SyncEntityType.READING, "d1", SyncOperation.PUT, 10L)
+        assertEquals(SyncRunResult.DONE, processor.run { 100L })
+        val sent = remoteReading.puts.single()
+        assertEquals(77L, sent.updatedAt)
+        assertFalse(sent.locator.contains("secret"))
+        assertEquals(0, waiting())
+    }
+
+    @Test
+    fun runPullsANewerCloudPositionForAnExistingDocument() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1"))
+        remoteReading.stored["d1"] = ReadingMeta("d1", "9", 0.9f, 500L)
+        assertEquals(SyncRunResult.DONE, processor.run { 1_000L })
+        assertEquals("9", db.readerDao().getState("d1")?.locator)
+        assertEquals(0, waiting()) // applying a pulled position never queues it back
+    }
+
+    @Test
+    fun firstSignInAlsoQueuesStoredReadingPositions() = runBlocking {
+        db.documentDao().insert(doc("d1"))
+        db.readerDao().upsertState(ReadingStateEntity("d1", "3", 0.1f, 5L)) // saved before sync existed
+        assertEquals(SyncRunResult.DONE, processor.run { 100L })
+        assertEquals(listOf("d1"), remoteReading.puts.map { it.documentId })
+    }
+
+    @Test
+    fun permanentDeleteItemRemovesTheRemotePosition() = runBlocking {
+        knownAccount()
+        db.syncItemDao().enqueue(SyncEntityType.READING, "d1", SyncOperation.DELETE, 10L)
+        assertEquals(SyncRunResult.DONE, processor.run { 100L })
+        assertEquals(listOf("d1"), remoteReading.deletes)
+        assertEquals(0, waiting())
+    }
+
+    @Test
+    fun transientReadingFailureBacksOffLikeAnyOtherItem() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1"))
+        db.readerDao().upsertState(ReadingStateEntity("d1", "3", 0.1f, 5L))
+        remoteReading.result = RemoteResult.RETRY
+        db.syncItemDao().enqueue(SyncEntityType.READING, "d1", SyncOperation.PUT, 10L)
+        assertEquals(SyncRunResult.WAIT, processor.run { 100L })
+        val item = db.syncItemDao().getDue(SyncItemState.FAILED, Long.MAX_VALUE, 10)
+            .single { it.entityType == SyncEntityType.READING }
+        assertEquals(SyncItemState.RETRYING, item.state)
     }
 }
