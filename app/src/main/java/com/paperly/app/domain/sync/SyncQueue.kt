@@ -15,8 +15,11 @@ interface SyncQueue {
     /** After a bulk change (e.g. a backup restore): queue every document. */
     suspend fun allDocumentsChanged()
 
-    /** Ask for a sync run now (e.g. right after sign-in). */
+    /** Ask for a sync run now (e.g. right after sign-in, or after a Wi-Fi/pause setting changed). */
     suspend fun kick()
+
+    /** The user allowed Drive access: items parked because of it become due again. */
+    suspend fun resumeDeferred()
 }
 
 /** Delay before the next try of an item that failed transiently: 30 s, 60 s, 2 min ... capped at 6 h. */
