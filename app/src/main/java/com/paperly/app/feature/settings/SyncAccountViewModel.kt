@@ -35,6 +35,7 @@ data class SyncAccountUiState(
     val resolveFailed: Boolean = false,
 )
 
+@Suppress("TooManyFunctions") // small state/event handlers, same pattern as ReaderViewModel
 @HiltViewModel
 class SyncAccountViewModel @Inject constructor(
     private val auth: AuthRepository,

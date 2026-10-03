@@ -79,7 +79,11 @@ private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, vi
     Text(stringResource(R.string.settings_sync_files_count, counts.synced, counts.total), Modifier.padding(top = 8.dp))
     SyncStatusRows(queue, paused, onRetry = viewModel::retryFailed)
     conflicts.forEach { c ->
-        ConflictRow(c.title, onThisDevice = { viewModel.keepThisDevice(c.documentId) }, onCloud = { viewModel.keepCloud(c.documentId) })
+        ConflictRow(
+            title = c.title,
+            onThisDevice = { viewModel.keepThisDevice(c.documentId) },
+            onCloud = { viewModel.keepCloud(c.documentId) },
+        )
     }
     if (ui.resolveFailed) Text(stringResource(R.string.settings_sync_conflict_failed), Modifier.padding(top = 8.dp))
     ui.consent?.let { sender ->
