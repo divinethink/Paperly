@@ -25,6 +25,9 @@ interface ReaderStateRepository {
     /** Idempotent upsert; [progress] is clamped to 0..1. */
     suspend fun saveLocator(documentId: String, locator: String, progress: Float)
 
+    /** The reader is pausing: let a throttled position change reach the cloud queue now (P8-E4). */
+    suspend fun flushSync(documentId: String)
+
     fun observeBookmarkLocators(documentId: String): Flow<List<String>>
 
     /** Returns true if the locator is bookmarked after the call. */
