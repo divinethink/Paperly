@@ -62,18 +62,8 @@ jobs:
           if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > app/google-services.json; fi
           if [ -n "$DKS" ]; then mkdir -p ~/.android && printf '%s' "$DKS" | base64 -d > ~/.android/debug.keystore; fi
 
-      # SHA-1 is public; compare it with the Android OAuth client / Firebase app SHA-1 when Google sign-in fails.
-      - name: Print debug key SHA-1
-        run: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android 2>&1 | grep -E "SHA1|SHA-1|error|Exception" || echo "no debug keystore yet (Gradle creates a random one)"
-
       - name: Unit tests + debug APK
         run: gradle testDebugUnitTest assembleDebug --stacktrace
-
-      # Real signer of the APK that gets uploaded (public value) - must equal the SHA-1 registered in Firebase.
-      - name: Print APK signing SHA-1
-        run: |
-          AS=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
-          "$AS" verify --print-certs app/build/outputs/apk/debug/*.apk | grep -i "SHA-1 digest" || true
 
       # R8/shrink check: the release build (minify + shrinkResources) must at least compile. Unsigned, never shipped.
       - name: Release build (R8 check)
