@@ -48,6 +48,10 @@ class FirebaseAuthRepository @Inject constructor(
             .takeIf { it != 0 }
             ?.let(appContext::getString)
 
+    @Volatile
+    private var lastError: String? = null
+    override val lastSignInError: String? get() = lastError
+
     override val state: Flow<AuthState> =
         if (!configured) {
             flowOf(AuthState.Unavailable)
@@ -61,8 +65,12 @@ class FirebaseAuthRepository @Inject constructor(
         }
 
     override suspend fun signIn(activity: Context): SignInResult {
+        lastError = null
         val clientId = webClientId
-        if (!configured || clientId == null) return SignInResult.FAILED
+        if (!configured || clientId == null) {
+            lastError = "no web client id in build"
+            return SignInResult.FAILED
+        }
         return try {
             val option = GetSignInWithGoogleOption.Builder(clientId).build()
             val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
@@ -71,6 +79,7 @@ class FirebaseAuthRepository @Inject constructor(
                 ?.takeIf { it.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL }
                 ?.let { GoogleIdTokenCredential.createFrom(it.data).idToken }
             if (idToken == null) {
+                lastError = "no Google ID token"
                 SignInResult.FAILED
             } else {
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
@@ -78,12 +87,15 @@ class FirebaseAuthRepository @Inject constructor(
                 SignInResult.SIGNED_IN
             }
         } catch (e: GetCredentialCancellationException) {
+            lastError = describe(e)
             SignInResult.CANCELLED
         } catch (e: NoCredentialException) {
+            lastError = describe(e)
             SignInResult.NO_ACCOUNT
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            lastError = describe(e)
             SignInResult.FAILED
         }
     }
@@ -99,7 +111,10 @@ class FirebaseAuthRepository @Inject constructor(
     private fun FirebaseUser?.toState(): AuthState =
         if (this == null) AuthState.SignedOut else AuthState.SignedIn(uid, email)
 
+    private fun describe(e: Exception): String = "${e.javaClass.simpleName}: ${e.message.orEmpty().take(MAX_DETAIL)}"
+
     private companion object {
+        const val MAX_DETAIL = 160
         const val WEB_CLIENT_ID_RES = "default_web_client_id"
     }
 }
