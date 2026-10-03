@@ -94,6 +94,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services)
     implementation(libs.googleid)
+    implementation(libs.play.services.auth) // P8-D: AuthorizationClient for the Drive appDataFolder scope
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
