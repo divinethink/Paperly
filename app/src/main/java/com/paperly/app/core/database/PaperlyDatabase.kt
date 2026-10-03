@@ -158,5 +158,7 @@ abstract class PaperlyDatabase : RoomDatabase() {
 
     abstract fun syncItemDao(): SyncItemDao
 
+    abstract fun cloudSyncDao(): CloudSyncDao
+
     abstract fun backupExtrasDao(): BackupExtrasDao
 }

@@ -105,8 +105,4 @@ abstract class SyncItemDao {
             "lastError = :lastError WHERE syncId = :syncId AND updatedAt = :version",
     )
     abstract suspend fun markFailed(syncId: String, version: Long, attempts: Int, lastError: String?): Int
-
-    /** Items still waiting to be synced (aggregate, no LIMIT). */
-    @Query("SELECT COUNT(*) FROM sync_items WHERE state <> :failed")
-    abstract suspend fun countWaiting(failed: String): Int
 }
