@@ -1,6 +1,8 @@
 package com.paperly.app.data.auth
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -13,6 +15,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.OAuthProvider
 import com.paperly.app.domain.auth.AuthRepository
 import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.SignInResult
@@ -100,6 +103,27 @@ class FirebaseAuthRepository @Inject constructor(
         }
     }
 
+    override suspend fun signInWithBrowser(activity: Context): SignInResult {
+        lastError = null
+        val host = activity.findActivity()
+        if (!configured || host == null) {
+            lastError = "browser sign-in unavailable"
+            return SignInResult.FAILED
+        }
+        return try {
+            val auth = FirebaseAuth.getInstance()
+            val pending = auth.pendingAuthResult
+            (pending ?: auth.startActivityForSignInWithProvider(host, OAuthProvider.newBuilder("google.com").build()))
+                .await()
+            SignInResult.SIGNED_IN
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            lastError = describe(e)
+            SignInResult.FAILED
+        }
+    }
+
     override suspend fun signOut(activity: Context) {
         if (!configured) return
         FirebaseAuth.getInstance().signOut()
@@ -117,6 +141,12 @@ class FirebaseAuthRepository @Inject constructor(
         const val MAX_DETAIL = 160
         const val WEB_CLIENT_ID_RES = "default_web_client_id"
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 @Module
