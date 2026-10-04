@@ -86,6 +86,8 @@ private class FakeRemote(var result: RemoteResult = RemoteResult.OK) : RemoteMet
     override suspend fun fetchDocument(uid: String, documentId: String) = RemoteDocument.Absent
 
     override suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>? = emptyList()
+
+    override suspend fun listDocumentIds(uid: String): Set<String>? = cloud.keys.toSet()
 }
 
 private class FakeFiles(private val dir: File) : DocumentFileStore {
@@ -101,6 +103,8 @@ private class FakeFiles(private val dir: File) : DocumentFileStore {
 
 private class FakeRemoteFiles(var result: FileSyncResult = FileSyncResult.Done("drive-1")) : RemoteFileStore {
     val uploads = mutableListOf<String>()
+    val deletes = mutableListOf<String>()
+    var deleteResult = RemoteResult.OK
     var forgotten = 0
 
     override suspend fun upload(documentId: String, file: File, sha256: String): FileSyncResult {
@@ -113,6 +117,11 @@ private class FakeRemoteFiles(var result: FileSyncResult = FileSyncResult.Done("
 
     override suspend fun forgetUploads() {
         forgotten++
+    }
+
+    override suspend fun delete(documentId: String): RemoteResult {
+        deletes += documentId
+        return deleteResult
     }
 }
 
@@ -407,6 +416,45 @@ class SyncProcessorTest {
         remoteFiles.result = FileSyncResult.Done("drive-1")
         assertEquals(SyncRunResult.DONE, processor.run { 101L })
         assertEquals(setOf("d1", "d2"), remoteFiles.uploads.toSet())
+    }
+
+    @Test
+    fun permanentDeleteRemovesTheCloudFileEvenWithoutARow() = runBlocking {
+        knownAccount()
+        db.syncItemDao().enqueue(SyncEntityType.FILE, "gone", SyncOperation.DELETE, 10L)
+        assertEquals(SyncRunResult.DONE, processor.run { 100L })
+        assertEquals(listOf("gone"), remoteFiles.deletes)
+        assertEquals(0, waiting())
+    }
+
+    @Test
+    fun deleteReplacesAPendingUploadOfTheSameDocument() = runBlocking {
+        val dao = db.syncItemDao()
+        dao.enqueue(SyncEntityType.FILE, "d1", SyncOperation.PUT, 10L)
+        dao.enqueue(SyncEntityType.FILE, "d1", SyncOperation.DELETE, 11L)
+        val item = dao.getDue(SyncItemState.FAILED, 100L, 10).single { it.entityType == SyncEntityType.FILE }
+        assertEquals(SyncOperation.DELETE, item.operation)
+    }
+
+    @Test
+    fun cloudFileOfALiveDocumentIsNeverDeleted() = runBlocking {
+        knownAccount()
+        db.documentDao().insert(doc("d1")) // re-added (e.g. backup restore) while the delete was waiting
+        db.syncItemDao().enqueue(SyncEntityType.FILE, "d1", SyncOperation.DELETE, 10L)
+        processor.run { 100L }
+        assertTrue(remoteFiles.deletes.isEmpty())
+    }
+
+    @Test
+    fun transientCloudDeleteFailureBacksOffAndIsRetried() = runBlocking {
+        knownAccount()
+        db.syncItemDao().enqueue(SyncEntityType.FILE, "gone", SyncOperation.DELETE, 10L)
+        remoteFiles.deleteResult = RemoteResult.RETRY
+        assertEquals(SyncRunResult.WAIT, processor.run { 100L })
+        assertEquals(1, waiting()) // still queued, not lost
+        remoteFiles.deleteResult = RemoteResult.OK
+        assertEquals(SyncRunResult.DONE, processor.run { 100L + SyncBackoff.delayMs(1) })
+        assertEquals(0, waiting())
     }
 
     @Test
