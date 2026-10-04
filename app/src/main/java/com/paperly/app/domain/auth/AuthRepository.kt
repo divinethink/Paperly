@@ -15,6 +15,9 @@ sealed interface AuthState {
 
 enum class SignInResult { SIGNED_IN, CANCELLED, NO_ACCOUNT, FAILED }
 
+/** NEEDS_RECENT_LOGIN = Firebase wants a fresh sign-in before it deletes the account; nothing was changed. */
+enum class DeleteAccountResult { DELETED, NEEDS_RECENT_LOGIN, FAILED }
+
 interface AuthRepository {
     val state: Flow<AuthState>
 
@@ -25,4 +28,7 @@ interface AuthRepository {
     suspend fun signIn(activity: Context): SignInResult
 
     suspend fun signOut(activity: Context)
+
+    /** Deletes the signed-in Firebase account itself (its cloud data is wiped by the caller first). */
+    suspend fun deleteAccount(): DeleteAccountResult = DeleteAccountResult.FAILED
 }

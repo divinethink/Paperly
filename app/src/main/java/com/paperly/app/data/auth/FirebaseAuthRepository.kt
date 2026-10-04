@@ -12,10 +12,12 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.paperly.app.domain.auth.AuthRepository
 import com.paperly.app.domain.auth.AuthState
+import com.paperly.app.domain.auth.DeleteAccountResult
 import com.paperly.app.domain.auth.SignInResult
 import dagger.Binds
 import dagger.Module
@@ -104,6 +106,21 @@ class FirebaseAuthRepository @Inject constructor(
         // Forget the chosen account so the next sign-in shows the chooser; failure here is harmless.
         runCatching { CredentialManager.create(activity).clearCredentialState(ClearCredentialStateRequest()) }
             .onFailure { if (it is CancellationException) throw it }
+    }
+
+    override suspend fun deleteAccount(): DeleteAccountResult {
+        val user = if (configured) FirebaseAuth.getInstance().currentUser else null
+        if (user == null) return DeleteAccountResult.FAILED
+        return try {
+            user.delete().await()
+            DeleteAccountResult.DELETED
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            DeleteAccountResult.NEEDS_RECENT_LOGIN
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            DeleteAccountResult.FAILED
+        }
     }
 
     private fun describe(e: Throwable): String =

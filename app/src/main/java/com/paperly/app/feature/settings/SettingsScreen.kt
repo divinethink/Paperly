@@ -1,5 +1,6 @@
 package com.paperly.app.feature.settings
 
+import android.content.Context
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.domain.storage.StorageUsage
 import com.paperly.app.feature.reader.ReadingTimeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,10 +42,12 @@ fun SettingsScreen(
     backupViewModel: BackupViewModel = hiltViewModel(),
     readingTime: ReadingTimeViewModel = hiltViewModel(),
     appearance: AppearanceViewModel = hiltViewModel(),
+    deleteViewModel: DeleteDataViewModel = hiltViewModel(),
 ) {
     val usage by viewModel.usage.collectAsStateWithLifecycle()
     val minutesToday by readingTime.todayMinutes.collectAsStateWithLifecycle()
     val backup by backupViewModel.state.collectAsStateWithLifecycle()
+    val del by deleteViewModel.state.collectAsStateWithLifecycle()
     val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
@@ -69,27 +73,22 @@ fun SettingsScreen(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp),
         )
-        usage?.let { u ->
-            UsageRow(
-                pluralStringResource(R.plurals.settings_storage_documents, u.activeCount, u.activeCount),
-                Formatter.formatShortFileSize(context, u.activeBytes),
-            )
-            UsageRow(
-                pluralStringResource(R.plurals.settings_storage_trash, u.trashCount, u.trashCount),
-                Formatter.formatShortFileSize(context, u.trashBytes),
-            )
-            UsageRow(
-                stringResource(R.string.settings_storage_total),
-                Formatter.formatShortFileSize(context, u.totalBytes),
-            )
-        }
+        usage?.let { StorageUsageRows(it, context) }
         OrphanFilesSection()
         SyncSection()
         BackupSection(
-            state = backup,
+            state = backup.copy(busy = backup.busy || del.running),
             onExport = { exportLauncher.launch(backupFileName()) },
             onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
             onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
+        )
+        NewPhoneGuideSection()
+        PrivacySection(busy = backup.busy || del.running, onExport = { exportLauncher.launch(backupFileName()) })
+        DeleteDataSection(
+            state = del,
+            viewModel = deleteViewModel,
+            onExport = { exportLauncher.launch(backupFileName()) },
+            backupBusy = backup.busy,
         )
     }
 }
@@ -162,4 +161,20 @@ private fun UsageRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+@Composable
+private fun StorageUsageRows(u: StorageUsage, context: Context) {
+    UsageRow(
+        pluralStringResource(R.plurals.settings_storage_documents, u.activeCount, u.activeCount),
+        Formatter.formatShortFileSize(context, u.activeBytes),
+    )
+    UsageRow(
+        pluralStringResource(R.plurals.settings_storage_trash, u.trashCount, u.trashCount),
+        Formatter.formatShortFileSize(context, u.trashBytes),
+    )
+    UsageRow(
+        stringResource(R.string.settings_storage_total),
+        Formatter.formatShortFileSize(context, u.totalBytes),
+    )
 }

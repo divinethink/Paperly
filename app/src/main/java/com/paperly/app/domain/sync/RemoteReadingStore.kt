@@ -9,4 +9,7 @@ interface RemoteReadingStore {
 
     /** Complete set of positions with updatedAt > [updatedAfter], read from the server. null = failed. */
     suspend fun fetchReadingSince(uid: String, updatedAfter: Long): List<ReadingMeta>?
+
+    /** Ids of every stored position, read from the server. null = failed (default: not supported). */
+    suspend fun listReadingIds(uid: String): Set<String>? = null
 }

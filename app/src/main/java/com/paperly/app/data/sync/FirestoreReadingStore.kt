@@ -75,6 +75,20 @@ class FirestoreReadingStore @Inject constructor(
         null
     }
 
+    override suspend fun listReadingIds(uid: String): Set<String>? = try {
+        if (!configured()) {
+            null
+        } else {
+            withTimeout(TIMEOUT_MS) { readings(uid).get(Source.SERVER).await().documents.map { it.id }.toSet() }
+        }
+    } catch (e: TimeoutCancellationException) {
+        null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     private fun readings(uid: String) =
         FirebaseFirestore.getInstance().collection("users").document(uid).collection("readingState")
 
