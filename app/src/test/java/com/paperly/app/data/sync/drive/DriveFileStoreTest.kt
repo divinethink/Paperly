@@ -2,6 +2,7 @@ package com.paperly.app.data.sync.drive
 
 import com.paperly.app.domain.auth.DriveToken
 import com.paperly.app.domain.sync.FileSyncResult
+import com.paperly.app.domain.sync.RemoteResult
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -156,6 +157,46 @@ class DriveFileStoreTest {
         assertEquals(1, bad.discarded)
         assertNull(bad.stored)
         assertEquals(FileSyncResult.NotFound, runBlocking { store.download("nope", sha, MemoryTarget()) })
+    }
+
+    private fun cloudCopy(id: String, documentId: String) {
+        drive.files[id] = RemoteFile(id, documentId, ByteArray(10))
+    }
+
+    private fun delete(id: String) = runBlocking { store.delete(id) }
+
+    @Test
+    fun deleteRemovesEveryCopyOfThatDocumentOnly() {
+        cloudCopy("f1", "docA")
+        cloudCopy("f2", "docA") // a stray duplicate
+        cloudCopy("f3", "docB")
+        sessions.map["docA"] = UploadSession("u", "s", 1)
+        assertEquals(RemoteResult.OK, delete("docA"))
+        assertEquals(listOf("f3"), drive.files.keys.toList())
+        assertTrue(sessions.map.isEmpty())
+        assertEquals(RemoteResult.OK, delete("docA")) // idempotent: nothing left is still done
+    }
+
+    @Test
+    fun deleteOfADocumentThatWasNeverUploadedIsDone() {
+        assertEquals(RemoteResult.OK, delete("neverUploaded"))
+        assertTrue(drive.files.isEmpty())
+    }
+
+    @Test
+    fun deleteMapsErrorsAndNeverTouchesDriveForABadId() {
+        assertEquals(RemoteResult.DENIED, delete("../x"))
+        assertEquals(0, drive.requests)
+        cloudCopy("f1", "docA")
+        drive.failAllWith = 403
+        drive.failAllBody = """{"error":{"errors":[{"reason":"insufficientPermissions"}]}}"""
+        assertEquals(RemoteResult.DEFERRED, delete("docA"))
+        drive.failAllWith = 429
+        assertEquals(RemoteResult.RETRY, delete("docA"))
+        drive.failAllWith = null
+        auth.token = DriveToken.Unavailable
+        assertEquals(RemoteResult.RETRY, delete("docA"))
+        assertEquals(1, drive.files.size) // nothing was lost by the failed attempts
     }
 
     private companion object {

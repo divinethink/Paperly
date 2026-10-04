@@ -99,7 +99,12 @@ private fun readExchange(socket: Socket): HttpExchange? {
     return HttpExchange(request[0], URI(request[1]), headers, body, socket)
 }
 
-class RemoteFile(val id: String, val documentId: String, val bytes: ByteArray)
+class RemoteFile(
+    val id: String,
+    val documentId: String,
+    val bytes: ByteArray,
+    val createdMillis: Long = System.currentTimeMillis(),
+)
 
 /** A small in-process imitation of the parts of the Drive REST API that Paperly uses, with fault switches. */
 class FakeDriveServer {
@@ -158,7 +163,9 @@ class FakeDriveServer {
         } else {
             """"sha256Checksum":"${if (wrongSha) "0".repeat(64) else sha256Hex(f.bytes)}""""
         }
-        return """{"id":"${f.id}","size":"${f.bytes.size}",$hash}"""
+        val created = java.time.Instant.ofEpochMilli(f.createdMillis)
+        val props = """"appProperties":{"documentId":"${f.documentId}"}"""
+        return """{"id":"${f.id}","size":"${f.bytes.size}","createdTime":"$created",$props,$hash}"""
     }
 
     private fun handle(ex: HttpExchange) {
@@ -221,9 +228,14 @@ class FakeDriveServer {
         val query = ex.requestURI.rawQuery.orEmpty()
         if (ex.requestURI.path == "/drive/v3/files") {
             val q = URLDecoder.decode(Regex("(?:^|&)q=([^&]*)").find(query)!!.groupValues[1], "UTF-8")
-            val doc = Regex("value='([^']+)'").find(q)!!.groupValues[1]
-            val list = files.values.filter { it.documentId == doc }.joinToString(",") { fileJson(it) }
-            return reply(ex, 200, """{"files":[$list]}""")
+            val doc = Regex("value='([^']+)'").find(q)?.groupValues?.get(1)
+            val matching = files.values.filter { doc == null || it.documentId == doc }
+            val size = Regex("(?:^|&)pageSize=(\\d+)").find(query)?.groupValues?.get(1)?.toInt() ?: Int.MAX_VALUE
+            val start = Regex("(?:^|&)pageToken=([^&]*)").find(query)?.groupValues?.get(1)?.toInt() ?: 0
+            val page = matching.drop(start).take(size)
+            val more = start + page.size < matching.size
+            val token = if (more) ""","nextPageToken":"${start + page.size}"""" else ""
+            return reply(ex, 200, """{"files":[${page.joinToString(",") { fileJson(it) }}]$token}""")
         }
         val file = files[ex.requestURI.path.substringAfterLast('/')]
         when {
