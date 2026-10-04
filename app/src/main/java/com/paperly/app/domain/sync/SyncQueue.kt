@@ -18,7 +18,7 @@ interface SyncQueue {
     /** The reader was paused/closed: send the latest position now, if a throttled change is waiting. */
     suspend fun readingFlush(id: String)
 
-    /** The document row is gone for good (permanent delete). Its reading position goes with it. */
+    /** The document row is gone for good (permanent delete). Its reading position and cloud file go with it. */
     suspend fun documentDeleted(id: String)
 
     /** After a bulk change (e.g. a backup restore): queue every document. */

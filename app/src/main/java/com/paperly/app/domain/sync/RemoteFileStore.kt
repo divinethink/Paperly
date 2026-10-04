@@ -43,4 +43,11 @@ interface RemoteFileStore {
 
     /** The signed-in account changed: drop interrupted-upload state that belongs to the previous account. */
     suspend fun forgetUploads()
+
+    /**
+     * Removes every cloud copy of [documentId] (found by its `documentId` app property, so no stored Drive id is
+     * needed) and any interrupted upload of it. Idempotent: no copy at all counts as done (OK).
+     * RETRY = transient, DEFERRED = Drive access not allowed yet, DENIED = rejected for good.
+     */
+    suspend fun delete(documentId: String): RemoteResult
 }

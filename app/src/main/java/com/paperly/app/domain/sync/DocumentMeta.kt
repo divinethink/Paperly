@@ -54,4 +54,7 @@ interface RemoteMetadataStore {
      * (no limit: a truncated set would be wrong). null = failed.
      */
     suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>?
+
+    /** Ids of every document in the cloud (server truth, no limit: a partial set would be wrong). null = failed. */
+    suspend fun listDocumentIds(uid: String): Set<String>?
 }
