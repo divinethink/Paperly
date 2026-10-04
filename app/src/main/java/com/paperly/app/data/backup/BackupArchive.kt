@@ -17,6 +17,11 @@ data class BackupSource(val doc: BackupDocument, val file: File)
 
 data class BackupHeader(val schemaVersion: Int, val appVersion: String, val createdAt: Long)
 
+/** [damaged] = entries whose bytes do not match the manifest checksum; [missing] = listed documents with no entry. */
+data class ArchiveCheck(val manifest: BackupManifest, val damaged: Int, val missing: Int) {
+    val isIntact: Boolean get() = manifest.invalidEntries == 0 && damaged == 0 && missing == 0
+}
+
 /**
  * ZIP layout: `documents/<documentId>` (raw file bytes) ... then `manifest.json` LAST.
  * Manifest-last means a truncated/interrupted archive has no manifest and is rejected outright.
@@ -58,14 +63,22 @@ object BackupArchive {
     }
 
     /** Re-reads a written archive: manifest valid and every document entry's SHA-256 equals its manifest checksum. */
-    fun verify(input: InputStream): Boolean = try {
+    fun verify(input: InputStream): Boolean = check(input)?.isIntact == true
+
+    /**
+     * Streams the whole archive once, writing nothing: decodes the manifest and hashes every document entry.
+     * null = no readable manifest / corrupted or truncated archive (ZipException is an IOException).
+     */
+    fun check(input: InputStream): ArchiveCheck? = try {
         val hashes = HashMap<String, String>()
         val manifestJson = ZipInputStream(BufferedInputStream(input)).use { scan(it, hashes) }
-        val manifest = manifestJson?.let { BackupManifestCodec.decode(it) }
-        manifest != null && manifest.invalidEntries == 0 &&
-            manifest.documents.all { hashes[it.documentId] == it.checksum }
+        manifestJson?.let { BackupManifestCodec.decode(it) }?.let { m ->
+            val damaged = m.documents.count { hashes[it.documentId]?.let { h -> h != it.checksum } == true }
+            val missing = m.documents.count { it.documentId !in hashes }
+            ArchiveCheck(m, damaged, missing)
+        }
     } catch (e: IOException) {
-        false // corrupted/truncated archive (ZipException is an IOException)
+        null
     }
 
     /** Fills [hashes] (id -> SHA-256) for document entries and returns the manifest text, if present. */

@@ -4,6 +4,7 @@ import com.paperly.app.core.database.AnnotationEntity
 import com.paperly.app.core.database.BookmarkEntity
 import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.database.ReadingStateEntity
+import com.paperly.app.core.database.ScanPageEntity
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,11 +39,21 @@ data class BackupAnnotation(
     val rects: String? = null,
 )
 
-/** Optional manifest extras: reading progress, bookmarks, annotations. Absent in old archives = empty. */
+/** P4-B per-page title/note of a scanned document (a row exists only for edited pages). */
+data class BackupScanPage(
+    val documentId: String,
+    val pageIndex: Int,
+    val title: String?,
+    val note: String?,
+    val updatedAt: Long,
+)
+
+/** Optional manifest extras: reading progress, bookmarks, annotations, scan pages. Absent in old archives = empty. */
 data class BackupExtras(
     val readingState: List<BackupReadingState> = emptyList(),
     val bookmarks: List<BackupBookmark> = emptyList(),
     val annotations: List<BackupAnnotation> = emptyList(),
+    val scanPages: List<BackupScanPage> = emptyList(),
 ) {
     companion object {
         val EMPTY = BackupExtras()
@@ -65,6 +76,9 @@ class BackupExtrasStore @Inject constructor(db: PaperlyDatabase) {
         annotations = dao.getAllAnnotations()
             .filter { it.documentId in documentIds && it.hasFiniteRect() }
             .map { it.toBackup() },
+        scanPages = dao.getAllScanPages()
+            .filter { it.documentId in documentIds }
+            .map { BackupScanPage(it.documentId, it.pageIndex, it.title, it.note, it.updatedAt) },
     )
 
     /** Call only for a document that was just restored (its row exists). Idempotent; never overwrites. */
@@ -74,8 +88,10 @@ class BackupExtrasStore @Inject constructor(db: PaperlyDatabase) {
         val bookmarks = extras.bookmarks.filter { it.documentId == documentId }
             .map { BookmarkEntity(it.bookmarkId, it.documentId, it.locator, it.title, it.createdAt) }
         val annotations = extras.annotations.filter { it.documentId == documentId }.map { it.toEntity() }
-        if (state != null || bookmarks.isNotEmpty() || annotations.isNotEmpty()) {
-            dao.restoreFor(state, bookmarks, annotations)
+        val scanPages = extras.scanPages.filter { it.documentId == documentId }
+            .map { ScanPageEntity(it.documentId, it.pageIndex, it.title, it.note, it.updatedAt) }
+        if (state != null || bookmarks.isNotEmpty() || annotations.isNotEmpty() || scanPages.isNotEmpty()) {
+            dao.restoreFor(state, bookmarks, annotations, scanPages)
         }
     }
 }

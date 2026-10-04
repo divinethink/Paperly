@@ -4,6 +4,8 @@ import com.paperly.app.core.file.SAFE_DOCUMENT_ID
 import com.paperly.app.data.reader.AnnotationRects
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
+import com.paperly.app.domain.scanner.MAX_PAGE_NOTE
+import com.paperly.app.domain.scanner.MAX_PAGE_TITLE
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -27,6 +29,24 @@ private fun JSONObject.rect(): List<Float>? {
     return if (v.all { it != null }) v.map { it ?: 0f } else null
 }
 
+private fun scanPageJson(p: BackupScanPage) = JSONObject().apply {
+    put("documentId", p.documentId)
+    put("pageIndex", p.pageIndex)
+    put("title", p.title ?: JSONObject.NULL)
+    put("note", p.note ?: JSONObject.NULL)
+    put("updatedAt", p.updatedAt)
+}
+
+/** Needs a known document, a non-negative page index and at least one of title/note (within the app limits). */
+private fun parseScanPage(o: JSONObject, docIds: Set<String>): BackupScanPage? {
+    val docId = o.optString("documentId")
+    val index = o.optInt("pageIndex", -1)
+    val title = o.text("title", MAX_PAGE_TITLE)
+    val note = o.text("note", MAX_PAGE_NOTE)
+    val valid = docId in docIds && index >= 0 && (title != null || note != null)
+    return if (valid) BackupScanPage(docId, index, title, note, o.optLong("updatedAt")) else null
+}
+
 /**
  * Tolerant reader/writer for the optional extras in the manifest (formatVersion stays 1: additive keys).
  * Entries that fail validation are dropped and counted, never crash; references to unknown documents are dropped.
@@ -36,6 +56,7 @@ object BackupExtrasCodec {
         root.put("readingState", JSONArray(extras.readingState.map { readingJson(it) }))
         root.put("bookmarks", JSONArray(extras.bookmarks.map { bookmarkJson(it) }))
         root.put("annotations", JSONArray(extras.annotations.map { annotationJson(it) }))
+        root.put("scanPages", JSONArray(extras.scanPages.map { scanPageJson(it) }))
     }
 
     /** Returns the valid extras for [documentIds] and the number of dropped entries. */
@@ -43,7 +64,8 @@ object BackupExtrasCodec {
         val (states, badStates) = parseList(root.optJSONArray("readingState")) { parseReading(it, documentIds) }
         val (marks, badMarks) = parseList(root.optJSONArray("bookmarks")) { parseBookmark(it, documentIds) }
         val (notes, badNotes) = parseList(root.optJSONArray("annotations")) { parseAnnotation(it, documentIds) }
-        return BackupExtras(states, marks, notes) to (badStates + badMarks + badNotes)
+        val (pages, badPages) = parseList(root.optJSONArray("scanPages")) { parseScanPage(it, documentIds) }
+        return BackupExtras(states, marks, notes, pages) to (badStates + badMarks + badNotes + badPages)
     }
 
     private fun <T : Any> parseList(arr: JSONArray?, parse: (JSONObject) -> T?): Pair<List<T>, Int> {

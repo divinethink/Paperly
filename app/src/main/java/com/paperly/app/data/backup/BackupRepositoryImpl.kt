@@ -24,6 +24,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.util.zip.ZipException
 import java.util.zip.ZipFile
 import javax.inject.Inject
@@ -53,7 +54,18 @@ class BackupRepositoryImpl @Inject constructor(
     override suspend fun export(targetUri: String): BackupResult = lock.withLock {
         val uri = Uri.parse(targetUri)
         try {
-            withContext(Dispatchers.IO) { doExport(uri) }
+            withContext(Dispatchers.IO) {
+                val resolver = context.contentResolver
+                val out = resolver.openOutputStream(uri, "w") ?: throw IOException("Cannot open target")
+                val (written, skipped) = out.use { writeArchive(it) }
+                val verified = resolver.openInputStream(uri)?.use { BackupArchive.verify(it) } == true
+                if (verified) {
+                    BackupResult.Success(written, skipped)
+                } else {
+                    discardPartial(uri)
+                    BackupResult.Failed
+                }
+            }
         } catch (e: CancellationException) {
             discardPartial(uri)
             throw e
@@ -63,7 +75,8 @@ class BackupRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun doExport(uri: Uri): BackupResult {
+    /** Collects the whole library and writes the archive to [out]. Returns (documents written, documents skipped). */
+    internal suspend fun writeArchive(out: OutputStream): Pair<Int, Int> {
         val entities = aggregateDao.getAllActive().filter { DocumentType.isValid(it.type) }
         val sources = entities.mapNotNull { e ->
             fileStore.resolve(e.documentId)?.let { BackupSource(e.toBackupDocument(), it) }
@@ -71,18 +84,10 @@ class BackupRepositoryImpl @Inject constructor(
         val folders = folderDao.getAll().map {
             BackupFolder(it.folderId, it.name, it.parentFolderId, it.createdAt)
         }
-        val resolver = context.contentResolver
-        val out = resolver.openOutputStream(uri, "w") ?: throw IOException("Cannot open target")
         val header = BackupHeader(DATABASE_VERSION, appVersion(context), System.currentTimeMillis())
         val extras = extrasStore.collect(sources.map { it.doc.documentId }.toSet())
-        out.use { BackupArchive.write(it, sources, folders, header, extras) }
-        val verified = resolver.openInputStream(uri)?.use { BackupArchive.verify(it) } == true
-        return if (verified) {
-            BackupResult.Success(sources.size, entities.size - sources.size)
-        } else {
-            discardPartial(uri)
-            BackupResult.Failed
-        }
+        BackupArchive.write(out, sources, folders, header, extras)
+        return sources.size to (entities.size - sources.size)
     }
 
     override suspend fun restore(sourceUri: String): RestoreResult = lock.withLock {
@@ -92,7 +97,7 @@ class BackupRepositoryImpl @Inject constructor(
                 val input = context.contentResolver.openInputStream(Uri.parse(sourceUri))
                     ?: throw IOException("Cannot open backup")
                 input.use { ins -> tmp.outputStream().use { ins.copyTo(it) } }
-                ZipFile(tmp).use { restoreFromZip(it) }
+                restoreFromFile(tmp)
             }
         } catch (e: CancellationException) {
             throw e
@@ -105,9 +110,9 @@ class BackupRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun restoreFromZip(zip: ZipFile): RestoreResult {
-        val manifest = BackupArchive.readManifest(zip) ?: return RestoreResult.InvalidBackup
-        if (manifest.formatVersion > BACKUP_FORMAT_VERSION) return RestoreResult.NewerVersion
+    internal suspend fun restoreFromFile(file: File): RestoreResult = ZipFile(file).use { zip ->
+        val manifest = BackupArchive.readManifest(zip) ?: return@use RestoreResult.InvalidBackup
+        if (manifest.formatVersion > BACKUP_FORMAT_VERSION) return@use RestoreResult.NewerVersion
         manifest.folders.forEach { f ->
             if (folderDao.countById(f.folderId) == 0) {
                 folderDao.insert(FolderEntity(f.folderId, f.name, f.parentFolderId, f.createdAt))
@@ -115,7 +120,7 @@ class BackupRepositoryImpl @Inject constructor(
         }
         val folderIds = folderDao.getAll().map { it.folderId }.toSet()
         val outcomes = manifest.documents.map { restoreOne(zip, it, folderIds, manifest.extras) }
-        return RestoreResult.Done(
+        RestoreResult.Done(
             RestoreSummary(
                 restored = outcomes.count { it == Outcome.RESTORED },
                 alreadyPresent = outcomes.count { it == Outcome.PRESENT },
