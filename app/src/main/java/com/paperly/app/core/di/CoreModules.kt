@@ -44,6 +44,7 @@ object DatabaseModule {
             backupDir = File(context.filesDir, "db-backups"),
             targetVersion = DATABASE_VERSION,
         )
+        DatabaseBackup.prune(File(context.filesDir, "db-backups")) // no-op unless more than 3 copies piled up
         return Room.databaseBuilder(context, PaperlyDatabase::class.java, DATABASE_NAME)
             .addMigrations(*PaperlyMigrations.ALL)
             .build()
