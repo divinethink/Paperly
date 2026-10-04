@@ -1,6 +1,7 @@
 package com.paperly.app.data.sync.drive
 
 import com.paperly.app.domain.auth.DriveAuth
+import com.paperly.app.domain.sync.CloudInventory
 import com.paperly.app.domain.sync.RemoteFileStore
 import dagger.Binds
 import dagger.Module
@@ -28,4 +29,8 @@ object DriveProvidesModule {
     @Provides
     @Singleton
     fun provideDriveApi(): DriveFileApi = DriveFileApi(DriveEndpoints.PRODUCTION)
+
+    @Provides
+    @Singleton
+    fun provideCloudInventory(auth: DriveAuth): CloudInventory = DriveInventory(DriveEndpoints.PRODUCTION, auth)
 }

@@ -6,6 +6,7 @@ import com.paperly.app.domain.auth.DriveToken
 import com.paperly.app.domain.sync.DownloadTarget
 import com.paperly.app.domain.sync.FileSyncResult
 import com.paperly.app.domain.sync.RemoteFileStore
+import com.paperly.app.domain.sync.RemoteResult
 import java.io.File
 import java.io.IOException
 import javax.inject.Inject
@@ -13,6 +14,9 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 
 private val SHA256_HEX = Regex("[0-9a-f]{64}")
+
+/** `findByDocumentId` lists at most this many files per call: a full page may hide more copies. */
+private const val LISTED_PAGE = 10
 
 /**
  * Drive appDataFolder as cloud file storage. Originals are immutable, so a file is uploaded at most once per
@@ -39,6 +43,23 @@ class DriveFileStore @Inject constructor(
     }
 
     override suspend fun forgetUploads() = sessions.clearAll()
+
+    override suspend fun delete(documentId: String): RemoteResult {
+        if (!SAFE_DOCUMENT_ID.matches(documentId)) return RemoteResult.DENIED
+        sessions.clear(documentId) // an upload of a deleted document must never be resumed
+        // Done("") only carries "success" through the shared error mapping; there is no Drive id to report.
+        val outcome = withToken { token ->
+            val found = io { api.findByDocumentId(token, documentId) }
+            found.forEach { io { api.deleteFile(token, it.id) } }
+            if (found.size >= LISTED_PAGE) FileSyncResult.Retry else FileSyncResult.Done("")
+        }
+        return when (outcome) {
+            is FileSyncResult.Done, FileSyncResult.NotFound -> RemoteResult.OK
+            FileSyncResult.Retry -> RemoteResult.RETRY
+            FileSyncResult.Denied -> RemoteResult.DENIED
+            FileSyncResult.NeedsConsent -> RemoteResult.DEFERRED
+        }
+    }
 
     private suspend fun uploadWith(token: String, documentId: String, file: File, sha256: String): FileSyncResult {
         // The local file must still be what the library says it is; never upload something corrupted.
