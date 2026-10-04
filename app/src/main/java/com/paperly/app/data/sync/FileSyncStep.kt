@@ -29,6 +29,13 @@ class FileSyncStep @Inject constructor(
         remote.forgetUploads()
     }
 
+    /**
+     * Permanent delete: remove the cloud copy. If a row with this id exists again (e.g. a backup restore re-added
+     * it while the delete waited), the file belongs to a live document and is kept; the upload step re-adopts it.
+     */
+    suspend fun delete(documentId: String): RemoteResult =
+        if (documents.getById(documentId) != null) RemoteResult.OK else remote.delete(documentId)
+
     suspend fun sync(documentId: String): RemoteResult {
         val doc = documents.getById(documentId)
         val file = files.resolve(documentId)

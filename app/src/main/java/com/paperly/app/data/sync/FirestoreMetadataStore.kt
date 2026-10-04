@@ -101,6 +101,22 @@ class FirestoreMetadataStore @Inject constructor(
         null
     }
 
+    override suspend fun listDocumentIds(uid: String): Set<String>? = try {
+        if (!configured()) {
+            null
+        } else {
+            withTimeout(TIMEOUT_MS) {
+                documents(uid).get(Source.SERVER).await().documents.map { it.id }.toSet()
+            }
+        }
+    } catch (e: TimeoutCancellationException) {
+        null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     private fun documents(uid: String) =
         FirebaseFirestore.getInstance().collection("users").document(uid).collection("documents")
 

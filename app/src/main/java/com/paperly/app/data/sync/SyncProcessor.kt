@@ -138,7 +138,7 @@ class SyncProcessor @Inject constructor(
     private suspend fun execute(uid: String, item: SyncItemEntity): RemoteResult = when (item.entityType) {
         SyncEntityType.DOCUMENT -> executeDocument(uid, item)
         SyncEntityType.FILE ->
-            if (item.operation == SyncOperation.PUT) files.sync(item.entityId) else RemoteResult.DENIED
+            if (item.operation == SyncOperation.PUT) files.sync(item.entityId) else files.delete(item.entityId)
         SyncEntityType.READING -> reading.sync(uid, item)
         // Unknown kind of item: rejected, never retried blindly.
         else -> RemoteResult.DENIED

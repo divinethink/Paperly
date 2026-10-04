@@ -66,6 +66,8 @@ class SyncQueueImpl @Inject constructor(
         val now = System.currentTimeMillis()
         dao.enqueue(SyncEntityType.DOCUMENT, id, SyncOperation.DELETE, now)
         dao.enqueue(SyncEntityType.READING, id, SyncOperation.DELETE, now)
+        // The cloud file goes too (no row needed: Drive finds it by document id); replaces a pending upload.
+        dao.enqueue(SyncEntityType.FILE, id, SyncOperation.DELETE, now)
     }
 
     override suspend fun allDocumentsChanged() = guarded {
