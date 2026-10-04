@@ -1,0 +1,56 @@
+name: unzip-upload
+
+# Upload a *.zip to the repo ROOT (web "Upload files" -> commit to main). This workflow unpacks it over the repo,
+# deletes the zip, commits, and starts CI. Works with a flat zip or GitHub's "Download ZIP" (one wrapper folder).
+# .github/ inside a zip is ignored on purpose: the built-in token may not change workflow files (upload those by hand).
+on:
+  push:
+    branches: [main]
+    paths: ['*.zip']
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: unzip-upload
+  cancel-in-progress: false
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip and commit
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then echo "no zip at repo root"; exit 0; fi
+          for z in "${zips[@]}"; do
+            tmp=$(mktemp -d)
+            unzip -q "$z" -d "$tmp"
+            rm -rf "$tmp/__MACOSX"
+            entries=("$tmp"/*)
+            if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then src="${entries[0]}"; else src="$tmp"; fi
+            rm -rf "$src/.github" "$src/.git"
+            cp -a "$src"/. .
+            rm -rf "$tmp"
+            git rm -q "$z"
+          done
+          git config user.name "unzip-bot"
+          git config user.email "unzip-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "chore: apply uploaded zip (${zips[*]})"
+            git push origin HEAD:main
+          fi
+
+      # Pushes made with the built-in token do not start other workflows, so start CI explicitly.
+      - name: Trigger CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run build.yml --ref main
