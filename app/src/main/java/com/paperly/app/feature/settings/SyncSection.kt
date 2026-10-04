@@ -99,6 +99,7 @@ private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, vi
         Text(stringResource(R.string.settings_sync_wifi_only_off), style = MaterialTheme.typography.bodySmall)
     }
     SyncSwitchRow(stringResource(R.string.settings_sync_pause), paused, viewModel::setPaused)
+    CloudCleanupRow()
     OutlinedButton(
         onClick = { viewModel.signOut(context) },
         modifier = Modifier.padding(top = 8.dp),
