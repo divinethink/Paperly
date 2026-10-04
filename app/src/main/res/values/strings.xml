@@ -47,6 +47,14 @@
     <string name="export_images_failed">Image export failed</string>
     <string name="export_cancel">Cancel</string>
     <string name="export_dismiss">Dismiss</string>
+    <string name="convert_progress">Converting to EPUB…</string>
+    <string name="convert_done">Converted to EPUB and added to your Library</string>
+    <string name="convert_duplicate">This converted book is already in your Library: %1$s</string>
+    <string name="convert_open">Open</string>
+    <string name="convert_failed">Could not convert this document</string>
+    <string name="convert_failed_not_docx">This is not a valid Word (.docx) document</string>
+    <string name="convert_failed_empty">This document has no readable text</string>
+    <string name="convert_failed_large">This document is too large to convert</string>
     <string name="sort_label">Sort</string>
     <string name="sort_default">Default</string>
     <string name="sort_name">Name</string>

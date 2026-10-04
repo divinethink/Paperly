@@ -59,7 +59,23 @@ class DocumentRepositoryImpl @Inject constructor(
         return result
     }
 
-    private suspend fun storeAndInsert(uri: Uri, name: String?, type: String, allowDuplicate: Boolean): ImportResult {
+    override suspend fun importConverted(epubUri: String, title: String, convertedFrom: String): ImportResult {
+        val uri = Uri.parse(epubUri)
+        val result = storeAndInsert(uri, "$title.epub", DocumentType.EPUB, allowDuplicate = false, convertedFrom)
+        // The converter's temp EPUB is app-private: drop it once our own copy is stored (best-effort).
+        if (result !is ImportResult.Failed && uri.scheme == "file") {
+            withContext(Dispatchers.IO) { runCatching { uri.path?.let { java.io.File(it).delete() } } }
+        }
+        return result
+    }
+
+    private suspend fun storeAndInsert(
+        uri: Uri,
+        name: String?,
+        type: String,
+        allowDuplicate: Boolean,
+        convertedFrom: String? = null,
+    ): ImportResult {
         val id = UUID.randomUUID().toString()
         val stored = try {
             fileStore.store(uri, id)
@@ -79,6 +95,7 @@ class DocumentRepositoryImpl @Inject constructor(
             localUri = stored.path,
             createdAt = now,
             updatedAt = now,
+            convertedFrom = convertedFrom,
         )
         val result = try {
             val existing = if (allowDuplicate) null else dao.findActiveByChecksum(stored.checksum)

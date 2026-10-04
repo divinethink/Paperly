@@ -64,7 +64,7 @@ private fun LibraryFilter.emptyRes(): Int = when (this) {
     LibraryFilter.Recent -> R.string.recent_empty
 }
 
-private val ImportMimeTypes = arrayOf("application/pdf", "application/epub+zip")
+private val ImportMimeTypes = arrayOf("application/pdf", "application/epub+zip", DOCX_MIME)
 
 /** Per-document callbacks, grouped so composables stay under the parameter-count limit. */
 internal class DocumentActions(
@@ -87,8 +87,13 @@ fun LibraryScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<LibraryDialog?>(null) }
     val batch = rememberBatchState()
+    val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { viewModel.importDocument(it.toString()) }
+        when {
+            uri == null -> Unit
+            isDocx(context, uri) -> enqueueDocxConversion(context, uri) // Word file -> background EPUB conversion
+            else -> viewModel.importDocument(uri.toString())
+        }
     }
     val actions = DocumentActions(
         onOpen = { onOpenReader(it.id) },
@@ -132,6 +137,7 @@ fun LibraryScreen(
         ViewRow(state.view)
         ContinueSection(viewModel.continueReading, state.query, onOpenReader)
         ImageExportStatus()
+        DocxConversionStatus(onOpenReader)
         LibraryList(state, actions, batch, { picker.launch(ImportMimeTypes) }, viewModel::retry)
     }
 }
