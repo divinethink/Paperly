@@ -36,7 +36,7 @@ object ExportFiles {
         return target
     }
 
-    /** Removes files (and then-empty sub-folders) under [dir] not modified since [cutoffMillis]. Returns files removed. */
+    /** Removes files (and then-empty sub-folders) under [dir] not modified since [cutoffMillis]; returns the count. */
     fun pruneOlderThan(dir: File, cutoffMillis: Long): Int {
         var removed = 0
         dir.listFiles().orEmpty().forEach { f ->

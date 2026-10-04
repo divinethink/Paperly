@@ -48,7 +48,11 @@ fun RestoreConfirmDialog(preview: BackupPreview, onConfirm: () -> Unit, onCancel
                 Text(stringResource(R.string.settings_backup_confirm_safe))
             }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.settings_backup_confirm_restore)) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.settings_backup_confirm_cancel)) } },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.settings_backup_confirm_restore)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.settings_backup_confirm_cancel)) }
+        },
     )
 }

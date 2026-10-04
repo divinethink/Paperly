@@ -143,7 +143,12 @@ private fun backupMessageText(m: BackupMessage): String = when (m) {
     BackupMessage.RestoreNewer -> stringResource(R.string.settings_backup_restore_newer)
     BackupMessage.RestoreFailed -> stringResource(R.string.settings_backup_restore_failed)
     is BackupMessage.CheckOk ->
-        stringResource(R.string.settings_backup_check_ok, m.preview.documents, m.preview.newDocuments, m.preview.alreadyPresent)
+        stringResource(
+            R.string.settings_backup_check_ok,
+            m.preview.documents,
+            m.preview.newDocuments,
+            m.preview.alreadyPresent,
+        )
     is BackupMessage.CheckDamaged -> stringResource(R.string.settings_backup_check_damaged, m.badFiles)
     BackupMessage.CheckFailed -> stringResource(R.string.settings_backup_check_failed)
 }

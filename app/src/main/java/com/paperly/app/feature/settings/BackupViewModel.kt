@@ -58,8 +58,8 @@ class BackupViewModel @Inject constructor(private val runner: BackupRunner) : Vi
 
     /** Restore step 2: only valid right after a successful [previewRestore]; otherwise ignored. */
     fun confirmRestore() {
-        val o = runner.state.value.outcome
-        if (o is BackupOutcome.Inspected && o.forRestore && o.result is InspectResult.Ok) runner.startRestore(o.sourceUri)
+        val inspected = runner.state.value.outcome as? BackupOutcome.Inspected ?: return
+        if (inspected.forRestore && inspected.result is InspectResult.Ok) runner.startRestore(inspected.sourceUri)
     }
 
     fun cancelRestore() = runner.dismissOutcome()

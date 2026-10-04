@@ -27,7 +27,8 @@ class BackupInspectorImpl @Inject constructor(
 ) : BackupInspector {
     override suspend fun inspect(sourceUri: String): InspectResult = try {
         withContext(Dispatchers.IO) {
-            val input = context.contentResolver.openInputStream(Uri.parse(sourceUri)) ?: throw IOException("Cannot open")
+            val resolver = context.contentResolver
+            val input = resolver.openInputStream(Uri.parse(sourceUri)) ?: throw IOException("Cannot open")
             input.use { inspectStream(it) }
         }
     } catch (e: CancellationException) {

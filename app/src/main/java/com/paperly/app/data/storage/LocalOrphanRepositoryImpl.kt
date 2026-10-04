@@ -35,7 +35,7 @@ class LocalOrphanRepositoryImpl @Inject constructor(
         OrphanCleanResult(deleted, found.size - deleted)
     }
 
-    /** Folder is listed first, ids read second: a file stored (and its row inserted) in between is never a candidate. */
+    /** Folder is listed first, ids read second: a file stored (and its row inserted) between is never a candidate. */
     private suspend fun find(): List<File> {
         val dir = File(context.filesDir, DOCUMENTS_DIR)
         val listed = OrphanFiles.candidates(dir, System.currentTimeMillis() - TimeUnit.HOURS.toMillis(MIN_AGE_HOURS))

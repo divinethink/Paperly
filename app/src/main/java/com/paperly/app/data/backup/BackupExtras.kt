@@ -90,7 +90,8 @@ class BackupExtrasStore @Inject constructor(db: PaperlyDatabase) {
         val annotations = extras.annotations.filter { it.documentId == documentId }.map { it.toEntity() }
         val scanPages = extras.scanPages.filter { it.documentId == documentId }
             .map { ScanPageEntity(it.documentId, it.pageIndex, it.title, it.note, it.updatedAt) }
-        if (state != null || bookmarks.isNotEmpty() || annotations.isNotEmpty() || scanPages.isNotEmpty()) {
+        val hasAnything = state != null || bookmarks.isNotEmpty() || annotations.isNotEmpty()
+        if (hasAnything || scanPages.isNotEmpty()) {
             dao.restoreFor(state, bookmarks, annotations, scanPages)
         }
     }

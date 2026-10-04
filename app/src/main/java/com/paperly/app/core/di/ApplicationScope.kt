@@ -18,7 +18,7 @@ annotation class ApplicationScope
 @Module
 @InstallIn(SingletonComponent::class)
 object ApplicationScopeModule {
-    // SupervisorJob: one failed operation never cancels the scope for later ones. Repositories pick their own IO dispatcher.
+    // SupervisorJob: one failed operation never cancels the scope for later ones. Repositories choose their dispatcher.
     @Provides
     @Singleton
     @ApplicationScope

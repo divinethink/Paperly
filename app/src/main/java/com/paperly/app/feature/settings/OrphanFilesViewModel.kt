@@ -38,13 +38,9 @@ class OrphanFilesViewModel @Inject constructor(private val repository: LocalOrph
         if (_state.value == OrphanUi.Busy) return
         _state.value = OrphanUi.Busy
         viewModelScope.launch {
-            _state.value = try {
-                block()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                OrphanUi.Failed
-            }
+            val result = runCatching { block() }
+            result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+            _state.value = result.getOrDefault(OrphanUi.Failed)
         }
     }
 }

@@ -34,7 +34,11 @@ fun OrphanFilesSection(viewModel: OrphanFilesViewModel = hiltViewModel()) {
                 Text(stringResource(R.string.settings_orphans_none), Modifier.padding(top = 8.dp))
             } else {
                 Text(
-                    stringResource(R.string.settings_orphans_found, s.count, Formatter.formatShortFileSize(context, s.bytes)),
+                    stringResource(
+                        R.string.settings_orphans_found,
+                        s.count,
+                        Formatter.formatShortFileSize(context, s.bytes),
+                    ),
                     Modifier.padding(top = 8.dp),
                 )
                 OutlinedButton(onClick = viewModel::clean, modifier = Modifier.padding(top = 8.dp)) {

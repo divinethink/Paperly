@@ -14,7 +14,7 @@ object OrphanFiles {
     fun candidates(dir: File, cutoffMillis: Long): List<File> =
         dir.listFiles().orEmpty().filter { it.isFile && it.lastModified() < cutoffMillis }
 
-    /** Step 2: of [candidates], the ones no row in [knownIds] (all rows, Trash included) refers to; stale `.tmp` always. */
+    /** Step 2: of [candidates], those no row in [knownIds] (Trash rows included) refers to; stale `.tmp` always. */
     fun unreferenced(candidates: List<File>, knownIds: Set<String>): List<File> =
         candidates.filter { it.name.endsWith(TMP_SUFFIX) || it.name !in knownIds }
 
