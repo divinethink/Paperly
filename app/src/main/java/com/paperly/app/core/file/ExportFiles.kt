@@ -35,4 +35,21 @@ object ExportFiles {
         }
         return target
     }
+
+    /** Removes files (and then-empty sub-folders) under [dir] not modified since [cutoffMillis]. Returns files removed. */
+    fun pruneOlderThan(dir: File, cutoffMillis: Long): Int {
+        var removed = 0
+        dir.listFiles().orEmpty().forEach { f ->
+            if (f.isDirectory) {
+                removed += pruneOlderThan(f, cutoffMillis)
+                f.delete() // only succeeds when it is now empty
+            } else if (f.lastModified() < cutoffMillis && f.delete()) {
+                removed++
+            }
+        }
+        return removed
+    }
+
+    /** The FileProvider-exposed cache folder (see [copyToExports]). */
+    fun exportsDir(context: Context): File = File(context.cacheDir, DIR)
 }

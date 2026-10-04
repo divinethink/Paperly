@@ -16,6 +16,9 @@ import kotlinx.coroutines.withContext
 /** documentId doubles as the on-disk file name, so anything else (e.g. "../x" from a backup) is rejected. */
 val SAFE_DOCUMENT_ID = Regex("[A-Za-z0-9_-]{1,64}")
 
+/** Folder (inside app-private `filesDir`) that holds one file per document, named by documentId. */
+const val DOCUMENTS_DIR = "documents"
+
 data class StoredFile(val path: String, val sizeBytes: Long, val checksum: String)
 
 /**
@@ -37,7 +40,7 @@ class AppPrivateDocumentFileStore @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : DocumentFileStore {
 
-    private val dir: File by lazy { File(context.filesDir, "documents").apply { mkdirs() } }
+    private val dir: File by lazy { File(context.filesDir, DOCUMENTS_DIR).apply { mkdirs() } }
 
     override suspend fun store(source: Uri, documentId: String): StoredFile {
         val input = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(source) }
