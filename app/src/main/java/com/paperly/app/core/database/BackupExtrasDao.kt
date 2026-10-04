@@ -7,7 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 
 /**
- * Backup/Restore access to the per-document reader data (progress, bookmarks, annotations).
+ * Backup/Restore access to the per-document reader data (progress, bookmarks, annotations, scan page title/note).
  * Reads are whole-table on purpose (no LIMIT — a truncated backup would be silent data loss).
  * Inserts are IGNORE only: Restore never overwrites existing rows and a retry never duplicates.
  */
@@ -22,6 +22,9 @@ abstract class BackupExtrasDao {
     @Query("SELECT * FROM annotations ORDER BY createdAt")
     abstract suspend fun getAllAnnotations(): List<AnnotationEntity>
 
+    @Query("SELECT * FROM scan_pages ORDER BY documentId, pageIndex")
+    abstract suspend fun getAllScanPages(): List<ScanPageEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertReadingState(entity: ReadingStateEntity): Long
 
@@ -31,15 +34,20 @@ abstract class BackupExtrasDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertAnnotations(entities: List<AnnotationEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    abstract suspend fun insertScanPages(entities: List<ScanPageEntity>)
+
     /** One transaction per document: all of its extras are written, or none (the document itself stays). */
     @Transaction
     open suspend fun restoreFor(
         state: ReadingStateEntity?,
         bookmarks: List<BookmarkEntity>,
         annotations: List<AnnotationEntity>,
+        scanPages: List<ScanPageEntity>,
     ) {
         if (state != null) insertReadingState(state)
         insertBookmarks(bookmarks)
         insertAnnotations(annotations)
+        insertScanPages(scanPages)
     }
 }

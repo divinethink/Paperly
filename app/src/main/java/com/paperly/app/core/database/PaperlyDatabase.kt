@@ -125,6 +125,10 @@ interface AggregateDao {
     /** Backup source: complete list on purpose (no LIMIT — a truncated backup would be silent data loss). */
     @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt")
     suspend fun getAllActive(): List<DocumentEntity>
+
+    /** Every row's id, Trash included (a file is "unused" only when NO row, trashed or not, refers to it). */
+    @Query("SELECT documentId FROM documents")
+    suspend fun getAllIds(): List<String>
 }
 
 @Database(
