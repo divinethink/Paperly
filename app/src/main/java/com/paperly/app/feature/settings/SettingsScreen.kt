@@ -13,6 +13,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,8 +50,12 @@ fun SettingsScreen(
         it?.let(backupViewModel::export)
     }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
-        it?.let(backupViewModel::restore)
+        it?.let(backupViewModel::previewRestore)
     }
+    val checkLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+        it?.let(backupViewModel::check)
+    }
+    backup.confirm?.let { RestoreConfirmDialog(it, backupViewModel::confirmRestore, backupViewModel::cancelRestore) }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text(
             stringResource(R.string.settings_reading_header),
@@ -78,11 +83,13 @@ fun SettingsScreen(
                 Formatter.formatShortFileSize(context, u.totalBytes),
             )
         }
+        OrphanFilesSection()
         SyncSection()
         BackupSection(
             state = backup,
             onExport = { exportLauncher.launch(backupFileName()) },
-            onRestore = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
+            onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
+            onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
         )
     }
 }
@@ -103,11 +110,13 @@ private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
+private val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/octet-stream")
+
 private fun backupFileName(): String =
     "paperly-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".zip"
 
 @Composable
-private fun BackupSection(state: BackupUiState, onExport: () -> Unit, onRestore: () -> Unit) {
+private fun BackupSection(state: BackupUiState, onExport: () -> Unit, onRestore: () -> Unit, onCheck: () -> Unit) {
     Text(
         stringResource(R.string.settings_backup_header),
         style = MaterialTheme.typography.titleMedium,
@@ -117,6 +126,9 @@ private fun BackupSection(state: BackupUiState, onExport: () -> Unit, onRestore:
     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onExport, enabled = !state.busy) { Text(stringResource(R.string.settings_backup_export)) }
         Button(onClick = onRestore, enabled = !state.busy) { Text(stringResource(R.string.settings_backup_restore)) }
+    }
+    OutlinedButton(onClick = onCheck, enabled = !state.busy, modifier = Modifier.padding(top = 8.dp)) {
+        Text(stringResource(R.string.settings_backup_check))
     }
     if (state.busy) Text(stringResource(R.string.settings_backup_working), Modifier.padding(top = 8.dp))
     state.message?.let { Text(backupMessageText(it), Modifier.padding(top = 8.dp)) }
@@ -130,6 +142,10 @@ private fun backupMessageText(m: BackupMessage): String = when (m) {
     BackupMessage.RestoreInvalid -> stringResource(R.string.settings_backup_restore_invalid)
     BackupMessage.RestoreNewer -> stringResource(R.string.settings_backup_restore_newer)
     BackupMessage.RestoreFailed -> stringResource(R.string.settings_backup_restore_failed)
+    is BackupMessage.CheckOk ->
+        stringResource(R.string.settings_backup_check_ok, m.preview.documents, m.preview.newDocuments, m.preview.alreadyPresent)
+    is BackupMessage.CheckDamaged -> stringResource(R.string.settings_backup_check_damaged, m.badFiles)
+    BackupMessage.CheckFailed -> stringResource(R.string.settings_backup_check_failed)
 }
 
 @Composable
