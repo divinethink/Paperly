@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
@@ -162,7 +164,7 @@ private fun LibraryList(
         state.load == LibraryLoad.Loading -> LoadingPlaceholder()
         state.load == LibraryLoad.Failed -> ErrorRetry(stringResource(R.string.library_load_error), onRetry)
         state.documents.isEmpty() -> LibraryEmpty(state, onImport)
-        else -> DocumentList(state.documents, actions, batch)
+        else -> DocumentList(state.documents, actions, batch, hiltViewModel())
     }
 }
 
@@ -227,18 +229,20 @@ private fun LibraryHeader(
 }
 
 @Composable
-private fun DocumentList(docs: List<Document>, actions: DocumentActions, batch: BatchState) {
-    LazyColumn(
+private fun DocumentList(docs: List<Document>, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(150.dp),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(docs, key = { it.id }) { doc -> DocumentRow(doc, actions, batch) }
+        items(docs, key = { it.id }) { doc -> DocumentCard(doc, actions, batch, covers) }
     }
 }
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
-private fun DocumentRow(doc: Document, actions: DocumentActions, batch: BatchState) {
+private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
     val export = rememberDocumentExport(doc)
@@ -250,23 +254,27 @@ private fun DocumentRow(doc: Document, actions: DocumentActions, batch: BatchSta
             onLongClick = { batch.toggle(doc.id) },
         ),
     ) {
-        Row(
-            Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Box {
+            CoverImage(doc, covers, Modifier.fillMaxWidth().aspectRatio(COVER_RATIO).padding(8.dp))
             if (batch.active) {
-                Checkbox(checked = doc.id in batch.selected, onCheckedChange = { batch.toggle(doc.id) })
-            }
-            Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
-                Text(
-                    doc.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                Checkbox(
+                    checked = doc.id in batch.selected,
+                    onCheckedChange = { batch.toggle(doc.id) },
+                    modifier = Modifier.align(Alignment.TopStart),
                 )
-                Text(documentMeta(context, doc), style = MaterialTheme.typography.bodySmall)
             }
-            if (!batch.active) {
+        }
+        Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp)) {
+            Text(
+                doc.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(documentMeta(context, doc), style = MaterialTheme.typography.bodySmall)
+        }
+        if (!batch.active) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 FavoriteButton(doc.isFavorite) { actions.onToggleFavorite(doc) }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
@@ -278,6 +286,8 @@ private fun DocumentRow(doc: Document, actions: DocumentActions, batch: BatchSta
         }
     }
 }
+
+private const val COVER_RATIO = 0.72f
 
 @Composable
 private fun DocumentMenu(

@@ -22,6 +22,8 @@ import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.AppPrivateDocumentFileStore
 import com.paperly.app.core.file.DocumentFileStore
+import com.paperly.app.data.cover.CoverRepositoryImpl
+import com.paperly.app.domain.cover.CoverRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -92,4 +94,7 @@ object DataStoreModule {
 abstract class FileModule {
     @Binds
     abstract fun bindDocumentFileStore(impl: AppPrivateDocumentFileStore): DocumentFileStore
+
+    @Binds
+    abstract fun bindCoverRepository(impl: CoverRepositoryImpl): CoverRepository
 }

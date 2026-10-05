@@ -11,9 +11,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val LightColors = lightColorScheme(
-    primary = Ink,
-    onPrimary = Paper,
-    secondary = Sepia,
+    primary = Accent,
+    onPrimary = Color.White,
+    secondary = Accent,
     onSecondary = Color.White,
     background = Paper,
     onBackground = InkText,
@@ -24,8 +24,8 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = InkOnDark,
-    onPrimary = Ink,
+    primary = SepiaOnDark,
+    onPrimary = Color.Black,
     secondary = SepiaOnDark,
     onSecondary = Color.Black,
     background = NightBackground,
