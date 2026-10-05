@@ -57,20 +57,23 @@ class CoverRepositoryImpl @Inject constructor(
         ParcelFileDescriptor.open(src, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
             val r = PdfRenderer(fd) // SecurityException (password PDF) -> caught in render() -> letter cover
             try {
-                if (r.pageCount == 0) return null
-                val page = r.openPage(0)
-                try {
-                    val h = (WIDTH_PX * page.height.toFloat() / page.width).toInt().coerceIn(1, MAX_HEIGHT_PX)
-                    val b = Bitmap.createBitmap(WIDTH_PX, h, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
-                    page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    b
-                } finally {
-                    page.close()
-                }
+                if (r.pageCount == 0) null else renderFirst(r)
             } finally {
                 r.close()
             }
         }
+
+    private fun renderFirst(r: PdfRenderer): Bitmap {
+        val page = r.openPage(0)
+        try {
+            val h = (WIDTH_PX * page.height.toFloat() / page.width).toInt().coerceIn(1, MAX_HEIGHT_PX)
+            val b = Bitmap.createBitmap(WIDTH_PX, h, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+            page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            return b
+        } finally {
+            page.close()
+        }
+    }
 
     private fun epubCover(src: File): Bitmap? = ZipFile(src).use { zip ->
         val entry = EpubCoverParser.coverPath(zip)?.let { zip.getEntry(it) } ?: return null
@@ -86,7 +89,7 @@ class CoverRepositoryImpl @Inject constructor(
     private fun save(b: Bitmap, f: File, id: String) {
         try {
             dir.listFiles { x -> x.name.startsWith("$id-") && x != f }?.forEach { it.delete() } // drop stale versions
-            f.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            f.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
         } catch (_: Exception) {
             f.delete()
         }
@@ -96,6 +99,7 @@ class CoverRepositoryImpl @Inject constructor(
         const val WIDTH_PX = 360
         const val MAX_HEIGHT_PX = 720
         const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
+        const val JPEG_QUALITY = 85
         const val MEMORY_BYTES = 16 * 1024 * 1024
     }
 }

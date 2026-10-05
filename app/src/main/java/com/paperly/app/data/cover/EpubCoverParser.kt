@@ -12,15 +12,18 @@ internal object EpubCoverParser {
         Regex("""\b$name\s*=\s*["']([^"']*)["']""").find(tag)?.groupValues?.get(1)
 
     fun coverPath(zip: ZipFile): String? {
-        val container = zip.read("META-INF/container.xml") ?: return null
-        val opfPath = rootfile.find(container)?.groupValues?.get(1) ?: return null
-        val opf = zip.read(opfPath) ?: return null
+        val container = zip.read("META-INF/container.xml")
+        val opfPath = container?.let { rootfile.find(it)?.groupValues?.get(1) }
+        val opf = opfPath?.let { zip.read(it) }
+        val href = opf?.let { coverHref(it) }
+        return if (opfPath != null && href != null) resolve(opfPath.substringBeforeLast('/', ""), href) else null
+    }
+
+    private fun coverHref(opf: String): String? {
         val items = itemTag.findAll(opf).map { it.value }.toList()
         val byProp = items.firstOrNull { attr(it, "properties")?.split(' ')?.contains("cover-image") == true }
         val byMeta = metaCover.find(opf)?.groupValues?.get(1)?.let { id -> items.firstOrNull { attr(it, "id") == id } }
-        val href = (byProp ?: byMeta)?.let { attr(it, "href") } ?: return null
-        val base = opfPath.substringBeforeLast('/', "")
-        return resolve(base, href)
+        return (byProp ?: byMeta)?.let { attr(it, "href") }
     }
 
     internal fun resolve(base: String, href: String): String {
@@ -37,7 +40,9 @@ internal object EpubCoverParser {
     }
 
     private fun ZipFile.read(name: String): String? =
-        getEntry(name)?.takeIf { it.size in 0..MAX_XML }?.let { getInputStream(it).use { s -> s.readBytes().toString(Charsets.UTF_8) } }
+        getEntry(name)?.takeIf { it.size in 0..MAX_XML }?.let { e ->
+            getInputStream(e).use { it.readBytes().toString(Charsets.UTF_8) }
+        }
 
     private const val MAX_XML = 2L * 1024 * 1024
 }

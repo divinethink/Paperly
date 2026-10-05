@@ -274,7 +274,11 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
             Text(documentMeta(context, doc), style = MaterialTheme.typography.bodySmall)
         }
         if (!batch.active) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 FavoriteButton(doc.isFavorite) { actions.onToggleFavorite(doc) }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
