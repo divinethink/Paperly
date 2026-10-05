@@ -6,8 +6,11 @@ import org.junit.Test
 
 class CoverLetterTest {
     @Test fun latinUppercased() = assertEquals("A", CoverLetter.letter("  alpha"))
+
     @Test fun bengaliFirstCodePoint() = assertEquals("ব", CoverLetter.letter("বাংলা"))
+
     @Test fun blankFallsBack() = assertEquals("?", CoverLetter.letter("   "))
+
     @Test fun indexInRangeAndStable() {
         val i = CoverLetter.colorIndex("Some Title", 8)
         assertTrue(i in 0..7)

@@ -26,10 +26,12 @@ internal object EpubCoverParser {
     internal fun resolve(base: String, href: String): String {
         val parts = ArrayDeque<String>()
         if (base.isNotEmpty()) parts.addAll(base.split('/'))
-        for (seg in href.substringBefore('#').split('/')) when (seg) {
-            "", "." -> Unit
-            ".." -> parts.removeLastOrNull()
-            else -> parts.addLast(seg)
+        for (seg in href.substringBefore('#').split('/')) {
+            when (seg) {
+                "", "." -> Unit
+                ".." -> parts.removeLastOrNull()
+                else -> parts.addLast(seg)
+            }
         }
         return parts.joinToString("/")
     }

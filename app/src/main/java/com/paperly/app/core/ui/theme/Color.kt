@@ -27,6 +27,12 @@ val Accent = Color(0xFF8A5A22)
 
 // U4: letter-cover backgrounds (warm, muted; white text >=4.5:1). Index picked by title hash.
 val CoverPalette = listOf(
-    Color(0xFF8A5A22), Color(0xFF7A4B3A), Color(0xFF5E6B3F), Color(0xFF4F6470),
-    Color(0xFF6B4F70), Color(0xFF8A4A4A), Color(0xFF3F6B5E), Color(0xFF6E5A2E),
+    Color(0xFF8A5A22),
+    Color(0xFF7A4B3A),
+    Color(0xFF5E6B3F),
+    Color(0xFF4F6470),
+    Color(0xFF6B4F70),
+    Color(0xFF8A4A4A),
+    Color(0xFF3F6B5E),
+    Color(0xFF6E5A2E),
 )
