@@ -4,8 +4,10 @@ import android.content.Context
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -25,6 +28,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,42 +66,75 @@ fun SettingsScreen(
     }
     backup.confirm?.let { RestoreConfirmDialog(it, backupViewModel::confirmRestore, backupViewModel::cancelRestore) }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        Text(
-            stringResource(R.string.settings_reading_header),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 8.dp))
-        DynamicColorRow(dynamicColor, appearance::setDynamicColor)
-        Text(
-            stringResource(R.string.settings_storage_header),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        usage?.let { StorageUsageRows(it, context) }
-        OrphanFilesSection()
-        SyncSection()
-        BackupSection(
-            state = backup.copy(busy = backup.busy || del.running),
-            onExport = { exportLauncher.launch(backupFileName()) },
-            onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
-            onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
-        )
-        NewPhoneGuideSection()
-        PrivacySection(busy = backup.busy || del.running, onExport = { exportLauncher.launch(backupFileName()) })
-        DeleteDataSection(
-            state = del,
-            viewModel = deleteViewModel,
-            onExport = { exportLauncher.launch(backupFileName()) },
-            backupBusy = backup.busy,
-        )
+        GroupLabel(R.string.settings_group_preferences)
+        SettingsCard {
+            CardTitle(R.string.settings_reading_header)
+            Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 8.dp))
+            DynamicColorRow(dynamicColor, appearance::setDynamicColor)
+        }
+        GroupLabel(R.string.settings_group_data)
+        SettingsCard {
+            CardTitle(R.string.settings_storage_header)
+            usage?.let { StorageUsageRows(it, context) }
+            OrphanFilesSection()
+        }
+        SettingsCard { SyncSection() }
+        SettingsCard {
+            BackupSection(
+                state = backup.copy(busy = backup.busy || del.running),
+                onExport = { exportLauncher.launch(backupFileName()) },
+                onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
+                onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
+            )
+            NewPhoneGuideSection()
+        }
+        GroupLabel(R.string.settings_group_privacy)
+        SettingsCard {
+            PrivacySection(busy = backup.busy || del.running, onExport = { exportLauncher.launch(backupFileName()) })
+        }
+        SettingsCard {
+            DeleteDataSection(
+                state = del,
+                viewModel = deleteViewModel,
+                onExport = { exportLauncher.launch(backupFileName()) },
+                backupBusy = backup.busy,
+            )
+        }
+    }
+}
+
+/** Small section label above a group of cards (Preferences / Data / Privacy). */
+@Composable
+private fun GroupLabel(@StringRes label: Int) {
+    Text(
+        stringResource(label),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp).semantics { heading() },
+    )
+}
+
+@Composable
+private fun CardTitle(@StringRes title: Int) {
+    Text(
+        stringResource(title),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(bottom = 8.dp),
+    )
+}
+
+/** One settings group: a rounded card; the sections inside keep their own behaviour and strings. */
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Column(Modifier.padding(16.dp), content = content)
     }
 }
 
 /** Optional Material You colours; the brand palette stays the default. */
 @Composable
 private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Column(Modifier.padding(bottom = 16.dp)) {
+    Column {
         Row(
             Modifier.fillMaxWidth().toggleable(enabled, role = Role.Switch, onValueChange = onChange),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -119,7 +157,7 @@ private fun BackupSection(state: BackupUiState, onExport: () -> Unit, onRestore:
     Text(
         stringResource(R.string.settings_backup_header),
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+        modifier = Modifier.padding(bottom = 8.dp),
     )
     Text(stringResource(R.string.settings_backup_hint), style = MaterialTheme.typography.bodyMedium)
     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

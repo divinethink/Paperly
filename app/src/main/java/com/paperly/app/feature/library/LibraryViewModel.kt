@@ -1,5 +1,6 @@
 package com.paperly.app.feature.library
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperly.app.core.intent.IncomingImportRequests
@@ -19,9 +20,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -51,6 +55,9 @@ private sealed interface DocsResult {
 }
 
 private const val RECENT_LIMIT = 20
+
+/** Navigation argument carrying the [LibraryType] key of a Library tab (Scanned / PDF / EPUB). */
+const val LIBRARY_TYPE_ARG = "type"
 
 /**
  * Pure list filtering (unit-tested): folder -> search (title/tag, case-insensitive) -> kind.
@@ -120,8 +127,10 @@ data class LibraryUiState(
     val load: LibraryLoad = LibraryLoad.Loading,
 )
 
+@Suppress("LongParameterList", "TooManyFunctions") // Hilt DI collaborators; small state/event handlers
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: DocumentRepository,
     private val trashRepository: TrashRepository,
     folderRepository: FolderRepository,
@@ -130,7 +139,14 @@ class LibraryViewModel @Inject constructor(
     readerState: ReaderStateRepository,
 ) : ViewModel() {
 
+    /** Each Library tab shows exactly one document type; the persisted type filter no longer applies. */
+    val type: LibraryType = LibraryType.fromKey(savedStateHandle.get<String>(LIBRARY_TYPE_ARG)) ?: LibraryType.PDF
+
     private val importing = MutableStateFlow(false)
+    private val shownTab = MutableSharedFlow<LibraryType>(extraBufferCapacity = 1)
+
+    /** Fires after an import so the screen can jump to the tab that now holds the new document. */
+    val showTab: SharedFlow<LibraryType> = shownTab.asSharedFlow()
     private val error = MutableStateFlow<ImportError?>(null)
     private val duplicate = MutableStateFlow<DuplicatePrompt?>(null)
     private val selection = MutableStateFlow(Selection())
@@ -154,11 +170,12 @@ class LibraryViewModel @Inject constructor(
             viewStore.view,
         ) { result, folders, sel, t, view ->
             val docs = (result as? DocsResult.Ready)?.docs.orEmpty()
+            val tabView = view.copy(type = type)
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> folders.any { it.id == id } }
             LibraryUiState(
-                documents = docs.filterFor(sel.kind, sel.query, folderId, view),
-                totalCount = docs.size,
+                documents = docs.filterFor(sel.kind, sel.query, folderId, tabView),
+                totalCount = docs.count { it.type == type.docType },
                 filter = sel.kind,
                 isImporting = t.importing,
                 error = t.error,
@@ -166,7 +183,7 @@ class LibraryViewModel @Inject constructor(
                 query = sel.query,
                 folders = folders,
                 selectedFolderId = folderId,
-                view = view,
+                view = tabView,
                 load = when (result) {
                     DocsResult.Loading -> LibraryLoad.Loading
                     is DocsResult.Ready -> LibraryLoad.Ready
@@ -178,21 +195,24 @@ class LibraryViewModel @Inject constructor(
     /** Most recently opened document + its saved progress, for the "Continue reading" card. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val continueReading: StateFlow<ContinueInfo?> = repository.observeDocuments()
-        .map { docs -> docs.filter { it.lastOpenedAt != null }.maxByOrNull { it.lastOpenedAt ?: 0L } }
+        .map { docs ->
+            docs.filter { it.type == type.docType && it.lastOpenedAt != null }.maxByOrNull { it.lastOpenedAt ?: 0L }
+        }
         .distinctUntilChanged()
         .flatMapLatest { doc ->
             if (doc == null) flowOf(null) else readerState.observeProgress(doc.id).map { ContinueInfo(doc, it) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    init {
-        // Open-With / Share: wait for any running import (the double-tap guard would drop it), then import.
-        viewModelScope.launch {
-            incomingImports.pending.filterNotNull().collect { uri ->
-                importing.first { !it }
-                importDocument(uri)
-                incomingImports.consume(uri)
-            }
+    /**
+     * Open-With / Share: wait for any running import (the double-tap guard would drop it), then import.
+     * Called only while this tab is on screen, so with several tabs alive one request is imported once.
+     */
+    suspend fun processIncomingImports() {
+        incomingImports.pending.filterNotNull().collect { uri ->
+            importing.first { !it }
+            importDocument(uri)
+            incomingImports.consume(uri)
         }
     }
 
@@ -204,7 +224,10 @@ class LibraryViewModel @Inject constructor(
             try {
                 val result = PerfTrace.span("library.import") { repository.importDocument(uri, allowDuplicate) }
                 error.value = when (result) {
-                    is ImportResult.Success -> null
+                    is ImportResult.Success -> {
+                        announceTab(result.documentId)
+                        null
+                    }
                     is ImportResult.Duplicate -> {
                         duplicate.value = DuplicatePrompt(result.existingId, result.existingTitle, uri)
                         null
@@ -216,6 +239,11 @@ class LibraryViewModel @Inject constructor(
                 importing.value = false
             }
         }
+    }
+
+    private suspend fun announceTab(documentId: String) {
+        val docType = repository.getDocument(documentId)?.type
+        LibraryType.entries.firstOrNull { it.docType == docType }?.let { shownTab.tryEmit(it) }
     }
 
     /** Skip: drop the pending import; nothing was copied. */

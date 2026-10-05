@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -35,6 +34,9 @@ import androidx.navigation.navArgument
 import com.paperly.app.R
 import com.paperly.app.core.ui.adaptive.ScreenSize
 import com.paperly.app.core.ui.adaptive.rememberScreenSize
+import com.paperly.app.domain.document.LibraryType
+import com.paperly.app.feature.library.LIBRARY_TYPE_ARG
+import com.paperly.app.feature.library.LibraryNavigation
 import com.paperly.app.feature.library.LibraryScreen
 import com.paperly.app.feature.reader.ReaderRoute
 import com.paperly.app.feature.scanner.ScanScreen
@@ -45,18 +47,25 @@ import com.paperly.app.feature.trash.TrashScreen
 private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE)
 
 object Routes {
-    const val LIBRARY = "library"
+    private const val LIBRARY_PREFIX = "library_"
     const val SCAN = "scan"
     const val SETTINGS = "settings"
     const val TRASH = "trash"
     const val STORAGE = "storage"
     const val READER = "reader/{documentId}"
     fun reader(documentId: String) = "reader/$documentId"
+
+    /** One Library destination per tab (Scanned / PDF / EPUB): own back-stack entry, view model and saved state. */
+    fun library(type: LibraryType) = LIBRARY_PREFIX + type.key
+
+    fun isLibrary(route: String?) = route?.startsWith(LIBRARY_PREFIX) == true
 }
 
 private enum class TopLevel(val route: String, @StringRes val label: Int, val icon: ImageVector) {
-    Library(Routes.LIBRARY, R.string.nav_library, Icons.Filled.Home),
+    Scanned(Routes.library(LibraryType.SCAN), R.string.nav_scanned, ScannedIcon),
+    Pdf(Routes.library(LibraryType.PDF), R.string.nav_pdf, PdfIcon),
     Scan(Routes.SCAN, R.string.nav_scan, Icons.Filled.Add),
+    Epub(Routes.library(LibraryType.EPUB), R.string.nav_epub, EpubIcon),
     Settings(Routes.SETTINGS, R.string.nav_settings, Icons.Filled.Settings),
 }
 
@@ -77,8 +86,8 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
 
     // Open-With/Share import is handled by Library: make sure it is on screen (whatever screen we were on).
     LaunchedEffect(hasIncomingImport, currentRoute) {
-        if (hasIncomingImport && currentRoute != null && currentRoute != Routes.LIBRARY) {
-            navController.navigateTopLevel(Routes.LIBRARY)
+        if (hasIncomingImport && currentRoute != null && !Routes.isLibrary(currentRoute)) {
+            navController.navigateTopLevel(Routes.library(LibraryType.PDF))
         }
     }
 
@@ -113,7 +122,7 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
             }
             NavHost(
                 navController = navController,
-                startDestination = Routes.LIBRARY,
+                startDestination = Routes.library(LibraryType.SCAN), // the app always opens on Scanned
                 modifier = Modifier.weight(1f),
             ) {
                 paperlyDestinations(navController)
@@ -138,14 +147,29 @@ private fun ContinueReadingEffect(
 }
 
 private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController) {
-    composable(Routes.LIBRARY) {
-        LibraryScreen(
-            onOpenReader = { navController.navigate(Routes.reader(it)) },
-            onOpenTrash = { navController.navigate(Routes.TRASH) },
-            onOpenStorage = { navController.navigate(Routes.STORAGE) },
-        )
+    LibraryType.entries.forEach { libraryType ->
+        composable(
+            Routes.library(libraryType),
+            arguments = listOf(
+                navArgument(LIBRARY_TYPE_ARG) {
+                    type = NavType.StringType
+                    defaultValue = libraryType.key
+                },
+            ),
+        ) {
+            LibraryScreen(
+                LibraryNavigation(
+                    onOpenReader = { navController.navigate(Routes.reader(it)) },
+                    onOpenTrash = { navController.navigate(Routes.TRASH) },
+                    onOpenStorage = { navController.navigate(Routes.STORAGE) },
+                    onShowTab = { navController.navigateTopLevel(Routes.library(it)) },
+                ),
+            )
+        }
     }
-    composable(Routes.SCAN) { ScanScreen(onSaved = { navController.navigateTopLevel(Routes.LIBRARY) }) }
+    composable(Routes.SCAN) {
+        ScanScreen(onSaved = { navController.navigateTopLevel(Routes.library(LibraryType.SCAN)) })
+    }
     composable(Routes.SETTINGS) { SettingsScreen() }
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
     composable(Routes.STORAGE) { StorageScreen(onBack = { navController.popBackStack() }) }

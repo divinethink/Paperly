@@ -78,16 +78,16 @@ internal class DocumentActions(
 
 @Composable
 fun LibraryScreen(
-    onOpenReader: (documentId: String) -> Unit,
-    onOpenTrash: () -> Unit,
-    onOpenStorage: () -> Unit,
+    navigation: LibraryNavigation,
     viewModel: LibraryViewModel = hiltViewModel(),
     organize: OrganizeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<LibraryDialog?>(null) }
     val batch = rememberBatchState()
+    val libraryTitle = stringResource(viewModel.type.titleRes(), state.totalCount)
     val context = LocalContext.current
+    LibraryTabEffects(viewModel, navigation.onShowTab)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         when {
             uri == null -> Unit
@@ -96,7 +96,7 @@ fun LibraryScreen(
         }
     }
     val actions = DocumentActions(
-        onOpen = { onOpenReader(it.id) },
+        onOpen = { navigation.onOpenReader(it.id) },
         onToggleFavorite = viewModel::toggleFavorite,
         onRename = { dialog = LibraryDialog.Rename(it) },
         onMove = { dialog = LibraryDialog.Move(it) },
@@ -111,7 +111,7 @@ fun LibraryScreen(
             onKeepBoth = viewModel::keepBoth,
             onOpenExisting = {
                 viewModel.dismissDuplicate()
-                onOpenReader(dup.existingId)
+                navigation.onOpenReader(dup.existingId)
             },
         )
     }
@@ -121,7 +121,7 @@ fun LibraryScreen(
         if (batch.active) {
             BatchBar(batch, state.documents, state.folders)
         } else {
-            LibraryHeader(state.totalCount, state.isImporting, onOpenTrash, onOpenStorage) {
+            LibraryHeader(libraryTitle, state.isImporting, navigation.onOpenTrash, navigation.onOpenStorage) {
                 picker.launch(ImportMimeTypes)
             }
         }
@@ -135,9 +135,9 @@ fun LibraryScreen(
             onDelete = { state.selectedFolderId?.let(organize::deleteFolder) },
         )
         ViewRow(state.view)
-        ContinueSection(viewModel.continueReading, state.query, onOpenReader)
+        ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
         ImageExportStatus()
-        DocxConversionStatus(onOpenReader)
+        DocxConversionStatus(navigation.onOpenReader)
         LibraryList(state, actions, batch, { picker.launch(ImportMimeTypes) }, viewModel::retry)
     }
 }
@@ -168,7 +168,7 @@ private fun LibraryList(
 
 @Composable
 private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
-    val searching = state.query.isNotBlank() || state.selectedFolderId != null || state.view.type != null
+    val searching = state.query.isNotBlank() || state.selectedFolderId != null
     val emptyRes = when {
         state.totalCount == 0 -> R.string.library_empty
         searching -> R.string.search_empty
@@ -180,7 +180,7 @@ private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
 
 @Composable
 private fun LibraryHeader(
-    totalCount: Int,
+    title: String,
     isImporting: Boolean,
     onOpenTrash: () -> Unit,
     onOpenStorage: () -> Unit,
@@ -193,7 +193,7 @@ private fun LibraryHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            stringResource(R.string.library_title, totalCount),
+            title,
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )

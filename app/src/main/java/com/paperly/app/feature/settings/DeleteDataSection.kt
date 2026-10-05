@@ -35,7 +35,7 @@ fun DeleteDataSection(state: DeleteUiState, viewModel: DeleteDataViewModel, onEx
         onConfirm = viewModel::confirm,
     )
     val onOpen = viewModel::open
-    Column(Modifier.padding(top = 16.dp)) {
+    Column {
         Text(stringResource(R.string.delete_all_hint), style = MaterialTheme.typography.bodyMedium)
         Button(
             onClick = onOpen,

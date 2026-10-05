@@ -14,7 +14,6 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,7 +31,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.document.LibrarySort
-import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.domain.document.LibraryView
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.StateFlow
@@ -48,13 +46,6 @@ private fun LibrarySort.labelRes(): Int = when (this) {
     LibrarySort.SIZE -> R.string.sort_size
 }
 
-@StringRes
-private fun LibraryType.labelRes(): Int = when (this) {
-    LibraryType.PDF -> R.string.type_pdf
-    LibraryType.EPUB -> R.string.type_epub
-    LibraryType.SCAN -> R.string.type_scan
-}
-
 private fun LibraryView.arrow(sort: LibrarySort): String = when {
     sort != this.sort || sort == LibrarySort.DEFAULT -> ""
     ascending -> " \u2191"
@@ -65,7 +56,7 @@ private fun LibraryView.arrow(sort: LibrarySort): String = when {
 private fun sortChipLabel(view: LibraryView): String =
     stringResource(R.string.sort_label) + ": " + stringResource(view.sort.labelRes()) + view.arrow(view.sort)
 
-/** Sort dropdown (re-picking the active sort flips direction) + PDF/EPUB/Scan type chips; choices persist. */
+/** Sort dropdown (re-picking the active sort flips direction); the choice persists. The type is the tab itself. */
 @Composable
 internal fun ViewRow(view: LibraryView, controls: LibraryViewViewModel = hiltViewModel()) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -90,13 +81,6 @@ internal fun ViewRow(view: LibraryView, controls: LibraryViewViewModel = hiltVie
                     )
                 }
             }
-        }
-        LibraryType.entries.forEach { type ->
-            FilterChip(
-                selected = view.type == type,
-                onClick = { controls.setType(type) },
-                label = { Text(stringResource(type.labelRes())) },
-            )
         }
     }
 }

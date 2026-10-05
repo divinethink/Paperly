@@ -39,7 +39,7 @@ fun SyncSection(viewModel: SyncAccountViewModel = hiltViewModel()) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    Column(Modifier.padding(top = 24.dp)) {
+    Column {
         Text(
             stringResource(R.string.settings_sync_header),
             style = MaterialTheme.typography.titleMedium,

@@ -28,7 +28,7 @@ private val NEW_PHONE_STEPS = listOf(
 @Composable
 fun NewPhoneGuideSection() {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Column(Modifier.padding(top = 16.dp)) {
+    Column(Modifier.padding(top = 8.dp)) {
         OutlinedButton(onClick = { expanded = !expanded }) {
             Text(stringResource(if (expanded) R.string.new_phone_hide else R.string.new_phone_show))
         }

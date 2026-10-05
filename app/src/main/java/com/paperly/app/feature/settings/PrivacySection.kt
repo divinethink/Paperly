@@ -23,7 +23,7 @@ import com.paperly.app.R
 @Composable
 fun PrivacySection(busy: Boolean, onExport: () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Column(Modifier.padding(top = 24.dp)) {
+    Column {
         Text(
             stringResource(R.string.settings_privacy_header),
             style = MaterialTheme.typography.titleMedium,
