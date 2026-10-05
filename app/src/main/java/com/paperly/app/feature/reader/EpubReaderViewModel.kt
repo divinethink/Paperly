@@ -95,7 +95,7 @@ class EpubReaderViewModel @Inject constructor(
     }
 
     fun onLocator(locator: Locator) {
-        latest.value = locator
+        latest.value = withBookEnd(locator, _uiState.value.publication?.readingOrder?.lastOrNull()?.url())
     }
 
     /** Immediate save (called on ON_PAUSE) so the last position survives app kill. */
