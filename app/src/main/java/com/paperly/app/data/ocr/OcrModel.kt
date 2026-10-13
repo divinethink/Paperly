@@ -34,24 +34,26 @@ object OcrModel {
     /** Writes `.part`, checks the size, then renames, so a broken download never looks like a model. */
     private fun fetch(target: File, lang: String): Boolean {
         val part = File(target.parentFile, target.name + ".part")
-        return try {
+        val ok = try {
             target.parentFile?.mkdirs()
-            val conn = URL("$MODEL_BASE$lang.traineddata").openConnection() as HttpURLConnection
+            copyTo(part, "$MODEL_BASE$lang.traineddata") && part.length() >= MIN_BYTES && part.renameTo(target)
+        } catch (e: IOException) {
+            false
+        }
+        if (!ok) part.delete()
+        return ok
+    }
+
+    private fun copyTo(part: File, url: String): Boolean {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        return try {
             conn.connectTimeout = TIMEOUT_MS
             conn.readTimeout = TIMEOUT_MS
-            try {
-                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
-                    conn.inputStream.use { input -> part.outputStream().use { input.copyTo(it) } }
-                }
-            } finally {
-                conn.disconnect()
-            }
-            val ok = part.length() >= MIN_BYTES && part.renameTo(target)
-            if (!ok) part.delete()
+            val ok = conn.responseCode == HttpURLConnection.HTTP_OK
+            if (ok) conn.inputStream.use { input -> part.outputStream().use { input.copyTo(it) } }
             ok
-        } catch (e: IOException) {
-            part.delete()
-            false
+        } finally {
+            conn.disconnect()
         }
     }
 }

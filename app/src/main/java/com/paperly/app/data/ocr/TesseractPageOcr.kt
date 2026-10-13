@@ -6,8 +6,6 @@ import com.googlecode.tesseract.android.TessBaseAPI
 import com.paperly.app.domain.ocr.PageOcr
 import com.paperly.app.domain.reader.ReaderEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.File
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
@@ -20,17 +18,17 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 private const val RENDER_WIDTH = 2000
-private const val CACHE_DIR = "ocr1" // bump when the recognition setup changes: old text is simply re-read
 
 /**
- * Tesseract (Bengali + English) behind [PageOcr]. One recogniser, one page at a time; text is cached in the
- * OS-clearable cache dir, so clearing it only costs a re-read. The recogniser is created on first use.
+ * Tesseract (Bengali + English) behind [PageOcr]. One recogniser, one page at a time; text is cached by
+ * [OcrPageCache], so clearing it only costs a re-read. The recogniser is created on first use.
  */
 @Singleton
 class TesseractPageOcr @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : PageOcr {
     private val lock = Mutex()
+    private val cache = OcrPageCache(context)
     private val ready = MutableStateFlow(OcrModel.isReady(context))
     override val modelReady: StateFlow<Boolean> = ready.asStateFlow()
     private var api: TessBaseAPI? = null
@@ -45,7 +43,7 @@ class TesseractPageOcr @Inject constructor(
     }
 
     override suspend fun pageText(documentId: String, engine: ReaderEngine, index: Int): String? =
-        readCache(documentId, index) ?: recognise(documentId, engine, index)
+        cache.read(documentId, index) ?: recognise(documentId, engine, index)
 
     override fun release() {
         if (lock.tryLock()) {
@@ -69,7 +67,7 @@ class TesseractPageOcr @Inject constructor(
             }
             result
         } ?: return null
-        writeCache(documentId, index, text)
+        cache.write(documentId, index, text)
         return text
     }
 
@@ -106,28 +104,5 @@ class TesseractPageOcr @Inject constructor(
     private fun drop() {
         api?.recycle()
         api = null
-    }
-
-    private fun cacheFile(documentId: String, index: Int) = File(context.cacheDir, "$CACHE_DIR/$documentId/p$index.txt")
-
-    private suspend fun readCache(documentId: String, index: Int): String? = withContext(Dispatchers.IO) {
-        try {
-            cacheFile(documentId, index).takeIf { it.isFile }?.readText()
-        } catch (e: IOException) {
-            null
-        }
-    }
-
-    private suspend fun writeCache(documentId: String, index: Int, text: String) = withContext(Dispatchers.IO) {
-        try {
-            val target = cacheFile(documentId, index)
-            target.parentFile?.mkdirs()
-            val part = File(target.parentFile, target.name + ".part")
-            part.writeText(text)
-            if (!part.renameTo(target)) part.delete()
-            Unit
-        } catch (e: IOException) {
-            Unit // a missing cache entry only means the page is read again next time
-        }
     }
 }
