@@ -31,14 +31,16 @@ private suspend fun grow(
     var best = start
     var stall = 0
     var step = 1
-    while (step <= MAX_STEPS && stall < MAX_STALL) {
+    var open = true
+    while (open && step <= MAX_STEPS && stall < MAX_STALL) {
         val reach = step * WORD_STEP
         step++
         val from = if (toRight) left else left - reach
         val to = if (toRight) right + reach else right
-        val cand = engine.selectText(page, from, y, to, y) ?: break
-        if (cand.text.isBlank() || !edgeIsWord(cand.text, toRight)) break
-        if (cand.text.length > best.text.length) {
+        val cand = engine.selectText(page, from, y, to, y)
+        if (cand == null || cand.text.isBlank() || !edgeIsWord(cand.text, toRight)) {
+            open = false // word boundary (or nothing there): keep the last good span
+        } else if (cand.text.length > best.text.length) {
             best = cand
             stall = 0
         } else {
