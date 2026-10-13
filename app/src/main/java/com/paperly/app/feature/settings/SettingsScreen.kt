@@ -35,7 +35,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.storage.StorageUsage
-import com.paperly.app.feature.ocr.OcrSpikeSection
 import com.paperly.app.feature.reader.ReadingTimeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -80,7 +79,6 @@ fun SettingsScreen(
             OrphanFilesSection()
         }
         SettingsCard { SyncSection() }
-        SettingsCard { OcrSpikeSection() } // P10 spike, removed after the trial
         SettingsCard {
             BackupSection(
                 state = backup.copy(busy = backup.busy || del.running),

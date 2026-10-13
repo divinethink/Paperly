@@ -18,6 +18,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 private const val RENDER_WIDTH = 2000
+private val straightBarAfterBengali = Regex("(?<=[\\u0980-\\u09FF])(\\s?)\\|")
+
+/** Tesseract often reads the Bengali danda (।) as a straight bar; only a bar right after Bengali text is fixed. */
+private fun fixDanda(text: String) = text.replace(straightBarAfterBengali, "\$1\u0964")
 
 /**
  * Tesseract (Bengali + English) behind [PageOcr]. One recogniser, one page at a time; text is cached by
@@ -43,7 +47,7 @@ class TesseractPageOcr @Inject constructor(
     }
 
     override suspend fun pageText(documentId: String, engine: ReaderEngine, index: Int): String? =
-        cache.read(documentId, index) ?: recognise(documentId, engine, index)
+        (cache.read(documentId, index) ?: recognise(documentId, engine, index))?.let(::fixDanda)
 
     override fun release() {
         if (lock.tryLock()) {
