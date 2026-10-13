@@ -51,6 +51,15 @@ class PdfTextSelectController(
         }
     }
 
+    /** Long-press without drag: selects the word under [at] (page fractions). */
+    fun selectWord(page: Int, at: Offset) {
+        job?.cancel()
+        job = scope.launch {
+            val picked = engine()?.let { pickWordAt(it, page, at) } ?: return@launch
+            selectionState.value = PdfSelection(page, picked.rects, picked.text.trim())
+        }
+    }
+
     fun clear() {
         job?.cancel()
         selectionState.value = null
@@ -61,6 +70,7 @@ class PdfTextSelectController(
 data class SelectHooks(
     val selection: PdfSelection?,
     val onUpdate: (Int, Offset, Offset) -> Unit,
+    val onWord: (Int, Offset) -> Unit,
     val onClear: () -> Unit,
 )
 
@@ -76,7 +86,9 @@ internal fun rememberSelectHooks(viewModel: ReaderViewModel, enabled: Boolean): 
     return if (!enabled || !search.available || search.partialMatch) {
         null
     } else {
-        remember(selection, controller) { SelectHooks(selection, controller::update, controller::clear) }
+        remember(selection, controller) {
+            SelectHooks(selection, controller::update, controller::selectWord, controller::clear)
+        }
     }
 }
 
@@ -84,8 +96,8 @@ private fun fraction(p: Offset, size: IntSize) =
     Offset((p.x / size.width).coerceIn(0f, 1f), (p.y / size.height).coerceIn(0f, 1f))
 
 /**
- * Long-press, then drag: the text between the press point and the finger is selected. A move before the long-press
- * fires returns without consuming, so page scroll and pinch-zoom are untouched.
+ * Long-press selects the word under the finger; dragging on from there selects the text up to the finger.
+ * A move before the long-press fires returns without consuming, so page scroll and pinch-zoom are untouched.
  */
 internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) {
     val down = awaitFirstDown(requireUnconsumed = true) // a grabbed handle already consumed its down
@@ -94,11 +106,14 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
     pressed.consume()
     val start = fraction(down.position, size)
     edit.hooks.onClear()
-    edit.hooks.onUpdate(edit.page, start, start)
+    edit.hooks.onWord(edit.page, start)
     edit.onFinger(pressed.position)
+    val slop = viewConfiguration.touchSlop * 2
+    var dragged = false
     drag(down.id) { change ->
         change.consume()
-        edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
+        if (!dragged && (change.position - down.position).getDistance() > slop) dragged = true
+        if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
         edit.onFinger(change.position)
     }
     edit.onFinger(null)
