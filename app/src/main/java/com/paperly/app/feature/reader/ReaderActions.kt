@@ -74,8 +74,8 @@ private fun OverflowMenu(
     var editingPage by remember { mutableStateOf(false) }
     if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-        // Capability-aware: only readable, non-Bengali text layers (Architecture 11.3); otherwise no item.
-        if (search.available && !search.partialMatch) {
+        // Readable text layers use the text; scans/Bengali/broken text layers are read by OCR (P10). Once sampled.
+        if (search.probed) {
             DropdownMenuItem(
                 text = {
                     val label = if (reflow) R.string.reader_view_original else R.string.reader_view_reflow

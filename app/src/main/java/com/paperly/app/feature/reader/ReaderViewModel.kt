@@ -9,6 +9,7 @@ import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
+import com.paperly.app.domain.ocr.PageOcr
 import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.OpenResult
@@ -57,6 +58,7 @@ class ReaderViewModel @Inject constructor(
     private val fileStore: DocumentFileStore,
     // Provider = lazy: the engine is created only when a PDF is actually opened (Rule #10).
     private val engineProvider: Provider<ReaderEngine>,
+    private val pageOcr: PageOcr,
 ) : ViewModel() {
 
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
@@ -76,6 +78,8 @@ class ReaderViewModel @Inject constructor(
     )
 
     val textSelect = PdfTextSelectController(viewModelScope) { engine }
+
+    val reflowOcr = ReflowOcrController(viewModelScope, pageOcr, { engine }, documentId)
 
     val annotations = AnnotationController(viewModelScope, annotationRepository, annotateStyleStore, documentId)
 
@@ -189,6 +193,7 @@ class ReaderViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        pageOcr.release()
         engine?.close()
         cache.clear()
     }

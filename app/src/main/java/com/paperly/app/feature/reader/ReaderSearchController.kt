@@ -17,6 +17,7 @@ data class SearchJump(val page: Int, val id: Int)
 data class SearchUiState(
     val available: Boolean = false, // text layer exists AND is readable (P2-E heuristic)
     val partialMatch: Boolean = false, // Unicode Bengali: extraction can be lossy
+    val probed: Boolean = false, // the first pages have been sampled
     val open: Boolean = false,
     val query: String = "",
     val searching: Boolean = false,
@@ -26,7 +27,10 @@ data class SearchUiState(
     val rects: Map<Int, List<MatchRect>> = emptyMap(),
     val index: Int = 0,
     val jump: SearchJump? = null,
-)
+) {
+    /** No readable non-Bengali text layer (scan, Bengali, broken font map): Reflow must read the page image (OCR). */
+    val needsOcr: Boolean get() = probed && !(available && !partialMatch)
+}
 
 /** In-document search for one open [ReaderEngine]. Page-level results (no highlight overlay yet). */
 class ReaderSearchController(
@@ -47,7 +51,7 @@ class ReaderSearchController(
             val sample = (0 until count).mapNotNull { pdf.pageText(it) }.joinToString("\n")
             val readable = TextReadability.isReadable(sample)
             val bengali = TextReadability.hasBengali(sample)
-            _state.update { it.copy(available = readable, partialMatch = bengali) }
+            _state.update { it.copy(available = readable, partialMatch = bengali, probed = true) }
         }
     }
 
@@ -58,7 +62,7 @@ class ReaderSearchController(
         job?.cancel()
         _state.update {
             if (it.open) {
-                SearchUiState(available = it.available, partialMatch = it.partialMatch)
+                SearchUiState(available = it.available, partialMatch = it.partialMatch, probed = it.probed)
             } else {
                 it.copy(open = true)
             }

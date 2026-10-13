@@ -14,7 +14,6 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val LANG = "ben"
 private const val SAMPLE_PAGES = 3
 private const val RENDER_WIDTH = 2000
 private const val PREVIEW_CHARS = 400
@@ -67,7 +66,8 @@ object OcrSpike {
     ): OcrSpikeReport {
         val count = (engine.open(file) as? OpenResult.Success)?.pageCount
             ?: return failed("The PDF did not open (password-protected or damaged).")
-        if (!api.init(OcrModel.dataDir(context).absolutePath, LANG)) return failed("OCR engine could not start.")
+        val started = api.init(OcrModel.dataDir(context).absolutePath, OcrModel.LANG_SPEC)
+        if (!started) return failed("OCR engine could not start.")
         api.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO)
         val before = Debug.getNativeHeapAllocatedSize()
         val pages = (0 until minOf(count, SAMPLE_PAGES)).map { ocrPage(engine, api, it) }

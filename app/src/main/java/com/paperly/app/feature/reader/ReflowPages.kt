@@ -2,7 +2,9 @@ package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -10,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -46,28 +49,27 @@ private sealed interface ReflowPageState {
 }
 
 /**
- * Reflow (text) view of a text-layer PDF (P3-G): page text from the engine, shown with the EPUB typography
- * settings and reader theme. Own code path: it never reads or writes the PDF's saved page/progress.
+ * Reflow (text) view of a PDF (P3-G): page text from the engine, shown with the EPUB typography settings and reader
+ * theme. With [ocr] set (no usable text layer: scan, Bengali, broken font map) the text is read from the page image
+ * instead (P10). Own code path: it never reads or writes the PDF's saved page/progress.
  */
 @Composable
 internal fun ReflowPages(
     search: ReaderSearchController,
     pageCount: Int,
+    ocr: ReflowOcrController?,
     settings: EpubSettingsViewModel = hiltViewModel(),
 ) {
     val typography by settings.typography.collectAsStateWithLifecycle()
     val theme by settings.theme.collectAsStateWithLifecycle()
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val palette = paletteFor(theme, isSystemInDarkTheme())
+    val modelReady = ocr?.modelReady?.collectAsStateWithLifecycle()?.value ?: true
     Box(Modifier.fillMaxSize().background(palette.background)) {
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                horizontal = (BASE_MARGIN_DP * typography.margin).dp,
-                vertical = VERTICAL_PADDING_DP.dp,
-            ),
-        ) {
-            items(pageCount) { index -> ReflowPage(search, index, typography, palette.text) }
+        if (ocr != null && !modelReady) {
+            OcrModelPrompt(ocr, palette.text)
+        } else {
+            ReflowList(search, ocr, pageCount, typography, palette)
         }
         IconButton(onClick = { showSettings = true }, modifier = Modifier.align(Alignment.TopEnd)) {
             Icon(
@@ -89,14 +91,73 @@ internal fun ReflowPages(
 }
 
 @Composable
-private fun ReflowPage(search: ReaderSearchController, index: Int, typography: EpubTypography, color: Color) {
+private fun ReflowList(
+    search: ReaderSearchController,
+    ocr: ReflowOcrController?,
+    pageCount: Int,
+    typography: EpubTypography,
+    palette: ReflowPalette,
+) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            horizontal = (BASE_MARGIN_DP * typography.margin).dp,
+            vertical = VERTICAL_PADDING_DP.dp,
+        ),
+    ) {
+        items(pageCount) { index -> ReflowPage(search, ocr, index, typography, palette.text) }
+    }
+}
+
+/** One-time data download offered instead of the pages when OCR is needed but the data is not on the device. */
+@Composable
+private fun OcrModelPrompt(ocr: ReflowOcrController, color: Color) {
+    val download by ocr.download.collectAsStateWithLifecycle()
+    Column(
+        Modifier.fillMaxSize().padding(BASE_MARGIN_DP.dp * 2),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(stringResource(R.string.reader_ocr_needs_model), color = color)
+        if (download.failed) {
+            Text(
+                stringResource(R.string.reader_ocr_download_failed),
+                color = color,
+                modifier = Modifier.padding(top = BASE_MARGIN_DP.dp),
+            )
+        }
+        Button(
+            onClick = ocr::startDownload,
+            enabled = !download.running,
+            modifier = Modifier.padding(top = BASE_MARGIN_DP.dp),
+        ) {
+            val label = if (download.running) R.string.reader_ocr_downloading else R.string.reader_ocr_download
+            Text(stringResource(label))
+        }
+    }
+}
+
+@Composable
+private fun ReflowPage(
+    search: ReaderSearchController,
+    ocr: ReflowOcrController?,
+    index: Int,
+    typography: EpubTypography,
+    color: Color,
+) {
     val state by produceState<ReflowPageState>(ReflowPageState.Loading, index) {
-        value = reflowState(search.pageText(index))
+        value = if (ocr == null) reflowState(search.pageText(index)) else ocrState(ocr.pageText(index))
     }
     val size = BASE_TEXT_SP * typography.fontScale
     val family = typography.font.composeFamily()
     when (val s = state) {
-        ReflowPageState.Loading -> Unit
+        ReflowPageState.Loading -> if (ocr != null) {
+            Text(
+                stringResource(R.string.reader_ocr_reading),
+                color = color,
+                modifier = Modifier.padding(bottom = BASE_MARGIN_DP.dp),
+            )
+        }
         ReflowPageState.Unavailable -> Text(
             stringResource(R.string.reader_reflow_unavailable),
             color = color,
@@ -112,6 +173,10 @@ private fun ReflowPage(search: ReaderSearchController, index: Int, typography: E
         )
     }
 }
+
+/** OCR text is shown as read (Bengali is expected here); null = the page could not be read. */
+private fun ocrState(raw: String?): ReflowPageState =
+    if (raw == null) ReflowPageState.Unavailable else ReflowPageState.Ready(raw.replace(SINGLE_NEWLINE, " ").trim())
 
 /** null/failed or Bengali page -> Unavailable (never show broken text, Architecture 11.3); blank page -> empty. */
 private fun reflowState(raw: String?): ReflowPageState = when {

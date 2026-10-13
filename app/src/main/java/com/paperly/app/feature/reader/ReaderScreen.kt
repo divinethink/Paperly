@@ -199,8 +199,9 @@ private fun annotationHooks(
 @Composable
 private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listState: LazyListState, look: PageLook) {
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
     if (reflow) {
-        ReflowPages(viewModel.search, state.pageCount)
+        ReflowPages(viewModel.search, state.pageCount, if (search.needsOcr) viewModel.reflowOcr else null)
     } else {
         PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
         PdfPaceOverlay(listState, state.pageCount)
