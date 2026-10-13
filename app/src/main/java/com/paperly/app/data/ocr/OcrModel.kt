@@ -5,6 +5,8 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 private const val MODEL_BASE = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/"
 private const val MIN_BYTES = 100_000L
@@ -49,11 +51,14 @@ object OcrModel {
         return try {
             conn.connectTimeout = TIMEOUT_MS
             conn.readTimeout = TIMEOUT_MS
-            val ok = conn.responseCode == HttpURLConnection.HTTP_OK
-            if (ok) conn.inputStream.use { input -> part.outputStream().use { input.copyTo(it) } }
-            ok
+            conn.responseCode == HttpURLConnection.HTTP_OK && save(conn, part)
         } finally {
             conn.disconnect()
         }
+    }
+
+    private fun save(conn: HttpURLConnection, part: File): Boolean {
+        conn.inputStream.use { Files.copy(it, part.toPath(), StandardCopyOption.REPLACE_EXISTING) }
+        return true
     }
 }
