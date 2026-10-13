@@ -95,6 +95,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.pdf.document.service) // P2 PDF engine (document API only; Viewer = our Compose UI)
+    implementation(libs.tesseract4android) // P10 spike: Bengali OCR trial (Apache-2.0, 16 KB-aligned since 4.8.0)
     implementation(libs.mlkit.document.scanner) // P4 scanner (on-device UI via Play Services)
     implementation(libs.readium.shared) // P3-A spike: EPUB engine candidate (BSD-3)
     implementation(libs.readium.streamer)
