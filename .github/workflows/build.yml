@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    paths-ignore: ['*.zip'] # zip আপলোডের push-এ CI চলে না; unzip-upload নিজেই CI চালু করে
   pull_request:
   workflow_dispatch:
 

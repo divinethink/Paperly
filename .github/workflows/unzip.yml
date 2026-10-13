@@ -1,7 +1,8 @@
 name: unzip-upload
 
 # Upload a *.zip to the repo ROOT (web "Upload files" -> commit to main). This workflow unpacks it over the repo,
-# deletes the zip, commits, and starts CI. Works with a flat zip or GitHub's "Download ZIP" (one wrapper folder).
+# deletes the zip, commits, and starts CI (+ the Firestore rules tests if the rules files changed).
+# Works with a flat zip or GitHub's "Download ZIP" (one wrapper folder).
 # .github/ inside a zip is ignored on purpose: the built-in token may not change workflow files (upload those by hand).
 on:
   push:
@@ -23,6 +24,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Unzip and commit
+        id: unzip
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -45,12 +47,24 @@ jobs:
           if git diff --cached --quiet; then
             echo "nothing to commit"
           else
+            changed=$(git diff --cached --name-only)
             git commit -m "chore: apply uploaded zip (${zips[*]})"
             git push origin HEAD:main
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+            if echo "$changed" | grep -qE '^(firestore\.rules|firebase\.json|firestore-rules-test/)'; then
+              echo "rules=true" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
-      # Pushes made with the built-in token do not start other workflows, so start CI explicitly.
+      # Pushes made with the built-in token do not start other workflows, so start them explicitly.
       - name: Trigger CI
+        if: steps.unzip.outputs.committed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run build.yml --ref main
+
+      - name: Trigger Firestore rules tests
+        if: steps.unzip.outputs.rules == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run firestore-rules.yml --ref main

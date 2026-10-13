@@ -1,0 +1,68 @@
+name: deploy-rules
+
+# Manual only (Actions -> deploy-rules -> Run workflow). Runs the emulator rules tests first;
+# deploys firestore.rules to Firebase ONLY if they pass. Needs one repo secret: FIREBASE_SERVICE_ACCOUNT
+# (the full service-account JSON). The Firebase project id is read from that JSON unless typed below.
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'ঐচ্ছিক — খালি রাখলে service-account JSON-এর project_id ব্যবহার হয়'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-rules
+  cancel-in-progress: false
+
+jobs:
+  rules:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secret
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA_JSON" ]; then
+            echo "::error::Repo secret FIREBASE_SERVICE_ACCOUNT is missing (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install test dependencies
+        working-directory: firestore-rules-test
+        run: npm install --no-audit --no-fund
+
+      - name: Rules unit tests (Firestore emulator)
+        working-directory: firestore-rules-test
+        run: npx --yes firebase-tools@14 emulators:exec --only firestore --project paperly-rules-test --config ../firebase.json "npm test"
+
+      - name: Deploy rules
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INPUT_PROJECT: ${{ inputs.project_id }}
+        run: |
+          set -euo pipefail
+          sa="$RUNNER_TEMP/sa.json"
+          printf '%s' "$SA_JSON" > "$sa"
+          chmod 600 "$sa"
+          project="${INPUT_PROJECT:-$(jq -r '.project_id // empty' "$sa")}"
+          if [ -z "$project" ]; then echo "::error::project id not found"; rm -f "$sa"; exit 1; fi
+          export GOOGLE_APPLICATION_CREDENTIALS="$sa"
+          status=0
+          npx --yes firebase-tools@14 deploy --only firestore:rules --project "$project" --non-interactive || status=$?
+          rm -f "$sa"
+          exit $status
