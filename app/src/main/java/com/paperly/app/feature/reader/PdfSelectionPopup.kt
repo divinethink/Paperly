@@ -105,7 +105,7 @@ internal fun PdfSelectionPopup(
  * Top-left of the menu in viewport px: centred on the selection, above its first line, or below the last line when
  * the top would leave the viewport. A page scrolled out of view parks the menu at the top edge.
  */
-private fun popupOrigin(
+internal fun popupOrigin(
     sel: PdfSelection,
     port: SelectionViewport,
     menu: IntSize,

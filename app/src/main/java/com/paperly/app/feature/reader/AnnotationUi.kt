@@ -57,7 +57,7 @@ data class AnnotationHooks(
     val items: Map<Int, List<Annotation>>,
     val annotate: Boolean,
     val onCreate: (Int, MatchRect) -> Unit,
-    val onTap: (Annotation) -> Unit,
+    val onTap: (Annotation?) -> Unit, // null = tap on empty space
     val pending: PendingHooks,
     val select: SelectHooks? = null,
 )
@@ -87,7 +87,7 @@ internal fun Modifier.annotationGestures(
     annotate: Boolean,
     edit: PendingEdit,
     select: SelectEdit?,
-    onTap: (Annotation) -> Unit,
+    onTap: (Annotation?) -> Unit,
 ): Modifier {
     val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
@@ -109,6 +109,7 @@ internal fun Modifier.annotationGestures(
                     a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
                 }?.let { tap(it) } ?: run {
                     clearSelect?.invoke()
+                    tap(null)
                     if (!annotateNow) quickTap(current, fx, fy)
                 }
             }

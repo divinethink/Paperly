@@ -22,10 +22,11 @@ private val BadgeFill = Color(0xFFD32F2F)
 private val HandleRadius = 7.dp
 private val BadgeRadius = 11.dp
 private val PendingLine = 1.dp
+private const val SIDE_MIN = 0.01f // narrowest box (page fraction) a side handle can leave
 private const val BADGE_CROSS = 0.5f // half-length of the white X, as a fraction of the badge radius
 
 /** What a finger-down on the pending parts of a page grabbed. */
-internal enum class HitKind { REMOVE, RESIZE, MOVE }
+internal enum class HitKind { REMOVE, RESIZE, RESIZE_X, MOVE }
 
 /** [fixed] = the opposite corner (px) that stays put while a RESIZE handle is dragged. */
 internal data class PendingHit(val index: Int, val kind: HitKind, val fixed: Offset)
@@ -65,17 +66,39 @@ internal fun pendingEdit(
 private fun MatchRect.toRect(size: IntSize) =
     Rect(left * size.width, top * size.height, right * size.width, bottom * size.height)
 
-private fun Rect.resizeHandles(): List<Pair<Offset, Offset>> =
-    listOf(topLeft to bottomRight, bottomLeft to topRight, bottomRight to topLeft)
+/** A grab point of a pending box; [fixed] is the opposite corner/side that stays put (RESIZE, RESIZE_X). */
+private class Handle(val at: Offset, val kind: HitKind, val fixed: Offset)
 
-/** Topmost pending part under [pos]: remove badge (top-right), resize corners, then the body (move). */
+private fun Rect.handles(): List<Handle> = listOf(
+    Handle(topRight, HitKind.REMOVE, Offset.Zero),
+    Handle(topLeft, HitKind.RESIZE, bottomRight),
+    Handle(bottomLeft, HitKind.RESIZE, topRight),
+    Handle(bottomRight, HitKind.RESIZE, topLeft),
+    Handle(centerLeft, HitKind.RESIZE_X, centerRight),
+    Handle(centerRight, HitKind.RESIZE_X, centerLeft),
+)
+
+/** New box when a side handle is dragged to [x]: only the width changes; null if it would get too narrow. */
+internal fun dragSide(fixedX: Float, x: Float, base: MatchRect, size: IntSize): MatchRect? {
+    if (size.width <= 0) return null
+    val w = size.width.toFloat()
+    val moved = MatchRect(
+        left = (minOf(fixedX, x) / w).coerceIn(0f, 1f),
+        top = base.top,
+        right = (maxOf(fixedX, x) / w).coerceIn(0f, 1f),
+        bottom = base.bottom,
+    )
+    return moved.takeIf { it.right - it.left >= SIDE_MIN }
+}
+
+/** Topmost pending part under [pos]: nearest handle within [reach] (badge, corners, side middles), else body. */
 internal fun hitPending(pos: Offset, size: IntSize, rects: List<MatchRect>, reach: Float): PendingHit? {
     for (i in rects.indices.reversed()) {
         val r = rects[i].toRect(size)
-        val handle = r.resizeHandles().firstOrNull { (pos - it.first).getDistance() <= reach }
+        val handle = r.handles().filter { (pos - it.at).getDistance() <= reach }
+            .minByOrNull { (pos - it.at).getDistance() }
         val hit = when {
-            (pos - r.topRight).getDistance() <= reach -> PendingHit(i, HitKind.REMOVE, Offset.Zero)
-            handle != null -> PendingHit(i, HitKind.RESIZE, handle.second)
+            handle != null -> PendingHit(i, handle.kind, handle.fixed)
             r.contains(pos) -> PendingHit(i, HitKind.MOVE, Offset.Zero)
             else -> null
         }
@@ -125,10 +148,10 @@ private suspend fun AwaitPointerEventScope.dragExisting(down: PointerInputChange
     drag(down.id) { change ->
         change.consume()
         edit.onFinger(change.position)
-        val next = if (hit.kind == HitKind.RESIZE) {
-            dragRect(hit.fixed, change.position, size)
-        } else {
-            start.shifted(
+        val next = when (hit.kind) {
+            HitKind.RESIZE -> dragRect(hit.fixed, change.position, size)
+            HitKind.RESIZE_X -> dragSide(hit.fixed.x, change.position.x, start, size)
+            else -> start.shifted(
                 (change.position.x - down.position.x) / size.width,
                 (change.position.y - down.position.y) / size.height,
             )
@@ -155,7 +178,7 @@ private suspend fun AwaitPointerEventScope.dragNew(down: PointerInputChange, edi
     if (finished) dragRect(down.position, end, size)?.let(edit.onCreate)
 }
 
-/** Pending parts with resize handles (3 corners) and a red remove badge (top-right); sizes stay constant on screen. */
+/** Pending parts: resize handles (3 corners, left/right middles) + red remove badge; constant size on screen. */
 internal fun DrawScope.drawPending(rects: List<MatchRect>, zoom: Float) {
     val z = maxOf(zoom, MIN_ZOOM)
     val line = PendingLine.toPx() / z
@@ -165,7 +188,8 @@ internal fun DrawScope.drawPending(rects: List<MatchRect>, zoom: Float) {
         drawRect(PendingFill, r.topLeft, r.size)
         drawRect(PendingStrokeColor, r.topLeft, r.size, style = Stroke(line))
         val dot = HandleRadius.toPx() / z
-        listOf(r.topLeft, r.bottomLeft, r.bottomRight).forEach { drawCircle(PendingStrokeColor, dot, it) }
+        listOf(r.topLeft, r.bottomLeft, r.bottomRight, r.centerLeft, r.centerRight)
+            .forEach { drawCircle(PendingStrokeColor, dot, it) }
         drawCircle(BadgeFill, badge, r.topRight)
         val c = r.topRight
         val h = badge * BADGE_CROSS
