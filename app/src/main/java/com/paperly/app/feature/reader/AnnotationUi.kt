@@ -91,7 +91,6 @@ internal fun Modifier.annotationGestures(
 ): Modifier {
     val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
-    val clearSelect by rememberUpdatedState(select?.hooks?.onClear)
     val currentSelect by rememberUpdatedState(select)
     val annotateNow by rememberUpdatedState(annotate)
     val quickOn = edit.onQuick != null && !annotate
@@ -105,12 +104,12 @@ internal fun Modifier.annotationGestures(
             detectTapGestures(onDoubleTap = onDouble) { pos ->
                 val fx = pos.x / size.width
                 val fy = pos.y / size.height
-                annotations.lastOrNull { a ->
-                    a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
-                }?.let { tap(it) } ?: run {
-                    clearSelect?.invoke()
+                val hit = annotationAt(annotations, fx, fy)
+                if (hit != null) {
+                    tap(hit)
+                } else {
                     tap(null)
-                    if (!annotateNow) quickTap(current, fx, fy)
+                    emptyTap(currentSelect, current, annotateNow, fx, fy)
                 }
             }
         }
@@ -131,6 +130,16 @@ internal fun Modifier.annotationGestures(
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
+}
+
+private fun annotationAt(items: List<Annotation>, fx: Float, fy: Float): Annotation? = items.lastOrNull { a ->
+    a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
+}
+
+/** Tap on empty page space: drops a text selection, and (outside annotate mode) the image-page quick box. */
+private fun emptyTap(select: SelectEdit?, edit: PendingEdit, annotate: Boolean, fx: Float, fy: Float) {
+    select?.hooks?.onClear?.invoke()
+    if (!annotate) quickTap(edit, fx, fy)
 }
 
 /** Double-tap on a readable page selects the word under the finger (same pick as long-press). */
