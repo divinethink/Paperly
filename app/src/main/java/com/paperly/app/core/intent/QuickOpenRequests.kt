@@ -12,8 +12,9 @@ private const val PDF_MIME = "application/pdf"
 
 /** "Open with" (VIEW) of a PDF: read it directly instead of importing. Share (SEND) and EPUB still import. */
 fun isQuickOpen(intent: Intent?, resolver: ContentResolver): Boolean {
-    if (intent?.action != Intent.ACTION_VIEW) return false
-    val type = intent.type ?: intent.data?.let { runCatching { resolver.getType(it) }.getOrNull() }
+    val view = intent ?: return false
+    if (view.action != Intent.ACTION_VIEW) return false
+    val type = view.type ?: view.data?.let { runCatching { resolver.getType(it) }.getOrNull() }
     return type == PDF_MIME
 }
 

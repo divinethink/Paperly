@@ -9,6 +9,8 @@ import com.paperly.app.domain.document.Document
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.security.MessageDigest
 import java.util.UUID
 import javax.inject.Inject
@@ -69,8 +71,8 @@ class QuickViewStore @Inject constructor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             delete(token)
             throw e
-        } catch (e: IOException) {
-            delete(token)
+        } catch (e: Exception) {
+            delete(token) // any failure (I/O, permission): no half copy is left behind
             QuickStage.Failed
         }
     }
@@ -94,30 +96,15 @@ class QuickViewStore @Inject constructor(
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
 
-    /** Copies to [target] (size and PDF header verified) and returns the SHA-256; a bad copy is removed. */
+    /**
+     * Copies to [target] and returns the SHA-256. Throws if the copy is not a PDF; the caller removes the partial
+     * file ([stage] deletes the whole token on any failure).
+     */
     private suspend fun copyPdf(uri: Uri, target: File): String {
         val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Cannot open source")
         val digest = MessageDigest.getInstance("SHA-256")
-        var size = 0L
-        try {
-            input.use { src ->
-                target.outputStream().buffered().use { out ->
-                    val buf = ByteArray(BUFFER_SIZE)
-                    while (true) {
-                        ensureActive()
-                        val n = src.read(buf)
-                        if (n < 0) break
-                        out.write(buf, 0, n)
-                        digest.update(buf, 0, n)
-                        size += n
-                    }
-                }
-            }
-            if (target.length() != size || !hasPdfHeader(target)) throw IOException("Not a valid PDF copy")
-        } catch (e: Throwable) {
-            target.delete()
-            throw e
-        }
+        val size = input.use { src -> target.outputStream().buffered().use { out -> pump(src, out, digest) } }
+        if (target.length() != size || !hasPdfHeader(target)) throw IOException("Not a valid PDF copy")
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
@@ -130,4 +117,17 @@ private fun hasPdfHeader(file: File): Boolean = file.inputStream().use { input -
     val head = ByteArray(HEADER_BYTES)
     val n = input.read(head)
     n > 0 && String(head, 0, n, Charsets.ISO_8859_1).contains("%PDF-")
+}
+
+private suspend fun pump(src: InputStream, out: OutputStream, digest: MessageDigest): Long {
+    val buf = ByteArray(BUFFER_SIZE)
+    var size = 0L
+    while (true) {
+        ensureActive()
+        val n = src.read(buf)
+        if (n < 0) return size
+        out.write(buf, 0, n)
+        digest.update(buf, 0, n)
+        size += n
+    }
 }
