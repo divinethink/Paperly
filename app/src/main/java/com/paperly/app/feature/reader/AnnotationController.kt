@@ -102,7 +102,10 @@ class AnnotationController(
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(parts.page, parts.rects.first(), null, parts.rects)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
-                scope.launch { repository.add(documentId, parts.page, parts.rects.first(), content, parts.rects) }
+                // An empty id means a quick-view PDF: nothing is persisted.
+                if (documentId.isNotEmpty()) {
+                    scope.launch { repository.add(documentId, parts.page, parts.rects.first(), content, parts.rects) }
+                }
                 pendingState.value = null
                 null
             }
@@ -121,7 +124,9 @@ class AnnotationController(
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
-                scope.launch { repository.add(documentId, page, parts.first(), content, parts) }
+                if (documentId.isNotEmpty()) {
+                    scope.launch { repository.add(documentId, page, parts.first(), content, parts) }
+                }
                 null
             }
         }
@@ -131,7 +136,7 @@ class AnnotationController(
         scope.launch {
             val existing = editor.existing
             if (existing == null) {
-                repository.add(documentId, editor.page, editor.rect, content, editor.rects)
+                if (documentId.isNotEmpty()) repository.add(documentId, editor.page, editor.rect, content, editor.rects)
                 pendingState.value = null
             } else {
                 repository.update(existing.id, content)

@@ -27,6 +27,15 @@ import com.paperly.app.domain.reader.ReaderTheme
 /** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
+    if (!viewModel.isQuick) BookmarkAndAnnotateButtons(viewModel, page)
+    var showComfort by remember { mutableStateOf(false) }
+    if (showComfort) ComfortSheet { showComfort = false }
+    OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
+}
+
+/** Not shown for a quick-view PDF: it is not in the Library, so there is nowhere to keep bookmarks or notes. */
+@Composable
+private fun BookmarkAndAnnotateButtons(viewModel: ReaderViewModel, page: Int) {
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
     val bookmarked = page in bookmarks
     IconButton(onClick = { viewModel.toggleBookmark(page) }) {
@@ -49,9 +58,6 @@ fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onT
     ) {
         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.reader_annotate_mode))
     }
-    var showComfort by remember { mutableStateOf(false) }
-    if (showComfort) ComfortSheet { showComfort = false }
-    OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
 }
 
 @Composable
@@ -71,6 +77,7 @@ private fun OverflowMenu(
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
+    val files = rememberReaderFileActions(viewModel) // outside the menu: the Save-a-copy launcher must outlive it
     var editingPage by remember { mutableStateOf(false) }
     if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -88,6 +95,7 @@ private fun OverflowMenu(
             )
         }
         SharePdfAnnotationsItem(viewModel) { open = false }
+        files?.let { FileMenuItems(it) { open = false } }
         if (isScan) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.scan_page_edit)) },

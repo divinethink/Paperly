@@ -72,6 +72,7 @@ import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.feature.common.documentMeta
+import com.paperly.app.feature.library.toast
 import kotlin.math.ceil
 
 private const val RENDER_WIDTH_FACTOR = 1.5f
@@ -79,12 +80,23 @@ private const val MAX_RENDER_WIDTH_PX = 2048
 
 /** Full-screen Reader (not in bottom-nav). P2-D: scrolling PDF pages, zoom, fit modes, themes; EPUB P3. */
 @Composable
-fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel()) {
+fun ReaderScreen(
+    onBack: () -> Unit,
+    onOpenSaved: (String) -> Unit = {},
+    viewModel: ReaderViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var resumed by rememberSaveable { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.flush() }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.savedToLibrary.collect { id ->
+            toast(context, if (id == null) R.string.quick_save_failed else R.string.quick_saved)
+            if (id != null) onOpenSaved(id)
+        }
+    }
     LaunchedEffect(listState, state.pageCount) {
         if (state.pageCount > 0) {
             // Resume once per session, BEFORE tracking starts, so the initial page 0 never overwrites the saved page.

@@ -43,6 +43,9 @@
     <string name="doc_share">Share</string>
     <string name="doc_save_copy">Save a copy</string>
     <string name="doc_print">Print</string>
+    <string name="quick_save_to_library">Save to Library</string>
+    <string name="quick_saved">Saved to Library</string>
+    <string name="quick_save_failed">Could not save to Library</string>
     <string name="export_saved">Saved</string>
     <string name="doc_export_images">Export as images</string>
     <string name="export_format_title">Image format</string>

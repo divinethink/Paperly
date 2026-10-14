@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
+@Suppress("TooManyFunctions") // one small entry point per import source
 @Singleton
 class DocumentRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -58,6 +59,10 @@ class DocumentRepositoryImpl @Inject constructor(
         }
         return result
     }
+
+    /** "Save to Library" from a quick-view PDF (app-private cache file); the source is left to the Reader to delete. */
+    override suspend fun importQuickPdf(fileUri: String, title: String): ImportResult =
+        storeAndInsert(Uri.parse(fileUri), "$title.pdf", DocumentType.PDF, allowDuplicate = false)
 
     override suspend fun importConverted(epubUri: String, title: String, convertedFrom: String): ImportResult {
         val uri = Uri.parse(epubUri)

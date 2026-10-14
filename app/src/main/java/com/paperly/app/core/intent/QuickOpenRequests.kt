@@ -1,0 +1,34 @@
+package com.paperly.app.core.intent
+
+import android.content.ContentResolver
+import android.content.Intent
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+private const val PDF_MIME = "application/pdf"
+
+/** "Open with" (VIEW) of a PDF: read it directly instead of importing. Share (SEND) and EPUB still import. */
+fun isQuickOpen(intent: Intent?, resolver: ContentResolver): Boolean {
+    if (intent?.action != Intent.ACTION_VIEW) return false
+    val type = intent.type ?: intent.data?.let { runCatching { resolver.getType(it) }.getOrNull() }
+    return type == PDF_MIME
+}
+
+/** Activity -> navigation hand-off for [isQuickOpen] requests; a state holder so a cold-start request is not lost. */
+@Singleton
+class QuickOpenRequests @Inject constructor() {
+    private val _pending = MutableStateFlow<String?>(null)
+    val pending: StateFlow<String?> = _pending.asStateFlow()
+
+    fun post(uri: String) {
+        _pending.value = uri
+    }
+
+    /** Clears only if [uri] is still the pending one (a newer request is never dropped). */
+    fun consume(uri: String) {
+        _pending.compareAndSet(uri, null)
+    }
+}

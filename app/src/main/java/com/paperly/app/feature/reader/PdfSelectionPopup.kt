@@ -87,14 +87,14 @@ internal fun PdfSelectionPopup(
                         },
                     ) { Text(stringResource(R.string.reader_select_copy)) }
                 }
-                TextButton(onClick = { annotateAs(AnnotationType.HIGHLIGHT) }) {
-                    Text(stringResource(R.string.reader_annotation_highlight))
-                }
-                TextButton(onClick = { annotateAs(AnnotationType.UNDERLINE) }) {
-                    Text(stringResource(R.string.reader_annotation_underline))
-                }
-                TextButton(onClick = { annotateAs(AnnotationType.NOTE) }) {
-                    Text(stringResource(R.string.reader_annotation_note))
+                if (!viewModel.isQuick) {
+                    listOf(
+                        AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
+                        AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
+                        AnnotationType.NOTE to R.string.reader_annotation_note,
+                    ).forEach { (type, label) ->
+                        TextButton(onClick = { annotateAs(type) }) { Text(stringResource(label)) }
+                    }
                 }
             }
         }
