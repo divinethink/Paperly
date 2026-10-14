@@ -75,7 +75,12 @@ data class SelectHooks(
 )
 
 /** One page's view of [SelectHooks]; [onFinger] drives the loupe. */
-internal class SelectEdit(val page: Int, val hooks: SelectHooks, val onFinger: (Offset?) -> Unit)
+internal class SelectEdit(
+    val page: Int,
+    val hooks: SelectHooks,
+    val onPress: () -> Unit,
+    val onFinger: (Offset?) -> Unit,
+)
 
 /** Offered for any readable text layer, Unicode Bengali included (rects are geometry; only Copy is lossy). */
 @Composable
@@ -104,6 +109,7 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
     val pressed = awaitLongPressOrCancellation(down.id) ?: return
     if (size.width <= 0 || size.height <= 0) return
     pressed.consume()
+    edit.onPress()
     val start = fraction(down.position, size)
     edit.hooks.onClear()
     edit.hooks.onWord(edit.page, start)

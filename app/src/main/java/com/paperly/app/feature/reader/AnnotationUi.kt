@@ -99,8 +99,10 @@ internal fun Modifier.annotationGestures(
     val zoomOf = LocalPageZoom.current
     val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
-        .pointerInput(annotations) {
-            detectTapGestures { pos ->
+        .pointerInput(annotations, select != null) {
+            val onDouble: ((Offset) -> Unit)? =
+                if (select == null) null else { pos -> doubleTapWord(currentSelect, pos, size) }
+            detectTapGestures(onDoubleTap = onDouble) { pos ->
                 val fx = pos.x / size.width
                 val fy = pos.y / size.height
                 annotations.lastOrNull { a ->
@@ -128,6 +130,13 @@ internal fun Modifier.annotationGestures(
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
+}
+
+/** Double-tap on a readable page selects the word under the finger (same pick as long-press). */
+private fun doubleTapWord(select: SelectEdit?, pos: Offset, size: IntSize) {
+    if (select == null || size.width <= 0 || size.height <= 0) return
+    select.hooks.onClear()
+    select.hooks.onWord(select.page, Offset(pos.x / size.width, pos.y / size.height))
 }
 
 /** Image page: a tap on empty space drops the one-line box there (Xodo-style); a tap while a box is up drops it. */

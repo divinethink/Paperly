@@ -51,9 +51,11 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -118,6 +120,7 @@ private data class PageLook(
     val filter: ColorFilter?,
     val highlights: Map<Int, List<MatchRect>>,
     val hooks: AnnotationHooks,
+    val onEditor: (AnnotationEditor) -> Unit,
 )
 
 @Composable
@@ -161,8 +164,9 @@ private fun ReaderContent(
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                     val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
                         .withSelect(viewModel, enabled = !annotate)
-                    PdfOrReflow(viewModel, state, listState, PageLook(fitHeight, pageFilter, highlights, hooks))
-                    PdfSelectionMenu(viewModel) { editor = it }
+                    val look = PageLook(fitHeight, pageFilter, highlights, hooks) { editor = it }
+                    PdfOrReflow(viewModel, state, listState, look)
+                    PdfQuickMenu(viewModel) { editor = it }
                 }
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -262,6 +266,8 @@ private fun PdfPages(
                 }
             }
         }
+        val port = SelectionViewport(listState, zoomState, basePx, viewportPx, with(density) { maxHeight.toPx() })
+        PdfSelectionPopup(viewModel, port, look.onEditor)
     }
 }
 
@@ -281,7 +287,9 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
-    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks) { finger = it } }
+    val haptic = LocalHapticFeedback.current
+    val buzz = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks, buzz) { finger = it } }
     val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }
     Box(

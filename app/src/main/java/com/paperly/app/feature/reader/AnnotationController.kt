@@ -113,9 +113,9 @@ class AnnotationController(
      * Saves selected text lines as one annotation in the chosen style (no dialog); a Note returns an editor instead.
      * Independent of the annotate-mode pending parts.
      */
-    fun annotateSelection(page: Int, rects: List<MatchRect>): AnnotationEditor? {
+    fun annotateSelection(page: Int, rects: List<MatchRect>, type: AnnotationType? = null): AnnotationEditor? {
         val parts = rects.take(MAX_PARTS)
-        val chosen = style.value
+        val chosen = type?.let { style.value.copy(type = it).also(::setStyle) } ?: style.value
         return when {
             parts.isEmpty() -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
