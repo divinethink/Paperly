@@ -83,7 +83,6 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     val useRail = rememberScreenSize() != ScreenSize.Compact // adaptive: rail on medium/expanded
 
     ContinueReadingEffect(navController, currentRoute)
-    QuickOpenEffect(navController)
 
     // Open-With/Share import is handled by Library: make sure it is on screen (whatever screen we were on).
     LaunchedEffect(hasIncomingImport, currentRoute) {
@@ -147,17 +146,6 @@ private fun ContinueReadingEffect(
     }
 }
 
-/** Open-With of a PDF: stage it (cache copy or the matching Library copy) and open the Reader on it. */
-@Composable
-private fun QuickOpenEffect(navController: NavHostController, viewModel: QuickOpenViewModel = hiltViewModel()) {
-    val pending by viewModel.pending.collectAsStateWithLifecycle()
-    LaunchedEffect(pending) {
-        val uri = pending ?: return@LaunchedEffect
-        viewModel.stage(uri)?.let { navController.navigate(Routes.reader(it)) }
-        viewModel.consume(uri) // last: clearing the state restarts this effect
-    }
-}
-
 private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController) {
     LibraryType.entries.forEach { libraryType ->
         composable(
@@ -189,11 +177,6 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         Routes.READER,
         arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
     ) {
-        ReaderRoute(
-            onBack = { navController.popBackStack() },
-            onOpenSaved = { id ->
-                navController.navigate(Routes.reader(id)) { popUpTo(Routes.READER) { inclusive = true } }
-            },
-        )
+        ReaderRoute(onBack = { navController.popBackStack() })
     }
 }

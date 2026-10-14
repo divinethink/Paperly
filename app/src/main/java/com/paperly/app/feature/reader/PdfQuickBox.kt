@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -29,7 +30,7 @@ import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 
 private const val QUICK_HEIGHT = 0.03f // about one text line, as a fraction of the page height
-private const val QUICK_WIDTH = 0.6f // starting length of the box, as a fraction of the page width
+private const val QUICK_WIDTH = 0.4f // starting length of the box, as a fraction of the page width
 private const val QUICK_MIN_WIDTH = 0.05f
 private const val QUICK_HALF = 0.5f
 private const val QUICK_SLOP_FACTOR = 2
@@ -38,7 +39,7 @@ private val QuickSidePadding = 12.dp
 private val QuickElevation = 6.dp
 
 /**
- * Tap or long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
+ * Long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
  * floating menu then saves it in one tap. Reuses the pending-part box (resize / move / remove) and the annotate style.
  */
 data class QuickHooks(val onStart: (Int, MatchRect) -> Unit, val onCancel: () -> Unit)
@@ -95,6 +96,25 @@ internal fun AnnotationController.quickStart(page: Int, rect: MatchRect) {
     }
 }
 
+/** Which quick-box gestures a page needs: [press] = its own long-press (text selection off), [live] = grab the box. */
+internal class QuickState(val press: Boolean, val live: Boolean)
+
+/** With text selection on, a press that finds no text reaches the box via `onMiss`, not [QuickState.press]. */
+internal fun quickState(edit: PendingEdit, annotate: Boolean, hasSelect: Boolean): QuickState {
+    val on = edit.onQuick != null && !annotate
+    return QuickState(press = on && !hasSelect, live = on && edit.rects.isNotEmpty())
+}
+
+/** A tap that hit nothing drops a quick box (never in annotate mode, where pending parts are the user's work). */
+internal fun PendingEdit.cancelQuick(annotate: Boolean) {
+    if (!annotate) pending.quick?.onCancel?.invoke()
+}
+
+/** A long-press/drag that found no text: drop (or stretch) the quick box there. Not in annotate mode. */
+internal fun AnnotationController.quickMiss(page: Int, from: Offset, to: Offset?) {
+    if (!annotateMode.value) quickStart(page, quickBoxRect(from.x, from.y, to?.x))
+}
+
 /** Saves the quick box in [type] and the colour already chosen; the type is remembered like a strip choice. */
 internal fun AnnotationController.commitQuick(type: AnnotationType): AnnotationEditor? {
     val chosen = style.value.copy(type = type)
@@ -102,16 +122,16 @@ internal fun AnnotationController.commitQuick(type: AnnotationType): AnnotationE
     return commitPending(chosen)
 }
 
-/** Select hooks plus the image-page quick box (only once the text-layer probe says there is nothing readable). */
+/** Select hooks plus the quick box (on after the probe: text-less pages, or a press that hits no text). */
 @Composable
 internal fun AnnotationHooks.withSelect(viewModel: ReaderViewModel, enabled: Boolean): AnnotationHooks {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val controller = viewModel.annotations
     val quick = remember(controller) { QuickHooks(controller::quickStart, controller::cancelPending) }
-    val imageOnly = enabled && search.probed && !search.available
+    val ready = enabled && search.probed
     return copy(
         select = rememberSelectHooks(viewModel, enabled),
-        pending = pending.copy(quick = quick.takeIf { imageOnly }),
+        pending = pending.copy(quick = quick.takeIf { ready }),
     )
 }
 

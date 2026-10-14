@@ -51,11 +51,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -68,11 +66,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.theme.ReadingFontFamily
 import com.paperly.app.core.ui.theme.readerPalette
-import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.feature.common.documentMeta
-import com.paperly.app.feature.library.toast
 import kotlin.math.ceil
 
 private const val RENDER_WIDTH_FACTOR = 1.5f
@@ -80,23 +76,12 @@ private const val MAX_RENDER_WIDTH_PX = 2048
 
 /** Full-screen Reader (not in bottom-nav). P2-D: scrolling PDF pages, zoom, fit modes, themes; EPUB P3. */
 @Composable
-fun ReaderScreen(
-    onBack: () -> Unit,
-    onOpenSaved: (String) -> Unit = {},
-    viewModel: ReaderViewModel = hiltViewModel(),
-) {
+fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var resumed by rememberSaveable { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.flush() }
-    val context = LocalContext.current
-    LaunchedEffect(viewModel) {
-        viewModel.savedToLibrary.collect { id ->
-            toast(context, if (id == null) R.string.quick_save_failed else R.string.quick_saved)
-            if (id != null) onOpenSaved(id)
-        }
-    }
     LaunchedEffect(listState, state.pageCount) {
         if (state.pageCount > 0) {
             // Resume once per session, BEFORE tracking starts, so the initial page 0 never overwrites the saved page.
@@ -133,7 +118,6 @@ private data class PageLook(
     val filter: ColorFilter?,
     val highlights: Map<Int, List<MatchRect>>,
     val hooks: AnnotationHooks,
-    val popup: PopupHooks,
 )
 
 @Composable
@@ -144,13 +128,13 @@ private fun ReaderContent(
     pageFilter: ColorFilter?,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     val annotations by viewModel.annotations.items.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     val pending by viewModel.annotations.pending.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
     var editor by remember { mutableStateOf<AnnotationEditor?>(null) }
-    var tapped by remember { mutableStateOf<Annotation?>(null) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -175,47 +159,39 @@ private fun ReaderContent(
                 doc == null -> Text(stringResource(R.string.reader_missing))
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
-                    val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { tapped = it }
+                    val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
                         .withSelect(viewModel, enabled = !annotate)
-                    val popup = PopupHooks({ editor = it }, tapped) { tapped = it }
-                    val look = PageLook(fitHeight, pageFilter, highlights, hooks, popup)
-                    PdfOrReflow(viewModel, state, listState, look)
-                    PdfQuickMenu(viewModel) { editor = it }
+                    PdfOrReflow(viewModel, state, listState, PageLook(fitHeight, pageFilter, highlights, hooks))
+                    PdfSelectionMenu(viewModel) { editor = it }
                 }
-                else -> ReaderErrorInfo(doc, state.error)
+                else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        doc.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontFamily = ReadingFontFamily,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Text(documentMeta(context, doc), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(errorText(state.error)), style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
     }
     AnnotationEditorHost(editor, viewModel.annotations) { editor = null }
 }
 
-@Composable
-private fun ReaderErrorInfo(doc: Document, error: ReaderError) {
-    val context = LocalContext.current
-    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            doc.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontFamily = ReadingFontFamily,
-            modifier = Modifier.semantics { heading() },
-        )
-        Text(documentMeta(context, doc), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(errorText(error)), style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-/** Dragged areas become pending parts (committed together with Done); tapping a saved annotation opens its menu. */
+/** Dragged areas become pending parts (committed together with Done); tapping a saved annotation opens its dialog. */
 private fun annotationHooks(
     items: List<Annotation>,
     annotate: Boolean,
     controller: AnnotationController,
     pending: PendingParts?,
-    onTap: (Annotation?) -> Unit,
+    openEditor: (AnnotationEditor) -> Unit,
 ) = AnnotationHooks(
     items = items.groupBy { it.page },
     annotate = annotate,
     onCreate = controller::addPending,
-    onTap = onTap,
+    onTap = { openEditor(AnnotationEditor(it.page, it.rect, it)) },
     pending = PendingHooks(pending, controller::changePending, controller::removePending),
 )
 
@@ -286,8 +262,6 @@ private fun PdfPages(
                 }
             }
         }
-        val port = SelectionViewport(listState, zoomState, basePx, viewportPx, with(density) { maxHeight.toPx() })
-        PdfPopups(viewModel, port, look.popup)
     }
 }
 
@@ -307,9 +281,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
-    val haptic = LocalHapticFeedback.current
-    val buzz = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
-    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks, buzz) { finger = it } }
+    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks) { finger = it } }
     val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }
     Box(

@@ -102,10 +102,7 @@ class AnnotationController(
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(parts.page, parts.rects.first(), null, parts.rects)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
-                // An empty id means a quick-view PDF: nothing is persisted.
-                if (documentId.isNotEmpty()) {
-                    scope.launch { repository.add(documentId, parts.page, parts.rects.first(), content, parts.rects) }
-                }
+                scope.launch { repository.add(documentId, parts.page, parts.rects.first(), content, parts.rects) }
                 pendingState.value = null
                 null
             }
@@ -116,17 +113,15 @@ class AnnotationController(
      * Saves selected text lines as one annotation in the chosen style (no dialog); a Note returns an editor instead.
      * Independent of the annotate-mode pending parts.
      */
-    fun annotateSelection(page: Int, rects: List<MatchRect>, type: AnnotationType? = null): AnnotationEditor? {
+    fun annotateSelection(page: Int, rects: List<MatchRect>): AnnotationEditor? {
         val parts = rects.take(MAX_PARTS)
-        val chosen = type?.let { style.value.copy(type = it).also(::setStyle) } ?: style.value
+        val chosen = style.value
         return when {
             parts.isEmpty() -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
-                if (documentId.isNotEmpty()) {
-                    scope.launch { repository.add(documentId, page, parts.first(), content, parts) }
-                }
+                scope.launch { repository.add(documentId, page, parts.first(), content, parts) }
                 null
             }
         }
@@ -136,7 +131,7 @@ class AnnotationController(
         scope.launch {
             val existing = editor.existing
             if (existing == null) {
-                if (documentId.isNotEmpty()) repository.add(documentId, editor.page, editor.rect, content, editor.rects)
+                repository.add(documentId, editor.page, editor.rect, content, editor.rects)
                 pendingState.value = null
             } else {
                 repository.update(existing.id, content)

@@ -17,10 +17,8 @@ import com.paperly.app.core.crash.CrashMarker
 import com.paperly.app.core.crash.CrashNoticeDialog
 import com.paperly.app.core.intent.ContinueReadingRequests
 import com.paperly.app.core.intent.IncomingImportRequests
-import com.paperly.app.core.intent.QuickOpenRequests
 import com.paperly.app.core.intent.extractImportUri
 import com.paperly.app.core.intent.isContinueReading
-import com.paperly.app.core.intent.isQuickOpen
 import com.paperly.app.core.ui.theme.PaperlyTheme
 import com.paperly.app.feature.reader.EpubFragmentHost
 import com.paperly.app.feature.settings.AppearanceViewModel
@@ -33,8 +31,6 @@ class MainActivity : FragmentActivity() {
     @Inject lateinit var incomingImports: IncomingImportRequests
 
     @Inject lateinit var continueReading: ContinueReadingRequests
-
-    @Inject lateinit var quickOpens: QuickOpenRequests
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -67,10 +63,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun postIntent(intent: Intent?) {
-        extractImportUri(intent)?.let { uri ->
-            // Open-With of a PDF is read directly (no import); Share and EPUB keep the import flow.
-            if (isQuickOpen(intent, contentResolver)) quickOpens.post(uri) else incomingImports.post(uri)
-        }
+        extractImportUri(intent)?.let(incomingImports::post)
         if (isContinueReading(intent)) continueReading.post()
     }
 }

@@ -5,10 +5,14 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -18,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -27,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
@@ -51,7 +57,7 @@ data class AnnotationHooks(
     val items: Map<Int, List<Annotation>>,
     val annotate: Boolean,
     val onCreate: (Int, MatchRect) -> Unit,
-    val onTap: (Annotation?) -> Unit, // null = tap on empty space
+    val onTap: (Annotation) -> Unit,
     val pending: PendingHooks,
     val select: SelectHooks? = null,
 )
@@ -81,29 +87,26 @@ internal fun Modifier.annotationGestures(
     annotate: Boolean,
     edit: PendingEdit,
     select: SelectEdit?,
-    onTap: (Annotation?) -> Unit,
+    onTap: (Annotation) -> Unit,
 ): Modifier {
     val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
+    val clearSelect by rememberUpdatedState(select?.hooks?.onClear)
     val currentSelect by rememberUpdatedState(select)
     val annotateNow by rememberUpdatedState(annotate)
-    val quickOn = edit.onQuick != null && !annotate
-    val quickLive = quickOn && edit.rects.isNotEmpty()
+    val quick = quickState(edit, annotate, select != null)
     val zoomOf = LocalPageZoom.current
     val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
-        .pointerInput(annotations, select != null) {
-            val onDouble: ((Offset) -> Unit)? =
-                if (select == null) null else { pos -> doubleTapWord(currentSelect, pos, size) }
-            detectTapGestures(onDoubleTap = onDouble) { pos ->
+        .pointerInput(annotations) {
+            detectTapGestures { pos ->
                 val fx = pos.x / size.width
                 val fy = pos.y / size.height
-                val hit = annotationAt(annotations, fx, fy)
-                if (hit != null) {
-                    tap(hit)
-                } else {
-                    tap(null)
-                    emptyTap(currentSelect, current, annotateNow, fx, fy)
+                annotations.lastOrNull { a ->
+                    a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
+                }?.let { tap(it) } ?: run {
+                    clearSelect?.invoke()
+                    current.cancelQuick(annotateNow) // a tap beside the quick box drops it
                 }
             }
         }
@@ -113,43 +116,17 @@ internal fun Modifier.annotationGestures(
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { textSelectGesture(select) }
         }
-        .pointerInput(quickOn) {
-            if (quickOn) awaitEachGesture { quickPressGesture { current } }
+        .pointerInput(quick.press) {
+            if (quick.press) awaitEachGesture { quickPressGesture { current } }
         }
         // declared after quickPressGesture, so a grab of the box wins over a new long-press
-        .pointerInput(quickLive) {
-            if (quickLive) awaitEachGesture { pendingGesture(reachBase, zoomOf, drawNew = false) { current } }
+        .pointerInput(quick.live) {
+            if (quick.live) awaitEachGesture { pendingGesture(reachBase, zoomOf, drawNew = false) { current } }
         }
         // declared last = first to see a touch, so a handle wins over long-press
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
-}
-
-private fun annotationAt(items: List<Annotation>, fx: Float, fy: Float): Annotation? = items.lastOrNull { a ->
-    a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
-}
-
-/** Tap on empty page space: drops a text selection, and (outside annotate mode) the image-page quick box. */
-private fun emptyTap(select: SelectEdit?, edit: PendingEdit, annotate: Boolean, fx: Float, fy: Float) {
-    select?.hooks?.onClear?.invoke()
-    if (!annotate) quickTap(edit, fx, fy)
-}
-
-/** Double-tap on a readable page selects the word under the finger (same pick as long-press). */
-private fun doubleTapWord(select: SelectEdit?, pos: Offset, size: IntSize) {
-    if (select == null || size.width <= 0 || size.height <= 0) return
-    select.hooks.onClear()
-    select.hooks.onWord(select.page, Offset(pos.x / size.width, pos.y / size.height))
-}
-
-/** Image page: a tap on empty space drops the one-line box there (Xodo-style); a tap while a box is up drops it. */
-private fun quickTap(edit: PendingEdit, fx: Float, fy: Float) {
-    if (edit.rects.isNotEmpty()) {
-        edit.pending.quick?.onCancel?.invoke()
-    } else {
-        edit.onQuick?.invoke(quickBoxRect(fx, fy, null))
-    }
 }
 
 fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
@@ -256,4 +233,25 @@ internal fun AnnotationEditorDialog(
             }
         },
     )
+}
+
+@Composable
+private fun TypeOption(option: AnnotationType, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(stringResource(typeLabel(option)), Modifier.padding(start = 8.dp))
+    }
+}
+
+private fun typeLabel(type: AnnotationType): Int = when (type) {
+    AnnotationType.HIGHLIGHT -> R.string.reader_annotation_highlight
+    AnnotationType.UNDERLINE -> R.string.reader_annotation_underline
+    AnnotationType.STRIKETHROUGH -> R.string.reader_annotation_strikethrough
+    AnnotationType.NOTE -> R.string.reader_annotation_note
 }

@@ -27,11 +27,6 @@ class StartupMaintenance @Inject constructor(
                 val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(EXPORT_CACHE_DAYS)
                 ExportFiles.pruneOlderThan(ExportFiles.exportsDir(context), cutoff)
             }
-            runCatching {
-                // Quick-view PDFs normally die with their Reader; this only sweeps leftovers (e.g. a killed app).
-                val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
-                ExportFiles.pruneOlderThan(quickViewDir(context), cutoff)
-            }
         }
     }
 

@@ -29,6 +29,8 @@ private val SelectHandleColor = Color(0xFF1E88E5)
 private val SelectHandleRadius = 8.dp
 private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, so the end characters stay selected
 private const val HALF = 0.5f
+private const val NEAR_X = 0.03f // page fractions: a press this close to a picked line still counts as on it
+private const val NEAR_Y = 0.012f
 
 /** Text picked on one [page]: line [rects] (page fractions) and its plain [text]. Not persisted. */
 data class PdfSelection(val page: Int, val rects: List<MatchRect>, val text: String)
@@ -42,12 +44,20 @@ class PdfTextSelectController(
     val state: StateFlow<PdfSelection?> = selectionState.asStateFlow()
     private var job: Job? = null
 
+    /** Called when a press/drag lands where there is no text (scan, watermark-only layer): the quick box takes over. */
+    var onMiss: ((Int, Offset, Offset?) -> Unit)? = null
+
     /** Selects between two page-fraction points; a drag over blank space keeps the previous selection. */
     fun update(page: Int, from: Offset, to: Offset) {
         job?.cancel()
         job = scope.launch {
-            val picked = engine()?.selectText(page, from.x, from.y, to.x, to.y) ?: return@launch
-            selectionState.value = PdfSelection(page, picked.rects, picked.text)
+            val pdf = engine() ?: return@launch
+            val picked = pdf.selectText(page, from.x, from.y, to.x, to.y)?.takeIf { isNear(it.rects, from) }
+            if (picked != null) {
+                selectionState.value = PdfSelection(page, picked.rects, picked.text)
+            } else if (selectionState.value == null) {
+                onMiss?.invoke(page, from, to)
+            }
         }
     }
 
@@ -55,8 +65,13 @@ class PdfTextSelectController(
     fun selectWord(page: Int, at: Offset) {
         job?.cancel()
         job = scope.launch {
-            val picked = engine()?.let { pickWordAt(it, page, at) } ?: return@launch
-            selectionState.value = PdfSelection(page, picked.rects, picked.text.trim())
+            val pdf = engine() ?: return@launch
+            val picked = pickWordAt(pdf, page, at)?.takeIf { isNear(it.rects, at) }
+            if (picked != null) {
+                selectionState.value = PdfSelection(page, picked.rects, picked.text.trim())
+            } else {
+                onMiss?.invoke(page, at, null)
+            }
         }
     }
 
@@ -75,12 +90,7 @@ data class SelectHooks(
 )
 
 /** One page's view of [SelectHooks]; [onFinger] drives the loupe. */
-internal class SelectEdit(
-    val page: Int,
-    val hooks: SelectHooks,
-    val onPress: () -> Unit,
-    val onFinger: (Offset?) -> Unit,
-)
+internal class SelectEdit(val page: Int, val hooks: SelectHooks, val onFinger: (Offset?) -> Unit)
 
 /** Offered for any readable text layer, Unicode Bengali included (rects are geometry; only Copy is lossy). */
 @Composable
@@ -97,6 +107,14 @@ internal fun rememberSelectHooks(viewModel: ReaderViewModel, enabled: Boolean): 
     }
 }
 
+/**
+ * The engine snaps a press to the nearest character, so on a page whose only text is a watermark any press would
+ * select it. A pick counts only when the press is on or right beside its lines.
+ */
+internal fun isNear(rects: List<MatchRect>, p: Offset): Boolean = rects.any {
+    p.x in (it.left - NEAR_X)..(it.right + NEAR_X) && p.y in (it.top - NEAR_Y)..(it.bottom + NEAR_Y)
+}
+
 private fun fraction(p: Offset, size: IntSize) =
     Offset((p.x / size.width).coerceIn(0f, 1f), (p.y / size.height).coerceIn(0f, 1f))
 
@@ -109,7 +127,6 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
     val pressed = awaitLongPressOrCancellation(down.id) ?: return
     if (size.width <= 0 || size.height <= 0) return
     pressed.consume()
-    edit.onPress()
     val start = fraction(down.position, size)
     edit.hooks.onClear()
     edit.hooks.onWord(edit.page, start)
@@ -122,8 +139,6 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
         if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
         edit.onFinger(change.position)
     }
-    // Consume the lift too: otherwise the tap detector reads a no-drag long-press release as an empty tap and clears.
-    currentEvent.changes.forEach { if (it.id == down.id) it.consume() }
     edit.onFinger(null)
 }
 

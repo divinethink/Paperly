@@ -7,19 +7,15 @@ import com.paperly.app.domain.reader.TextSelection
 private const val WORD_STEP = 0.01f // page-fraction nudge, about one character wide
 private const val MAX_STEPS = 14
 private const val MAX_STALL = 3
-private const val SEED_MID = 0.03f
-private const val SEED_WIDE = 0.06f
-private val SEED_REACH = listOf(0f, WORD_STEP, SEED_MID, SEED_WIDE) // widen until the press hits text
 
 /**
  * The word under a long-press (EPUB-style): seed from the press point, then widen one nudge at a time until the
  * next character is not part of a word. Null when there is no text there.
  */
 internal suspend fun pickWordAt(engine: ReaderEngine, page: Int, at: Offset): TextSelection? {
-    val seed = SEED_REACH.firstNotNullOfOrNull { reach ->
-        engine.selectText(page, at.x - reach, at.y, at.x + reach, at.y)?.takeIf { it.rects.isNotEmpty() }
-    } ?: return null
-    if (seed.text.isBlank()) return seed // broken Bengali text layer: the line rectangles are still good to show
+    val seed = engine.selectText(page, at.x, at.y, at.x, at.y)?.takeIf { it.text.isNotBlank() }
+        ?: engine.selectText(page, at.x - WORD_STEP, at.y, at.x + WORD_STEP, at.y)?.takeIf { it.text.isNotBlank() }
+        ?: return null
     return grow(engine, page, at.y, grow(engine, page, at.y, seed, toRight = true), toRight = false)
 }
 

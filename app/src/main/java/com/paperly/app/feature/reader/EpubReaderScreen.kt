@@ -46,7 +46,6 @@ import org.readium.r2.shared.publication.Publication
 @Composable
 fun ReaderRoute(
     onBack: () -> Unit,
-    onOpenSaved: (String) -> Unit = {},
     viewModel: EpubReaderViewModel = hiltViewModel(),
     comfortViewModel: ReaderComfortViewModel = hiltViewModel(),
 ) {
@@ -57,7 +56,7 @@ fun ReaderRoute(
     Box(Modifier.fillMaxSize()) {
         when {
             state.loading -> Unit
-            !state.isEpub -> ReaderScreen(onBack = onBack, onOpenSaved = onOpenSaved)
+            !state.isEpub -> ReaderScreen(onBack = onBack)
             else -> EpubReaderScreen(state, viewModel, onBack)
         }
         BlueLightOverlay(comfort.blueLight)

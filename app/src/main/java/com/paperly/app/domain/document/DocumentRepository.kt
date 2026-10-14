@@ -52,7 +52,4 @@ interface DocumentRepository {
      * recording [convertedFrom] (e.g. "docx"). Never silently duplicates. The temp file is deleted afterwards.
      */
     suspend fun importConverted(epubUri: String, title: String, convertedFrom: String): ImportResult
-
-    /** Quick view -> "Save to Library": stores an app-private cache PDF (file:// URI) as a normal PDF document. */
-    suspend fun importQuickPdf(fileUri: String, title: String): ImportResult
 }
