@@ -16,6 +16,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
@@ -123,7 +124,7 @@ private suspend fun pump(src: InputStream, out: OutputStream, digest: MessageDig
     val buf = ByteArray(BUFFER_SIZE)
     var size = 0L
     while (true) {
-        ensureActive()
+        currentCoroutineContext().ensureActive() // a top-level function has no CoroutineScope receiver
         val n = src.read(buf)
         if (n < 0) return size
         out.write(buf, 0, n)
