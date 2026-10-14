@@ -80,6 +80,11 @@ class DocumentRepositoryImpl @Inject constructor(
         convertedFrom: String? = null,
     ): ImportResult {
         val id = UUID.randomUUID().toString()
+
+        // Local (not a member): keeps the class under detekt's TooManyFunctions limit.
+        suspend fun cleanup(docId: String) {
+            withContext(NonCancellable) { fileStore.delete(docId) }
+        }
         val stored = try {
             fileStore.store(uri, id)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -139,10 +144,6 @@ class DocumentRepositoryImpl @Inject constructor(
 
     override suspend fun markOpened(id: String) {
         dao.updateLastOpened(id, System.currentTimeMillis())
-    }
-
-    private suspend fun cleanup(id: String) {
-        withContext(NonCancellable) { fileStore.delete(id) }
     }
 }
 
