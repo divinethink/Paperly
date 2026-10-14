@@ -88,6 +88,7 @@ internal suspend fun AwaitPointerEventScope.quickPressGesture(edit: () -> Pendin
 
 /** Starts (or replaces) the single quick box; a box left on another page is dropped first. */
 internal fun AnnotationController.quickStart(page: Int, rect: MatchRect) {
+    if (readOnly) return
     if (pending.value?.page == page) {
         changePending(0, rect)
     } else {

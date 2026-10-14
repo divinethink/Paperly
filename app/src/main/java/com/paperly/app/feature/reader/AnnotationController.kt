@@ -52,7 +52,11 @@ class AnnotationController(
     /** Unsaved parts of the annotation being built (one page only); empty = null. Not persisted. */
     val pending: StateFlow<PendingParts?> = pendingState.asStateFlow()
 
+    /** Quick view (a PDF not in the Library): nothing can be annotated, there is no document row to attach it to. */
+    var readOnly = false
+
     fun toggleMode() {
+        if (readOnly) return
         pendingState.value = null // also drops a quick box (long-press on an image page) when entering annotate mode
         annotateOn.update { !it }
     }
@@ -98,7 +102,7 @@ class AnnotationController(
     fun commitPending(chosen: AnnotateStyle = style.value): AnnotationEditor? {
         val parts = pendingState.value
         return when {
-            parts == null -> null
+            readOnly || parts == null -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(parts.page, parts.rects.first(), null, parts.rects)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
@@ -113,11 +117,11 @@ class AnnotationController(
      * Saves selected text lines as one annotation in the chosen style (no dialog); a Note returns an editor instead.
      * Independent of the annotate-mode pending parts.
      */
-    fun annotateSelection(page: Int, rects: List<MatchRect>): AnnotationEditor? {
+    fun annotateSelection(page: Int, rects: List<MatchRect>, type: AnnotationType? = null): AnnotationEditor? {
         val parts = rects.take(MAX_PARTS)
-        val chosen = style.value
+        val chosen = type?.let { style.value.copy(type = it) } ?: style.value
         return when {
-            parts.isEmpty() -> null
+            readOnly || parts.isEmpty() -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
@@ -128,6 +132,7 @@ class AnnotationController(
     }
 
     fun save(editor: AnnotationEditor, content: AnnotationContent) {
+        if (readOnly) return
         scope.launch {
             val existing = editor.existing
             if (existing == null) {

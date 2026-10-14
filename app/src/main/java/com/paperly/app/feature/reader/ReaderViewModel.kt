@@ -1,14 +1,18 @@
 package com.paperly.app.feature.reader
 
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.R
 import com.paperly.app.core.file.DocumentFileStore
+import com.paperly.app.core.file.QuickViewStore
 import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
+import com.paperly.app.domain.document.ImportResult
 import com.paperly.app.domain.ocr.PageOcr
 import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.AnnotationRepository
@@ -59,9 +63,13 @@ class ReaderViewModel @Inject constructor(
     // Provider = lazy: the engine is created only when a PDF is actually opened (Rule #10).
     private val engineProvider: Provider<ReaderEngine>,
     private val pageOcr: PageOcr,
+    private val quickStore: QuickViewStore,
 ) : ViewModel() {
 
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
+
+    /** Quick view: a PDF opened from outside and not (yet) in the Library — no progress, bookmarks or annotations. */
+    val isQuick: Boolean = QuickViewStore.isToken(documentId)
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
     private var engine: ReaderEngine? = null
@@ -91,15 +99,16 @@ class ReaderViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptySet())
 
     init {
-        textSelect.onMiss = { page, from, to -> annotations.quickMiss(page, from, to) }
+        annotations.readOnly = isQuick
+        if (!isQuick) textSelect.onMiss = { page, from, to -> annotations.quickMiss(page, from, to) }
         observeProgress()
         viewModelScope.launch {
-            val document = PerfTrace.span("reader.open") { repository.getDocument(documentId) }
+            val document = PerfTrace.span("reader.open") { loadDocument() }
             if (document == null) {
                 _uiState.value = ReaderUiState(loading = false)
                 return@launch
             }
-            repository.markOpened(documentId)
+            if (!isQuick) repository.markOpened(documentId)
             _uiState.value = if (document.type == DocumentType.PDF || document.type == DocumentType.SCANNED_PDF) {
                 openPdf(document)
             } else {
@@ -109,8 +118,12 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    private suspend fun loadDocument(): Document? =
+        if (isQuick) quickStore.document(documentId) else repository.getDocument(documentId)
+
     private suspend fun openPdf(document: Document): ReaderUiState {
-        val file = fileStore.resolve(document.id) ?: return failed(document, ReaderError.FAILED)
+        val file = (if (isQuick) quickStore.resolve(document.id) else fileStore.resolve(document.id))
+            ?: return failed(document, ReaderError.FAILED)
         val pdf = engineProvider.get().also { engine = it }
         return try {
             when (val result = PerfTrace.span("reader.pdf.open") { pdf.open(file) }) {
@@ -149,7 +162,7 @@ class ReaderViewModel @Inject constructor(
 
     private suspend fun save(page: Int) {
         val count = _uiState.value.pageCount
-        if (count <= 0 || page == lastSaved) return
+        if (isQuick || count <= 0 || page == lastSaved) return
         readerState.saveProgress(documentId, page, count)
         lastSaved = page
     }
@@ -159,6 +172,7 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun flush() {
+        if (isQuick) return
         viewModelScope.launch {
             currentPage.value?.let { save(it) }
             readerState.flushSync(documentId)
@@ -179,7 +193,8 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun toggleBookmark(page: Int) {
-        if (_uiState.value.pageCount > 0) viewModelScope.launch { readerState.toggleBookmark(documentId, page) }
+        if (isQuick || _uiState.value.pageCount <= 0) return
+        viewModelScope.launch { readerState.toggleBookmark(documentId, page) }
     }
 
     private fun failed(document: Document, error: ReaderError) =
@@ -193,7 +208,36 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    private val _saved = MutableStateFlow(false)
+
+    /** Quick view only: the PDF has been added to the Library (the menu item then disappears). */
+    val saved: StateFlow<Boolean> = _saved.asStateFlow()
+    private val _notice = MutableStateFlow<Int?>(null)
+
+    /** One-shot message (string resource) for the UI to show once. */
+    val notice: StateFlow<Int?> = _notice.asStateFlow()
+
+    fun clearNotice() {
+        _notice.value = null
+    }
+
+    /** Quick view -> Library: copies the temporary PDF in; the open Reader keeps reading the temp copy. */
+    fun saveToLibrary() {
+        val file = quickStore.resolve(documentId) ?: return
+        val title = _uiState.value.document?.title ?: "Document"
+        viewModelScope.launch {
+            val message = when (repository.importPdf(Uri.fromFile(file).toString(), title)) {
+                is ImportResult.Success -> R.string.quick_saved
+                is ImportResult.Duplicate -> R.string.quick_already_saved
+                else -> R.string.quick_save_failed
+            }
+            if (message != R.string.quick_save_failed) _saved.value = true
+            _notice.value = message
+        }
+    }
+
     override fun onCleared() {
+        if (isQuick) quickStore.delete(documentId) // the temporary copy dies with the Reader
         pageOcr.release()
         engine?.close()
         cache.clear()

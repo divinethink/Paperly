@@ -27,6 +27,14 @@ import com.paperly.app.domain.reader.ReaderTheme
 /** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
+    if (!viewModel.isQuick) BookmarkAndAnnotate(viewModel, page) // a quick-view PDF has no row to attach them to
+    var showComfort by remember { mutableStateOf(false) }
+    if (showComfort) ComfortSheet { showComfort = false }
+    OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
+}
+
+@Composable
+private fun BookmarkAndAnnotate(viewModel: ReaderViewModel, page: Int) {
     val bookmarks by viewModel.bookmarkedPages.collectAsStateWithLifecycle()
     val bookmarked = page in bookmarks
     IconButton(onClick = { viewModel.toggleBookmark(page) }) {
@@ -49,9 +57,6 @@ fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onT
     ) {
         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.reader_annotate_mode))
     }
-    var showComfort by remember { mutableStateOf(false) }
-    if (showComfort) ComfortSheet { showComfort = false }
-    OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
 }
 
 @Composable
@@ -72,6 +77,7 @@ private fun OverflowMenu(
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     var editingPage by remember { mutableStateOf(false) }
+    val files = rememberReaderFileActions(viewModel) // outside the dropdown: its launcher must outlive the menu
     if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         // Readable text layers use the text; scans/Bengali/broken text layers are read by OCR (P10). Once sampled.
@@ -87,7 +93,8 @@ private fun OverflowMenu(
                 },
             )
         }
-        SharePdfAnnotationsItem(viewModel) { open = false }
+        if (!viewModel.isQuick) SharePdfAnnotationsItem(viewModel) { open = false }
+        files?.let { FileMenuItems(it) { open = false } }
         if (isScan) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.scan_page_edit)) },

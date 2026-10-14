@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-14 (build fix + Quick view)
+- Build fix: removed duplicate declarations left by a partial upload (`HitKind`/`PendingHit`/`hitPending`, `TypeOption`/`typeLabel`);
+  pending boxes now also have side handles (`PdfPendingHit.kt`, `dragSide`).
+- Quick view: Open-With of a PDF is read directly, not imported (cache copy via `QuickViewStore`; same content already in the
+  Library opens that copy). No progress/bookmarks/annotations for a quick PDF; Share / Save a copy / Print and "Save to Library"
+  are in the Reader's menu. The temporary copy is deleted when the Reader closes (older leftovers pruned after 24 h).
+  Share (SEND) and EPUB keep the import flow. New `DocumentRepository.importPdf`. No DB/schema/rules change.
+
 ## 2026-10-14
 - PDF annotate, easier: (A) long-press word selection (then Annotate) now also works on Unicode-Bengali text-layer PDFs; Copy is hidden
   there (extraction is lossy) and Bengali vowel signs/hasanta stay inside the picked word. (B) On pages with no readable text layer

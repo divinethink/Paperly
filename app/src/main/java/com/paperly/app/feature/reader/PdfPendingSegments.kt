@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.paperly.app.domain.reader.MatchRect
 
@@ -23,12 +22,6 @@ private val HandleRadius = 7.dp
 private val BadgeRadius = 11.dp
 private val PendingLine = 1.dp
 private const val BADGE_CROSS = 0.5f // half-length of the white X, as a fraction of the badge radius
-
-/** What a finger-down on the pending parts of a page grabbed. */
-internal enum class HitKind { REMOVE, RESIZE, MOVE }
-
-/** [fixed] = the opposite corner (px) that stays put while a RESIZE handle is dragged. */
-internal data class PendingHit(val index: Int, val kind: HitKind, val fixed: Offset)
 
 /** Pending-part wiring handed down to each page. */
 data class PendingHooks(
@@ -61,28 +54,6 @@ internal fun pendingEdit(
     pending = hooks.pending,
     onQuick = hooks.pending.quick?.let { quick -> { rect: MatchRect -> quick.onStart(index, rect) } },
 )
-
-private fun MatchRect.toRect(size: IntSize) =
-    Rect(left * size.width, top * size.height, right * size.width, bottom * size.height)
-
-private fun Rect.resizeHandles(): List<Pair<Offset, Offset>> =
-    listOf(topLeft to bottomRight, bottomLeft to topRight, bottomRight to topLeft)
-
-/** Topmost pending part under [pos]: remove badge (top-right), resize corners, then the body (move). */
-internal fun hitPending(pos: Offset, size: IntSize, rects: List<MatchRect>, reach: Float): PendingHit? {
-    for (i in rects.indices.reversed()) {
-        val r = rects[i].toRect(size)
-        val handle = r.resizeHandles().firstOrNull { (pos - it.first).getDistance() <= reach }
-        val hit = when {
-            (pos - r.topRight).getDistance() <= reach -> PendingHit(i, HitKind.REMOVE, Offset.Zero)
-            handle != null -> PendingHit(i, HitKind.RESIZE, handle.second)
-            r.contains(pos) -> PendingHit(i, HitKind.MOVE, Offset.Zero)
-            else -> null
-        }
-        if (hit != null) return hit
-    }
-    return null
-}
 
 /**
  * One annotate-mode gesture: grab a pending part (remove / resize / move) or, on empty space, draw a new part.
@@ -125,10 +96,10 @@ private suspend fun AwaitPointerEventScope.dragExisting(down: PointerInputChange
     drag(down.id) { change ->
         change.consume()
         edit.onFinger(change.position)
-        val next = if (hit.kind == HitKind.RESIZE) {
-            dragRect(hit.fixed, change.position, size)
-        } else {
-            start.shifted(
+        val next = when (hit.kind) {
+            HitKind.RESIZE -> dragRect(hit.fixed, change.position, size)
+            HitKind.RESIZE_X -> dragSide(hit.fixed.x, change.position.x, start, size)
+            else -> start.shifted(
                 (change.position.x - down.position.x) / size.width,
                 (change.position.y - down.position.y) / size.height,
             )
@@ -155,7 +126,7 @@ private suspend fun AwaitPointerEventScope.dragNew(down: PointerInputChange, edi
     if (finished) dragRect(down.position, end, size)?.let(edit.onCreate)
 }
 
-/** Pending parts with resize handles (3 corners) and a red remove badge (top-right); sizes stay constant on screen. */
+/** Pending parts: 3 corner + 2 side handles and a red remove badge (top-right); sizes stay constant on screen. */
 internal fun DrawScope.drawPending(rects: List<MatchRect>, zoom: Float) {
     val z = maxOf(zoom, MIN_ZOOM)
     val line = PendingLine.toPx() / z
@@ -165,7 +136,8 @@ internal fun DrawScope.drawPending(rects: List<MatchRect>, zoom: Float) {
         drawRect(PendingFill, r.topLeft, r.size)
         drawRect(PendingStrokeColor, r.topLeft, r.size, style = Stroke(line))
         val dot = HandleRadius.toPx() / z
-        listOf(r.topLeft, r.bottomLeft, r.bottomRight).forEach { drawCircle(PendingStrokeColor, dot, it) }
+        listOf(r.topLeft, r.bottomLeft, r.bottomRight, r.centerLeft, r.centerRight)
+            .forEach { drawCircle(PendingStrokeColor, dot, it) }
         drawCircle(BadgeFill, badge, r.topRight)
         val c = r.topRight
         val h = badge * BADGE_CROSS

@@ -25,6 +25,7 @@ private const val QUICK_PREFIX = "quick-"
 private const val BUFFER_SIZE = 64 * 1024
 private const val HEADER_BYTES = 1024
 private const val MAX_TITLE = 200
+private const val MAX_AGE_MS = 24L * 60 * 60 * 1000
 
 /** Cache folder of "Quick view" PDFs (opened without importing); old leftovers are pruned at app start. */
 fun quickViewDir(context: Context): File = File(context.cacheDir, QUICK_DIR)
@@ -50,6 +51,12 @@ class QuickViewStore @Inject constructor(
     private val dao: DocumentDao,
 ) {
     private val dir: File get() = quickViewDir(context).apply { mkdirs() }
+
+    /** Removes leftovers of earlier sessions (e.g. the app was killed while a quick PDF was open). Best-effort. */
+    suspend fun prune() = withContext(Dispatchers.IO) {
+        val cutoff = System.currentTimeMillis() - MAX_AGE_MS
+        runCatching { dir.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.delete() } }
+    }
 
     suspend fun stage(sourceUri: String): QuickStage = withContext(Dispatchers.IO) {
         val uri = Uri.parse(sourceUri)

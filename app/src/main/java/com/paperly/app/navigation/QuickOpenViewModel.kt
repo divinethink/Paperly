@@ -18,12 +18,15 @@ class QuickOpenViewModel @Inject constructor(
     val pending: StateFlow<String?> = requests.pending
 
     /** Reader id to open for [uri] (a Library copy or a temporary quick copy); null = fell back to a normal import. */
-    suspend fun stage(uri: String): String? = when (val result = store.stage(uri)) {
-        is QuickStage.Library -> result.documentId
-        is QuickStage.Temp -> result.token
-        QuickStage.NotPdf, QuickStage.Failed -> {
-            imports.post(uri) // the Library import flow shows its usual error/duplicate handling
-            null
+    suspend fun stage(uri: String): String? {
+        store.prune()
+        return when (val result = store.stage(uri)) {
+            is QuickStage.Library -> result.documentId
+            is QuickStage.Temp -> result.token
+            QuickStage.NotPdf, QuickStage.Failed -> {
+                imports.post(uri) // the Library import flow shows its usual error/duplicate handling
+                null
+            }
         }
     }
 

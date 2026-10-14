@@ -83,6 +83,7 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     val useRail = rememberScreenSize() != ScreenSize.Compact // adaptive: rail on medium/expanded
 
     ContinueReadingEffect(navController, currentRoute)
+    QuickOpenEffect(navController)
 
     // Open-With/Share import is handled by Library: make sure it is on screen (whatever screen we were on).
     LaunchedEffect(hasIncomingImport, currentRoute) {

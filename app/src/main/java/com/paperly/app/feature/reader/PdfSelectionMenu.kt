@@ -44,12 +44,14 @@ internal fun BoxScope.PdfSelectionMenu(viewModel: ReaderViewModel, onEditor: (An
         shadowElevation = MenuElevation,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(
-                onClick = {
-                    viewModel.annotations.annotateSelection(picked.page, picked.rects)?.let(onEditor)
-                    viewModel.textSelect.clear()
-                },
-            ) { Text(stringResource(R.string.reader_select_annotate)) }
+            if (!viewModel.isQuick) {
+                TextButton(
+                    onClick = {
+                        viewModel.annotations.annotateSelection(picked.page, picked.rects)?.let(onEditor)
+                        viewModel.textSelect.clear()
+                    },
+                ) { Text(stringResource(R.string.reader_select_annotate)) }
+            }
             if (!search.partialMatch) { // Bengali extraction drops vowel signs: never copy broken text
                 TextButton(
                     onClick = {

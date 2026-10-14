@@ -386,4 +386,8 @@
     <string name="new_phone_step_5">Tap Restore from backup, pick the ZIP, review the summary and confirm.</string>
     <string name="new_phone_step_6">Optional: sign in on the new phone if you also use cloud sync.</string>
     <string name="new_phone_note">Keep the backup file until you have checked that everything is on the new phone.</string>
+    <string name="quick_save_to_library">Save to Library</string>
+    <string name="quick_saved">Saved to Library</string>
+    <string name="quick_already_saved">Already in your Library</string>
+    <string name="quick_save_failed">Could not save to Library</string>
 </resources>
