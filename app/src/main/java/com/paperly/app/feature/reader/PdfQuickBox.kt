@@ -29,7 +29,7 @@ import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 
 private const val QUICK_HEIGHT = 0.03f // about one text line, as a fraction of the page height
-private const val QUICK_WIDTH = 0.4f // starting length of the box, as a fraction of the page width
+private const val QUICK_WIDTH = 0.6f // starting length of the box, as a fraction of the page width
 private const val QUICK_MIN_WIDTH = 0.05f
 private const val QUICK_HALF = 0.5f
 private const val QUICK_SLOP_FACTOR = 2
@@ -38,7 +38,7 @@ private val QuickSidePadding = 12.dp
 private val QuickElevation = 6.dp
 
 /**
- * Long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
+ * Tap or long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
  * floating menu then saves it in one tap. Reuses the pending-part box (resize / move / remove) and the annotate style.
  */
 data class QuickHooks(val onStart: (Int, MatchRect) -> Unit, val onCancel: () -> Unit)

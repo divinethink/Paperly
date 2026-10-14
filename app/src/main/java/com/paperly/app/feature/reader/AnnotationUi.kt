@@ -107,7 +107,7 @@ internal fun Modifier.annotationGestures(
                     a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
                 }?.let { tap(it) } ?: run {
                     clearSelect?.invoke()
-                    if (!annotateNow) current.pending.quick?.onCancel?.invoke() // tap beside the quick box drops it
+                    if (!annotateNow) quickTap(current, fx, fy)
                 }
             }
         }
@@ -128,6 +128,15 @@ internal fun Modifier.annotationGestures(
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
+}
+
+/** Image page: a tap on empty space drops the one-line box there (Xodo-style); a tap while a box is up drops it. */
+private fun quickTap(edit: PendingEdit, fx: Float, fy: Float) {
+    if (edit.rects.isNotEmpty()) {
+        edit.pending.quick?.onCancel?.invoke()
+    } else {
+        edit.onQuick?.invoke(quickBoxRect(fx, fy, null))
+    }
 }
 
 fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
