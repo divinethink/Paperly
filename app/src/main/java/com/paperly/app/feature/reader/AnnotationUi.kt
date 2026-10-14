@@ -93,6 +93,9 @@ internal fun Modifier.annotationGestures(
     val tap by rememberUpdatedState(onTap)
     val clearSelect by rememberUpdatedState(select?.hooks?.onClear)
     val currentSelect by rememberUpdatedState(select)
+    val annotateNow by rememberUpdatedState(annotate)
+    val quickOn = edit.onQuick != null && !annotate
+    val quickLive = quickOn && edit.rects.isNotEmpty()
     val zoomOf = LocalPageZoom.current
     val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
@@ -102,7 +105,10 @@ internal fun Modifier.annotationGestures(
                 val fy = pos.y / size.height
                 annotations.lastOrNull { a ->
                     a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
-                }?.let { tap(it) } ?: clearSelect?.invoke()
+                }?.let { tap(it) } ?: run {
+                    clearSelect?.invoke()
+                    if (!annotateNow) current.pending.quick?.onCancel?.invoke() // tap beside the quick box drops it
+                }
             }
         }
         .pointerInput(annotate) {
@@ -110,6 +116,13 @@ internal fun Modifier.annotationGestures(
         }
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { textSelectGesture(select) }
+        }
+        .pointerInput(quickOn) {
+            if (quickOn) awaitEachGesture { quickPressGesture { current } }
+        }
+        // declared after quickPressGesture, so a grab of the box wins over a new long-press
+        .pointerInput(quickLive) {
+            if (quickLive) awaitEachGesture { pendingGesture(reachBase, zoomOf, drawNew = false) { current } }
         }
         // declared last = first to see a touch, so a handle wins over long-press
         .pointerInput(select != null) {

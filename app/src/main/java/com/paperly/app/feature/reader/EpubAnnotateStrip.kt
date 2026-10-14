@@ -27,7 +27,7 @@ private val EPUB_STRIP_TYPES = listOf(
     AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
     AnnotationType.NOTE to R.string.reader_annotation_note,
 )
-private val PDF_STRIP_TYPES = listOf(
+internal val PDF_STRIP_TYPES = listOf(
     AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
     AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
     AnnotationType.STRIKETHROUGH to R.string.reader_annotation_strikethrough,

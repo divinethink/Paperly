@@ -66,7 +66,7 @@ class PdfTextSelectController(
     }
 }
 
-/** Selection wiring handed down to each page; null = text selection off (annotate mode, unreadable/Bengali text). */
+/** Selection wiring handed down to each page; null = text selection off (annotate mode, no readable text layer). */
 data class SelectHooks(
     val selection: PdfSelection?,
     val onUpdate: (Int, Offset, Offset) -> Unit,
@@ -77,13 +77,13 @@ data class SelectHooks(
 /** One page's view of [SelectHooks]; [onFinger] drives the loupe. */
 internal class SelectEdit(val page: Int, val hooks: SelectHooks, val onFinger: (Offset?) -> Unit)
 
-/** Text selection is offered only when the document's text layer is readable and not partial (Bengali). */
+/** Offered for any readable text layer, Unicode Bengali included (rects are geometry; only Copy is lossy). */
 @Composable
 internal fun rememberSelectHooks(viewModel: ReaderViewModel, enabled: Boolean): SelectHooks? {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val selection by viewModel.textSelect.state.collectAsStateWithLifecycle()
     val controller = viewModel.textSelect
-    return if (!enabled || !search.available || search.partialMatch) {
+    return if (!enabled || !search.available) {
         null
     } else {
         remember(selection, controller) {

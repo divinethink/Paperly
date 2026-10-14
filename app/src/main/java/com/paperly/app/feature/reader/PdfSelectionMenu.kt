@@ -24,14 +24,16 @@ private val MenuTopPadding = 8.dp
 private val MenuElevation = 6.dp
 
 /**
- * Annotate | Copy for the selected PDF text (P3-K step B). Floats at the top of the page area (an overlay, so the
- * pages never shift under the finger); hidden in annotate mode and Reflow, where text selection is off.
+ * Annotate | Copy for the selected PDF text (P3-K step B; Copy hidden for Bengali). Floats at the top of the page
+ * area (an overlay, so the pages never shift under the finger); hidden in annotate mode and Reflow.
  */
 @Composable
 internal fun BoxScope.PdfSelectionMenu(viewModel: ReaderViewModel, onEditor: (AnnotationEditor) -> Unit) {
     val selection by viewModel.textSelect.state.collectAsStateWithLifecycle()
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
+    PdfQuickMenu(viewModel, onEditor)
     val picked = selection
     if (picked == null || annotate || reflow) return
     val context = LocalContext.current
@@ -48,12 +50,14 @@ internal fun BoxScope.PdfSelectionMenu(viewModel: ReaderViewModel, onEditor: (An
                     viewModel.textSelect.clear()
                 },
             ) { Text(stringResource(R.string.reader_select_annotate)) }
-            TextButton(
-                onClick = {
-                    copyText(context, picked.text)
-                    viewModel.textSelect.clear()
-                },
-            ) { Text(stringResource(R.string.reader_select_copy)) }
+            if (!search.partialMatch) { // Bengali extraction drops vowel signs: never copy broken text
+                TextButton(
+                    onClick = {
+                        copyText(context, picked.text)
+                        viewModel.textSelect.clear()
+                    },
+                ) { Text(stringResource(R.string.reader_select_copy)) }
+            }
         }
     }
 }

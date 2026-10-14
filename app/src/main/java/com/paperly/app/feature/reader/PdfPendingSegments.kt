@@ -35,6 +35,7 @@ data class PendingHooks(
     val state: PendingParts?,
     val onChange: (Int, MatchRect) -> Unit,
     val onRemove: (Int) -> Unit,
+    val quick: QuickHooks? = null,
 )
 
 /** Everything the annotate-mode gesture of one page needs; [rects] = this page's pending parts. */
@@ -43,8 +44,8 @@ internal class PendingEdit(
     val onDraft: (MatchRect?) -> Unit,
     val onFinger: (Offset?) -> Unit,
     val onCreate: (MatchRect) -> Unit,
-    val onChange: (Int, MatchRect) -> Unit,
-    val onRemove: (Int) -> Unit,
+    val pending: PendingHooks,
+    val onQuick: ((MatchRect) -> Unit)?,
 )
 
 internal fun pendingEdit(
@@ -57,8 +58,8 @@ internal fun pendingEdit(
     onDraft = onDraft,
     onFinger = onFinger,
     onCreate = { hooks.onCreate(index, it) },
-    onChange = hooks.pending.onChange,
-    onRemove = hooks.pending.onRemove,
+    pending = hooks.pending,
+    onQuick = hooks.pending.quick?.let { quick -> { rect: MatchRect -> quick.onStart(index, rect) } },
 )
 
 private fun MatchRect.toRect(size: IntSize) =
@@ -90,13 +91,14 @@ internal fun hitPending(pos: Offset, size: IntSize, rects: List<MatchRect>, reac
 internal suspend fun AwaitPointerEventScope.pendingGesture(
     reachBase: Float,
     zoomOf: () -> Float,
+    drawNew: Boolean = true,
     edit: () -> PendingEdit,
 ) {
     val down = awaitFirstDown(requireUnconsumed = false)
     val current = edit()
     val hit = hitPending(down.position, size, current.rects, reachBase / maxOf(zoomOf(), MIN_ZOOM))
     when {
-        hit == null -> dragNew(down, current)
+        hit == null -> if (drawNew) dragNew(down, current)
         hit.kind == HitKind.REMOVE -> removeOnTap(down, hit.index, current)
         else -> dragExisting(down, hit, current)
     }
@@ -106,7 +108,7 @@ private suspend fun AwaitPointerEventScope.removeOnTap(down: PointerInputChange,
     down.consume()
     val up = waitForUpOrCancellation() ?: return
     up.consume()
-    edit.onRemove(index)
+    edit.pending.onRemove(index)
 }
 
 private fun MatchRect.shifted(dx: Float, dy: Float): MatchRect {
@@ -131,7 +133,7 @@ private suspend fun AwaitPointerEventScope.dragExisting(down: PointerInputChange
                 (change.position.y - down.position.y) / size.height,
             )
         }
-        next?.let { edit.onChange(hit.index, it) }
+        next?.let { edit.pending.onChange(hit.index, it) }
     }
     edit.onFinger(null)
 }

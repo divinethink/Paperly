@@ -53,7 +53,7 @@ class AnnotationController(
     val pending: StateFlow<PendingParts?> = pendingState.asStateFlow()
 
     fun toggleMode() {
-        if (annotateOn.value) pendingState.value = null
+        pendingState.value = null // also drops a quick box (long-press on an image page) when entering annotate mode
         annotateOn.update { !it }
     }
 
@@ -95,9 +95,8 @@ class AnnotationController(
     }
 
     /** Saves the pending parts as one annotation; a Note returns an editor (pending stays until its text is saved). */
-    fun commitPending(): AnnotationEditor? {
+    fun commitPending(chosen: AnnotateStyle = style.value): AnnotationEditor? {
         val parts = pendingState.value
-        val chosen = style.value
         return when {
             parts == null -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(parts.page, parts.rects.first(), null, parts.rects)

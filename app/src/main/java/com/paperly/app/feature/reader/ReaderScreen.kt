@@ -160,7 +160,7 @@ private fun ReaderContent(
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                     val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
-                        .copy(select = rememberSelectHooks(viewModel, enabled = !annotate))
+                        .withSelect(viewModel, enabled = !annotate)
                     PdfOrReflow(viewModel, state, listState, PageLook(fitHeight, pageFilter, highlights, hooks))
                     PdfSelectionMenu(viewModel) { editor = it }
                 }

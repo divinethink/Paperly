@@ -52,5 +52,10 @@ private suspend fun grow(
 
 private fun edgeIsWord(text: String, toRight: Boolean): Boolean {
     val c = if (toRight) text.last() else text.first()
-    return c.isLetterOrDigit() || c == '\''
+    return c.isLetterOrDigit() || c == '\'' || c.isCombiningMark()
+}
+
+private fun Char.isCombiningMark(): Boolean {
+    val type = Character.getType(this).toByte()
+    return type == Character.NON_SPACING_MARK || type == Character.COMBINING_SPACING_MARK
 }
