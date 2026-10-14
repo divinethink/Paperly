@@ -122,6 +122,8 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
         if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
         edit.onFinger(change.position)
     }
+    // Consume the lift too: otherwise the tap detector reads a no-drag long-press release as an empty tap and clears.
+    currentEvent.changes.forEach { if (it.id == down.id) it.consume() }
     edit.onFinger(null)
 }
 
