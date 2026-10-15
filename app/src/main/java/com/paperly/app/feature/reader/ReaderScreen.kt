@@ -118,6 +118,7 @@ private data class PageLook(
     val filter: ColorFilter?,
     val highlights: Map<Int, List<MatchRect>>,
     val hooks: AnnotationHooks,
+    val onEditor: (AnnotationEditor) -> Unit,
 )
 
 @Composable
@@ -161,7 +162,8 @@ private fun ReaderContent(
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                     val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
                         .withSelect(viewModel, enabled = !annotate)
-                    PdfOrReflow(viewModel, state, listState, PageLook(fitHeight, pageFilter, highlights, hooks))
+                    val look = PageLook(fitHeight, pageFilter, highlights, hooks) { editor = it }
+                    PdfOrReflow(viewModel, state, listState, look)
                     PdfSelectionMenu(viewModel) { editor = it }
                 }
                 else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -262,6 +264,9 @@ private fun PdfPages(
                 }
             }
         }
+        val heightPx = with(density) { viewportHeight.toPx() }
+        val port = SelectionViewport(listState, zoomState, basePx, viewportPx, heightPx)
+        PdfSelectionPopup(viewModel, port, look.onEditor)
     }
 }
 

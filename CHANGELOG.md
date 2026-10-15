@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2026-10-15 (L3 step 3: highlights written into Library PDFs)
-- New setting Settings -> Reading "Write highlights into the PDF file" (DataStore `write_highlights_to_pdf`, default OFF).
+- New setting Settings -> Reading "Write highlights into the PDF file" (DataStore `write_highlights_to_pdf`, default ON).
 - When ON: after a Library PDF/scanned-PDF Reader closes (engine closed first) and a highlight was added/edited/removed in that
   session, `PdfHighlightFileSync` (app scope, one write at a time) passes all of the document's annotations to `PdfAnnotationWriter`
   (dedupe by `/NM`; verify = the viewer engine opens the temp file). On `Written`: `LibraryPdfFiles.replaced` updates

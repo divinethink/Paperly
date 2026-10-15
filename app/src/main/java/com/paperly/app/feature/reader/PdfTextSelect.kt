@@ -140,6 +140,8 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
         edit.onFinger(change.position)
     }
     edit.onFinger(null)
+    // the lift is ours too: otherwise the tap handler sees a plain tap and drops the selection/box
+    currentEvent.changes.forEach { it.consume() }
 }
 
 /** Page-fraction points just inside the first and last selected line, used as the fixed/moving ends. */

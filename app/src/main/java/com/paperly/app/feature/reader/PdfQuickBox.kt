@@ -84,6 +84,8 @@ internal suspend fun AwaitPointerEventScope.quickPressGesture(edit: () -> Pendin
         current.onFinger(change.position)
     }
     current.onFinger(null)
+    // the lift is ours too: otherwise the tap handler sees a plain tap and drops the selection/box
+    currentEvent.changes.forEach { it.consume() }
 }
 
 /** Starts (or replaces) the single quick box; a box left on another page is dropped first. */
