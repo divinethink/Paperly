@@ -52,6 +52,7 @@ private const val SOURCE_SIDE = 1400
 private const val PREVIEW_SIDE = 1000
 
 @HiltViewModel
+@Suppress("TooManyFunctions") // one small action per editor operation
 class ScanEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ScanEditRepository,

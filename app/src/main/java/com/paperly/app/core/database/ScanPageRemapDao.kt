@@ -16,6 +16,7 @@ data class AnnotationLocatorRow(val annotationId: String, val locator: String)
  * (a highlighted page cannot be deleted) and a stray one aborts the whole transaction.
  */
 @Dao
+@Suppress("TooManyFunctions") // one query per page-keyed table
 abstract class ScanPageRemapDao {
     @Query("SELECT * FROM scan_pages WHERE documentId = :id")
     abstract suspend fun pages(id: String): List<ScanPageEntity>

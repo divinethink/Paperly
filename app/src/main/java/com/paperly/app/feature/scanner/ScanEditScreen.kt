@@ -1,10 +1,6 @@
 package com.paperly.app.feature.scanner
 
-import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -32,13 +28,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.paperly.app.R
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditResult
@@ -167,39 +161,6 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDele
     }
 }
 
-/** S4: move / add / delete pages. Nothing changes in the file until Save. */
-@Composable
-private fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, onDelete: () -> Unit) {
-    val context = LocalContext.current
-    val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val scanned = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            viewModel.addPages(scanned?.pages.orEmpty().map { it.imageUri.toString() })
-        }
-    }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
-        viewModel.addPages(uris.map { it.toString() })
-    }
-    val busy = state.saving || state.loading
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        TextButton(onClick = { viewModel.move(-1) }, enabled = !busy && state.current > 0) {
-            Text(stringResource(R.string.scan_edit_move_earlier))
-        }
-        TextButton(onClick = { viewModel.move(1) }, enabled = !busy && state.current < state.pages.size - 1) {
-            Text(stringResource(R.string.scan_edit_move_later))
-        }
-        TextButton(onClick = {
-            startScan(context.findActivity(), scanner, keepPages = true, onUnavailable = viewModel::onAddUnavailable)
-        }, enabled = !busy) { Text(stringResource(R.string.scan_edit_add_scan)) }
-        TextButton(onClick = {
-            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }, enabled = !busy) { Text(stringResource(R.string.scan_edit_add_gallery)) }
-        TextButton(onClick = onDelete, enabled = !busy && state.canDelete) {
-            Text(stringResource(R.string.scan_edit_delete))
-        }
-    }
-}
-
 private fun filterLabel(filter: ScanFilter): Int = when (filter) {
     ScanFilter.ORIGINAL -> R.string.scan_filter_original
     ScanFilter.COLOR -> R.string.scan_filter_color
@@ -247,17 +208,6 @@ private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
         text = { Text(stringResource(R.string.scan_edit_discard_body)) },
         confirmButton = { TextButton(onClick = onDiscard) { Text(stringResource(R.string.scan_edit_discard)) } },
         dismissButton = { TextButton(onClick = onKeep) { Text(stringResource(R.string.scan_edit_keep)) } },
-    )
-}
-
-@Composable
-private fun DeleteDialog(onDelete: () -> Unit, onCancel: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.scan_edit_delete_title)) },
-        text = { Text(stringResource(R.string.scan_edit_delete_body)) },
-        confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.scan_edit_delete)) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) } },
     )
 }
 

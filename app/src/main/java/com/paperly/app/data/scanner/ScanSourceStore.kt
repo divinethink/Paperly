@@ -12,6 +12,7 @@ import javax.inject.Singleton
 
 /** The kept page images: `files/scans/<documentId>/p<i>.img`. Plain file work, no database. */
 @Singleton
+@Suppress("TooManyFunctions") // plain file helpers, one per folder operation
 class ScanSourceStore @Inject constructor(@ApplicationContext private val context: Context) {
 
     private fun dir(documentId: String): File? =

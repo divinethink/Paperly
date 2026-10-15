@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
  * ([ScanPdfReplacer]); the DB rows follow only after the file was replaced.
  */
 @Singleton
+@Suppress("TooManyFunctions", "LongParameterList") // Hilt-injected collaborators; one method per interface operation
 class ScanEditRepositoryImpl @Inject constructor(
     private val sources: ScanSourceStore,
     private val edits: ScanPageEditDao,
@@ -151,14 +152,14 @@ class ScanEditRepositoryImpl @Inject constructor(
 
     private fun editRows(documentId: String, pages: List<ScanEditPage>): List<ScanPageEditEntity> {
         val now = System.currentTimeMillis()
-        return pages.mapIndexed { position, it ->
+        return pages.mapIndexed { position, page ->
             ScanPageEditEntity(
                 documentId = documentId,
                 pageIndex = position,
                 srcFile = sources.pageName(position),
-                rotation = it.rotation,
-                cornersJson = it.quad.takeIf { q -> q != ScanQuad.FULL }?.toJson(),
-                filter = it.filter.name,
+                rotation = page.rotation,
+                cornersJson = page.quad.takeIf { q -> q != ScanQuad.FULL }?.toJson(),
+                filter = page.filter.name,
                 updatedAt = now,
             )
         }
