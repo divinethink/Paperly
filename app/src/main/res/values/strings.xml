@@ -125,6 +125,12 @@
     <string name="scan_page_title">Page %1$d</string>
     <string name="scan_page_name">Title</string>
     <string name="scan_page_note">Note</string>
+    <string name="scan_name_title">Name this scan</string>
+    <string name="scan_name_label">Name</string>
+    <string name="scan_folder_label">Folder</string>
+    <string name="scan_folder_none">No folder</string>
+    <string name="scan_save">Save</string>
+    <string name="scan_save_as_is">Save as is</string>
     <string name="scan_saving">Saving scan…</string>
     <string name="scan_error_unavailable">Scanner is not available on this device (Google Play services needed).</string>
     <string name="scan_error_save">Could not save the scan. Please try again.</string>

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-15 (Scan S1: name + folder when saving a scan)
+- After the ML Kit scanner returns, a dialog asks for the scan's name (default `Scan <date>`) and a folder (none/existing). Not
+  dismissible by Back/outside tap: "Save" or "Save as is" both store the scan, so it is never lost. A crash while the dialog is open
+  re-imports the scan once with the default name (existing `pending_scan_uri` recovery). Blank name -> default (`scanTitle`).
+- JPG/PNG export of a scan already exists (Library menu "Export as images"), so S1 adds no export. No DB/schema/rules change.
+- Files: `ScanViewModel`, `ScanScreen`, new `ScanNameDialog`, `domain/scanner/ScanTitle.kt`, strings; test `ScanTitleTest`.
+
 ## 2026-10-15 (L3 step 3: highlights written into Library PDFs)
 - New setting Settings -> Reading "Write highlights into the PDF file" (DataStore `write_highlights_to_pdf`, default ON).
 - When ON: after a Library PDF/scanned-PDF Reader closes (engine closed first) and a highlight was added/edited/removed in that

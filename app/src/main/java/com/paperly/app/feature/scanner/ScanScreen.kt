@@ -34,6 +34,7 @@ import com.paperly.app.R
 @Composable
 fun ScanScreen(onSaved: () -> Unit, viewModel: ScanViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -46,6 +47,14 @@ fun ScanScreen(onSaved: () -> Unit, viewModel: ScanViewModel = hiltViewModel()) 
             viewModel.consumeSaved()
             onSaved()
         }
+    }
+    if (state.naming) {
+        ScanNameDialog(
+            defaultTitle = state.defaultTitle,
+            folders = folders,
+            onSave = viewModel::confirmName,
+            onSaveAsIs = { viewModel.confirmName("", null) },
+        )
     }
     Column(
         Modifier.fillMaxSize().padding(24.dp),
