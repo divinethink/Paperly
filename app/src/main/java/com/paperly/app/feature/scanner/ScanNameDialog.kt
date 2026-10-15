@@ -65,7 +65,9 @@ internal fun ScanNameDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(title, folderId) }) { Text(stringResource(R.string.scan_save)) } },
+        confirmButton = {
+            TextButton(onClick = { onSave(title, folderId) }) { Text(stringResource(R.string.scan_save)) }
+        },
         dismissButton = { TextButton(onClick = onSaveAsIs) { Text(stringResource(R.string.scan_save_as_is)) } },
     )
 }
@@ -73,7 +75,10 @@ internal fun ScanNameDialog(
 @Composable
 private fun FolderChoice(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)

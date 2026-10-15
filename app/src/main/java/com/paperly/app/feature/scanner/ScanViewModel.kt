@@ -81,7 +81,8 @@ class ScanViewModel @Inject constructor(
         if (current.saving || current.naming) return
         pendingUri = pdfUri
         _state.value = ScanUiState(naming = true, defaultTitle = defaultTitle())
-        viewModelScope.launch { store.edit { it[PENDING_KEY] = pdfUri } } // pointer survives a crash while the dialog is open
+        // pointer survives a crash while the dialog is open
+        viewModelScope.launch { store.edit { it[PENDING_KEY] = pdfUri } }
     }
 
     /** Dialog answer: [title] blank = default name; [folderId] null = no folder. */
@@ -98,9 +99,12 @@ class ScanViewModel @Inject constructor(
         viewModelScope.launch {
             store.edit { it[PENDING_KEY] = pdfUri } // pointer survives a crash until the save is done
             val result = repository.importScan(pdfUri, title)
-            if (result is ImportResult.Success && folderId != null) folderRepository.moveDocument(result.documentId, folderId)
+            if (result is ImportResult.Success && folderId != null) {
+                folderRepository.moveDocument(result.documentId, folderId)
+            }
             store.edit { it.remove(PENDING_KEY) } // one attempt per pointer: no endless retry loop
-            val ok = result is ImportResult.Success || result is ImportResult.Duplicate // identical scan already in Library
+            // Duplicate = an identical scan is already in the Library
+            val ok = result is ImportResult.Success || result is ImportResult.Duplicate
             _state.value = if (ok) ScanUiState(saved = true) else ScanUiState(error = ScanError.Save)
         }
     }
