@@ -33,8 +33,14 @@ class ScanPageRemapDaoTest {
         runBlocking {
             db.documentDao().insert(
                 DocumentEntity(
-                    documentId = "d1", title = "Scan", type = "scanned-pdf", sizeBytes = 1L, checksum = "c",
-                    localUri = "x", createdAt = 1L, updatedAt = 1L,
+                    documentId = "d1",
+                    title = "Scan",
+                    type = "scanned-pdf",
+                    sizeBytes = 1L,
+                    checksum = "c",
+                    localUri = "x",
+                    createdAt = 1L,
+                    updatedAt = 1L,
                 ),
             )
             db.scanPageDao().upsert(ScanPageEntity("d1", 0, "Zero", null, 1L))
