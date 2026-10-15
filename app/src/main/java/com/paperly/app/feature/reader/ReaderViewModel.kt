@@ -27,6 +27,7 @@ import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -110,13 +111,14 @@ class ReaderViewModel @Inject constructor(
     val theme: StateFlow<ReaderTheme> = preferences.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ReaderTheme.AUTO)
 
+    private val bookmarkSource: Flow<Set<Int>> = when {
+        isQuick -> quick.bookmarks
+        documentId.isEmpty() -> emptyFlow()
+        else -> readerState.observeBookmarkedPages(documentId)
+    }
+
     val bookmarkedPages: StateFlow<Set<Int>> =
-        (when {
-            isQuick -> quick.bookmarks
-            documentId.isEmpty() -> emptyFlow()
-            else -> readerState.observeBookmarkedPages(documentId)
-        })
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptySet())
+        bookmarkSource.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptySet())
 
     init {
         textSelect.onMiss = { page, from, to -> annotations.quickMiss(page, from, to) }
