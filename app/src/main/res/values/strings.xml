@@ -137,7 +137,7 @@
     <string name="scan_edit_unavailable">The pages of this scan were not kept, so they cannot be edited.</string>
     <string name="scan_edit_page_of">Page %1$d of %2$d</string>
     <string name="scan_edit_preview">Page preview</string>
-    <string name="scan_edit_locked">This page has highlights, so crop and rotate are off. Filters still work.</string>
+    <string name="scan_edit_locked">This page has highlights, so crop, rotate and delete are off. Filters and moving still work.</string>
     <string name="scan_edit_prev">Previous</string>
     <string name="scan_edit_next">Next</string>
     <string name="scan_edit_rotate">Rotate</string>
@@ -160,6 +160,14 @@
     <string name="scan_edit_error_save">Could not save the edited pages. Your scan was not changed.</string>
     <string name="scan_edit_error_memory">Not enough memory for this size. Try Small or Medium. Your scan was not changed.</string>
     <string name="scan_edit_pages">Edit pages</string>
+    <string name="scan_edit_move_earlier">Move earlier</string>
+    <string name="scan_edit_move_later">Move later</string>
+    <string name="scan_edit_add_scan">Add scan</string>
+    <string name="scan_edit_add_gallery">Add pictures</string>
+    <string name="scan_edit_delete">Delete page</string>
+    <string name="scan_edit_delete_title">Delete this page?</string>
+    <string name="scan_edit_delete_body">The page is removed when you tap Save. Its title, note and bookmark go with it. Your current file is kept as a backup for 7 days.</string>
+    <string name="scan_edit_error_add">Could not add the pictures. Your scan was not changed.</string>
     <string name="settings_scan_editor">Scan page editor</string>
     <string name="settings_scan_editor_hint">On by default. Keeps your scanned pages so you can crop, rotate and filter them after saving, and adds Import from gallery. Turn off to go back to the plain scanner.</string>
     <string name="settings_scan_ocr">Scan text recognition (OCR)</string>

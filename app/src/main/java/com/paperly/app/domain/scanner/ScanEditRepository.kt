@@ -3,8 +3,10 @@ package com.paperly.app.domain.scanner
 import java.io.File
 
 /**
- * One page in the editor. [locked] = the page carries highlights/annotations, so crop and rotation are frozen
- * (they would move the page fractions the annotations are stored in); filters stay allowed.
+ * One page in the editor. [index] = the kept source page it came from; an added page (S4, [added] = its staged file
+ * name) has [ADDED_INDEX]. Its position in the editor list is its position in the PDF.
+ * [locked] = the page carries highlights/annotations, so crop and rotation are frozen (they would move the page
+ * fractions the annotations are stored in) and it cannot be deleted; filters and moving stay allowed.
  */
 data class ScanEditPage(
     val index: Int,
@@ -12,7 +14,12 @@ data class ScanEditPage(
     val quad: ScanQuad = ScanQuad.FULL,
     val filter: ScanFilter = ScanFilter.ORIGINAL,
     val locked: Boolean = false,
-)
+    val added: String? = null,
+) {
+    val isAdded: Boolean get() = added != null
+}
+
+const val ADDED_INDEX = -1
 
 /** Edit operations; a [ScanEditPage.locked] page keeps its geometry (crop/rotation), filters always apply. */
 fun ScanEditPage.rotated(): ScanEditPage = if (locked) this else copy(rotation = rotateRight(rotation))
@@ -44,6 +51,15 @@ interface ScanEditRepository {
 
     /** The kept (un-edited) image of a page, for previews; null if missing. */
     fun sourceFile(documentId: String, index: Int): File?
+
+    /** S4: image of any editor page (kept source or staged added page); null if missing. */
+    fun pageFile(documentId: String, page: ScanEditPage): File?
+
+    /** S4: copies new pictures (scanner pages or gallery picks) aside for adding; returns [ScanEditPage]s or null. */
+    suspend fun stageAdded(documentId: String, uris: List<String>): List<ScanEditPage>?
+
+    /** S4: removes the staged (not yet saved) added pages; call when the editor closes. */
+    fun discardStaged(documentId: String)
 
     /** Gallery import: unedited PDF of the picked images (+ their kept copies). Null on failure. */
     suspend fun stageGallery(uris: List<String>): StagedScan?

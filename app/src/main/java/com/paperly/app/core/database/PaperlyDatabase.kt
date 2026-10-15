@@ -166,6 +166,8 @@ abstract class PaperlyDatabase : RoomDatabase() {
 
     abstract fun scanPageEditDao(): ScanPageEditDao
 
+    abstract fun scanPageRemapDao(): ScanPageRemapDao
+
     abstract fun scanOcrDao(): ScanOcrDao
 
     abstract fun syncItemDao(): SyncItemDao

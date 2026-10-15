@@ -1,6 +1,10 @@
 package com.paperly.app.feature.scanner
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -28,11 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.paperly.app.R
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditResult
@@ -48,6 +54,7 @@ fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewMo
     val state by viewModel.state.collectAsStateWithLifecycle()
     var askSize by remember { mutableStateOf(false) }
     var askDiscard by remember { mutableStateOf(false) }
+    var askDelete by remember { mutableStateOf(false) }
     LaunchedEffect(state.done) { if (state.done) onDone() }
     BackHandler {
         when {
@@ -66,6 +73,16 @@ fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewMo
         )
     }
     if (askDiscard) DiscardDialog(onDiscard = onDone, onKeep = { askDiscard = false })
+    if (askDelete) {
+        DeleteDialog(
+            onDelete = {
+                askDelete = false
+                viewModel.deleteCurrent()
+            },
+            onCancel = { askDelete = false },
+        )
+    }
+    if (state.addFailed) FailedDialog(null, viewModel::dismissError)
     state.failed?.let { FailedDialog(it, viewModel::dismissError) }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else onDone() }, onSave = { askSize = true })
@@ -76,7 +93,7 @@ fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewMo
         if (state.notEditable) {
             Text(stringResource(R.string.scan_edit_unavailable), Modifier.padding(16.dp))
         } else {
-            EditControls(state, viewModel)
+            EditControls(state, viewModel, onDelete = { askDelete = true })
         }
     }
 }
@@ -115,7 +132,7 @@ private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
 }
 
 @Composable
-private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel) {
+private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDelete: () -> Unit) {
     val page = state.page ?: return
     Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
@@ -145,6 +162,40 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel) {
             TextButton(onClick = { viewModel.goTo(state.current + 1) }, enabled = hasNext) {
                 Text(stringResource(R.string.scan_edit_next))
             }
+        }
+        PageManagementRow(state, viewModel, onDelete)
+    }
+}
+
+/** S4: move / add / delete pages. Nothing changes in the file until Save. */
+@Composable
+private fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, onDelete: () -> Unit) {
+    val context = LocalContext.current
+    val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scanned = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            viewModel.addPages(scanned?.pages.orEmpty().map { it.imageUri.toString() })
+        }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+        viewModel.addPages(uris.map { it.toString() })
+    }
+    val busy = state.saving || state.loading
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextButton(onClick = { viewModel.move(-1) }, enabled = !busy && state.current > 0) {
+            Text(stringResource(R.string.scan_edit_move_earlier))
+        }
+        TextButton(onClick = { viewModel.move(1) }, enabled = !busy && state.current < state.pages.size - 1) {
+            Text(stringResource(R.string.scan_edit_move_later))
+        }
+        TextButton(onClick = {
+            startScan(context.findActivity(), scanner, keepPages = true, onUnavailable = viewModel::onAddUnavailable)
+        }, enabled = !busy) { Text(stringResource(R.string.scan_edit_add_scan)) }
+        TextButton(onClick = {
+            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }, enabled = !busy) { Text(stringResource(R.string.scan_edit_add_gallery)) }
+        TextButton(onClick = onDelete, enabled = !busy && state.canDelete) {
+            Text(stringResource(R.string.scan_edit_delete))
         }
     }
 }
@@ -200,8 +251,21 @@ private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
 }
 
 @Composable
-private fun FailedDialog(result: ScanEditResult, onDismiss: () -> Unit) {
+private fun DeleteDialog(onDelete: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.scan_edit_delete_title)) },
+        text = { Text(stringResource(R.string.scan_edit_delete_body)) },
+        confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.scan_edit_delete)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) } },
+    )
+}
+
+/** [result] null = adding pictures failed (nothing was changed). */
+@Composable
+private fun FailedDialog(result: ScanEditResult?, onDismiss: () -> Unit) {
     val message = when (result) {
+        null -> R.string.scan_edit_error_add
         ScanEditResult.OUT_OF_MEMORY -> R.string.scan_edit_error_memory
         else -> R.string.scan_edit_error_save
     }

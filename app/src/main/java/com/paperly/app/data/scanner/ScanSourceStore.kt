@@ -6,6 +6,7 @@ import com.paperly.app.core.file.SAFE_DOCUMENT_ID
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -64,6 +65,62 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
 
     fun pageName(index: Int) = "p$index.img"
 
+    private fun stagedDir(documentId: String): File? =
+        if (SAFE_DOCUMENT_ID.matches(documentId)) File(File(context.cacheDir, ADD_DIR), documentId) else null
+
+    /** S4: pictures to add, copied aside (not yet part of the scan). Returns their file names; none left on failure. */
+    fun stageAdded(documentId: String, uris: List<String>): List<String>? {
+        val dir = stagedDir(documentId) ?: return null
+        return try {
+            dir.mkdirs()
+            uris.map { uri ->
+                val name = "a${UUID.randomUUID()}.img"
+                copy(Uri.parse(uri), File(dir, name))
+                name
+            }
+        } catch (e: IOException) {
+            null.also { dir.deleteRecursively() }
+        } catch (e: SecurityException) {
+            null.also { dir.deleteRecursively() }
+        }
+    }
+
+    fun stagedFile(documentId: String, name: String): File? =
+        if (STAGED_NAME.matches(name)) stagedDir(documentId)?.let { File(it, name) }?.takeIf { it.isFile } else null
+
+    fun discardStaged(documentId: String) {
+        stagedDir(documentId)?.deleteRecursively()
+    }
+
+    private fun nextDir(documentId: String): File? =
+        if (SAFE_DOCUMENT_ID.matches(documentId)) File(context.filesDir, "$SCANS_DIR/$documentId.next") else null
+
+    /**
+     * S4: the page images in their NEW order as `p0..` in a side folder (`<id>.next`); the live folder is untouched
+     * until [commitNext]. Throws on failure (the caller then calls [discardNext]).
+     */
+    fun prepareNext(documentId: String, sources: List<File>) {
+        val next = nextDir(documentId) ?: throw IOException("Bad document id")
+        next.deleteRecursively()
+        next.mkdirs()
+        sources.forEachIndexed { i, file -> file.copyTo(File(next, pageName(i)), overwrite = true) }
+    }
+
+    /** Replaces the live folder with the prepared one (call only after the file and rows changed). */
+    fun commitNext(documentId: String) {
+        val live = dir(documentId) ?: return
+        val next = nextDir(documentId)?.takeIf { it.isDirectory } ?: return
+        live.deleteRecursively()
+        if (!next.renameTo(live)) {
+            next.copyRecursively(live, overwrite = true)
+            next.deleteRecursively()
+        }
+    }
+
+    fun discardNext(documentId: String) {
+        nextDir(documentId)?.deleteRecursively()
+    }
+
     private fun copy(uri: Uri, target: File) {
         val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Cannot open page image")
         input.use { source -> target.outputStream().buffered().use { source.copyTo(it) } }
@@ -76,5 +133,7 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
     private companion object {
         const val SCANS_DIR = "scans"
         const val GALLERY_DIR = "scan_gallery"
+        const val ADD_DIR = "scan_add"
+        val STAGED_NAME = Regex("a[0-9a-f-]{36}\\.img")
     }
 }

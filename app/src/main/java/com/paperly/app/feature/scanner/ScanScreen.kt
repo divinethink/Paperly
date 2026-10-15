@@ -88,7 +88,7 @@ fun ScanScreen(onSaved: (editDocumentId: String?) -> Unit, viewModel: ScanViewMo
     }
 }
 
-private fun startScan(
+internal fun startScan(
     activity: Activity?,
     launcher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
     keepPages: Boolean,
@@ -116,7 +116,7 @@ private fun startScan(
         .addOnFailureListener { onUnavailable() }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null

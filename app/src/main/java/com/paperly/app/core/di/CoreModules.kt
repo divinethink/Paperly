@@ -20,6 +20,7 @@ import com.paperly.app.core.database.ReaderDao
 import com.paperly.app.core.database.ScanOcrDao
 import com.paperly.app.core.database.ScanPageDao
 import com.paperly.app.core.database.ScanPageEditDao
+import com.paperly.app.core.database.ScanPageRemapDao
 import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.AppPrivateDocumentFileStore
@@ -78,6 +79,9 @@ object DatabaseModule {
 
     @Provides
     fun provideScanPageEditDao(db: PaperlyDatabase): ScanPageEditDao = db.scanPageEditDao()
+
+    @Provides
+    fun provideScanPageRemapDao(db: PaperlyDatabase): ScanPageRemapDao = db.scanPageRemapDao()
 
     @Provides
     fun provideScanOcrDao(db: PaperlyDatabase): ScanOcrDao = db.scanOcrDao()

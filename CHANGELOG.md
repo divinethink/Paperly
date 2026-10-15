@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-15 (Scan S4a: add, delete and reorder pages of a scan; no schema change, DB stays v10)
+- The page editor (Reader menu > Edit pages) gets a second button row: Move earlier / Move later, Add scan (ML Kit, appended at the end),
+  Add pictures (gallery, appended), Delete page (asks first). Nothing changes until Save; Cancel/Back discards (staged pictures are removed).
+- Rules: a page with highlights cannot be deleted (it can be moved); the last page cannot be deleted. Deleting a page also removes its
+  title/note and bookmark (the confirm text says so). The current file stays as the usual 7-day backup.
+- One save, one order: verified temp PDF + backup (`ScanPdfReplacer.prepare`) -> new image folder `files/scans/<id>.next` -> ONE Room
+  transaction (`ScanPageRemapDao.remap`: page title/note, editor rows, highlights, bookmarks, reading position follow the new order,
+  then the file is swapped in LAST via `ScanPdfReplacer.commitLast`; a failed swap rolls every row back) -> image folder swap.
+  Highlights are re-written into the new file by the existing `PdfHighlightFileSync`; stored OCR text is dropped and re-queued as in S2.
+- A save that only changes filters/crop/rotation takes the unchanged S2 path.
+- Known / left: crash in the milliseconds between the transaction commit and the image-folder swap leaves the old image folder
+  (editor then shows the old page set; PDF and rows are right) - re-saving rebuilds it from the next save only if page count matches.
+  Library cover is not regenerated when page 1 changes (same as S2). Multi-file share and auto-naming are NOT in S4a (see roadmap S4b).
+- Files: `core/database/ScanPageRemapDao` (new), `PaperlyDatabase`, `CoreModules`, `domain/scanner/ScanPageOps` (new), `ScanEditRepository`,
+  `data/scanner/ScanEditRepositoryImpl|ScanSourceStore|ScanPdfReplacer|ScanPdfBuilder`, `feature/scanner/ScanEditScreen|ScanEditViewModel|ScanScreen`, strings.
+- Tests: `ScanPageOpsTest`, `ScanPageRemapDaoTest` (remap, rollback on failed file step, highlight on removed page aborts).
+
 ## 2026-10-15 (Scan S3: optional text recognition of scans, DB v9 -> v10)
 - New Settings switch "Scan text recognition (OCR)" (`scan_ocr_enabled`, OFF by default). ON: downloads the existing Bengali+English
   Tesseract data once (existing `OcrModel`), then reads scans in the background (WorkManager, battery-not-low, one scan at a time,

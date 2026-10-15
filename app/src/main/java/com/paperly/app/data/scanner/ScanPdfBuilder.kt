@@ -24,13 +24,13 @@ import javax.inject.Singleton
 @Singleton
 class ScanPdfBuilder @Inject constructor(@ApplicationContext private val context: Context) {
 
-    /** [source] gives the image file of a page index. Throws on any failure; the caller owns [out]'s cleanup. */
-    fun build(out: File, pages: List<ScanEditPage>, size: ScanOutputSize, source: (Int) -> File) {
+    /** [source] gives the image file of an editor page. Throws on any failure; the caller owns [out]'s cleanup. */
+    fun build(out: File, pages: List<ScanEditPage>, size: ScanOutputSize, source: (ScanEditPage) -> File) {
         PDFBoxResourceLoader.init(context)
         PDDocument(MemoryUsageSetting.setupTempFileOnly()).use { doc ->
             pages.forEach { page ->
                 val bitmap = ScanPageRenderer.renderFile(
-                    source(page.index),
+                    source(page),
                     page.quad,
                     page.rotation,
                     page.filter,

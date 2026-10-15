@@ -28,7 +28,18 @@ class ScanPdfReplacer @Inject constructor(
     private val openCheck: PdfOpenCheck,
     private val ocr: ScanOcrRepository,
 ) {
+    /** A verified temp PDF whose backup exists: what is still needed to swap it in. */
+    class Prepared(val checksum: String, val bytes: Long)
+
     suspend fun replace(documentId: String, file: File, tmp: File, expectedPages: Int) {
+        val prepared = prepare(file, tmp, expectedPages)
+        Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE)
+        files.replaced(documentId, prepared.checksum, prepared.bytes)
+        ocr.invalidate(documentId) // pages changed: old text no longer matches; read again if the switch is ON
+    }
+
+    /** Verify the new PDF and back up the current file. Throws (nothing changed) on any problem. */
+    suspend fun prepare(file: File, tmp: File, expectedPages: Int): Prepared {
         val pages = PDDocument.load(tmp, MemoryUsageSetting.setupTempFileOnly()).use { it.numberOfPages }
         val countOk = pages == expectedPages
         if (!countOk || !openCheck.opens(tmp)) throw IOException("Verification of the new PDF failed")
@@ -37,9 +48,17 @@ class ScanPdfReplacer @Inject constructor(
         val backups = File(context.filesDir, PdfBoxAnnotationWriter.BACKUP_DIR).apply { mkdirs() }
         pruneBackups(backups)
         file.copyTo(File(backups, "${file.name}.bak"), overwrite = true) // no backup = no replace
+        return Prepared(checksum, bytes)
+    }
+
+    /**
+     * S4 (page structure change): meant to run inside the page-remap DB transaction. Records the new file, then moves
+     * it in LAST, so a failed move rolls the records back and the original file stays as it was.
+     */
+    suspend fun commitLast(documentId: String, file: File, tmp: File, prepared: Prepared) {
+        files.replaced(documentId, prepared.checksum, prepared.bytes)
+        ocr.invalidate(documentId)
         Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE)
-        files.replaced(documentId, checksum, bytes)
-        ocr.invalidate(documentId) // pages changed: old text no longer matches; read again if the switch is ON
     }
 
     private fun pruneBackups(dir: File) {
