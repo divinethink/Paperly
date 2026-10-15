@@ -1,7 +1,9 @@
 package com.paperly.app.feature.reader
 
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +21,7 @@ internal class ReaderFileActions(val export: DocumentExport, val saveToLibrary: 
 /** Must be called outside the dropdown: the Save-a-copy result launcher has to outlive the closing menu. */
 @Composable
 internal fun rememberReaderFileActions(viewModel: ReaderViewModel): ReaderFileActions? {
+    QuickKeepPrompt(viewModel)
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
@@ -50,4 +53,23 @@ internal fun FileMenuItems(actions: ReaderFileActions, onDone: () -> Unit) {
             },
         )
     }
+}
+
+/** Quick view, after the first highlight: highlights live only with a Library copy, so offer to keep the file. */
+@Composable
+private fun QuickKeepPrompt(viewModel: ReaderViewModel) {
+    val show by viewModel.keepPrompt.collectAsStateWithLifecycle()
+    QuickKeepDialog(show, viewModel::saveToLibrary, viewModel::dismissKeepPrompt)
+}
+
+@Composable
+internal fun QuickKeepDialog(show: Boolean, onSave: () -> Unit, onLater: () -> Unit) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onLater,
+        title = { Text(stringResource(R.string.quick_keep_title)) },
+        text = { Text(stringResource(R.string.quick_keep_body)) },
+        confirmButton = { TextButton(onClick = onSave) { Text(stringResource(R.string.quick_save_to_library)) } },
+        dismissButton = { TextButton(onClick = onLater) { Text(stringResource(R.string.quick_keep_later)) } },
+    )
 }

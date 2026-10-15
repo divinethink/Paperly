@@ -24,13 +24,25 @@ private const val QUICK_DIR = "quickview"
 private const val QUICK_PREFIX = "quick-"
 private const val BUFFER_SIZE = 64 * 1024
 private const val HEADER_BYTES = 1024
+private const val ZIP_MAGIC = "PK"
+private const val PDF_MIME = "application/pdf"
+private const val EPUB_MIME = "application/epub+zip"
 private const val MAX_TITLE = 200
 private const val MAX_AGE_MS = 24L * 60 * 60 * 1000
 
-/** Cache folder of "Quick view" PDFs (opened without importing); old leftovers are pruned at app start. */
+/** Cache folder of "Quick view" PDFs and EPUBs (opened without importing); old leftovers are pruned at app start. */
 fun quickViewDir(context: Context): File = File(context.cacheDir, QUICK_DIR)
 
-/** Outcome of staging an externally opened PDF. */
+/** What a quick-view file is; decides the cache extension and the header check. */
+private enum class QuickKind(val ext: String) { PDF("pdf"), EPUB("epub") }
+
+private fun kindOf(name: String?, mime: String?): QuickKind? = when {
+    name?.endsWith(".pdf", ignoreCase = true) == true || mime == PDF_MIME -> QuickKind.PDF
+    name?.endsWith(".epub", ignoreCase = true) == true || mime == EPUB_MIME -> QuickKind.EPUB
+    else -> null
+}
+
+/** Outcome of staging an externally opened PDF or EPUB. */
 sealed interface QuickStage {
     /** Same content is already in the Library: open that copy (progress and bookmarks included). */
     data class Library(val documentId: String) : QuickStage
@@ -62,11 +74,10 @@ class QuickViewStore @Inject constructor(
         val uri = Uri.parse(sourceUri)
         val name = runCatching { displayName(uri) }.getOrNull()
         val mime = runCatching { context.contentResolver.getType(uri) }.getOrNull()
-        val isPdf = name?.endsWith(".pdf", ignoreCase = true) == true || mime == "application/pdf"
-        if (!isPdf) return@withContext QuickStage.NotPdf
+        val kind = kindOf(name, mime) ?: return@withContext QuickStage.NotPdf
         val token = QUICK_PREFIX + UUID.randomUUID()
         try {
-            val checksum = copyPdf(uri, File(dir, "$token.pdf"))
+            val checksum = copyChecked(uri, File(dir, "$token.${kind.ext}"), kind)
             val existing = dao.findActiveByChecksum(checksum)
             if (existing != null) {
                 delete(token)
@@ -89,14 +100,16 @@ class QuickViewStore @Inject constructor(
     fun document(token: String): Document? {
         val file = resolve(token) ?: return null
         val title = runCatching { File(dir, "$token.txt").readText() }.getOrNull()?.ifBlank { null } ?: "Document"
-        return Document(token, title, DocumentType.PDF, file.length(), file.lastModified())
+        val type = if (file.extension == QuickKind.EPUB.ext) DocumentType.EPUB else DocumentType.PDF
+        return Document(token, title, type, file.length(), file.lastModified())
     }
 
-    fun resolve(token: String): File? = if (isToken(token)) File(dir, "$token.pdf").takeIf { it.isFile } else null
+    fun resolve(token: String): File? =
+        if (isToken(token)) QuickKind.entries.map { File(dir, "$token.${it.ext}") }.firstOrNull { it.isFile } else null
 
     fun delete(token: String) {
         if (!isToken(token)) return
-        runCatching { File(dir, "$token.pdf").delete() }
+        QuickKind.entries.forEach { kind -> runCatching { File(dir, "$token.${kind.ext}").delete() } }
         runCatching { File(dir, "$token.txt").delete() }
     }
 
@@ -105,14 +118,14 @@ class QuickViewStore @Inject constructor(
             ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
 
     /**
-     * Copies to [target] and returns the SHA-256. Throws if the copy is not a PDF; the caller removes the partial
-     * file ([stage] deletes the whole token on any failure).
+     * Copies to [target] and returns the SHA-256. Throws if the copy does not look like a [kind]; the caller removes
+     * the partial file ([stage] deletes the whole token on any failure).
      */
-    private suspend fun copyPdf(uri: Uri, target: File): String {
+    private suspend fun copyChecked(uri: Uri, target: File, kind: QuickKind): String {
         val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Cannot open source")
         val digest = MessageDigest.getInstance("SHA-256")
         val size = input.use { src -> target.outputStream().buffered().use { out -> pump(src, out, digest) } }
-        if (target.length() != size || !hasPdfHeader(target)) throw IOException("Not a valid PDF copy")
+        if (target.length() != size || !hasHeader(target, kind)) throw IOException("Not a valid ${kind.ext} copy")
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
@@ -121,10 +134,11 @@ class QuickViewStore @Inject constructor(
     }
 }
 
-private fun hasPdfHeader(file: File): Boolean = file.inputStream().use { input ->
+private fun hasHeader(file: File, kind: QuickKind): Boolean = file.inputStream().use { input ->
     val head = ByteArray(HEADER_BYTES)
     val n = input.read(head)
-    n > 0 && String(head, 0, n, Charsets.ISO_8859_1).contains("%PDF-")
+    val text = if (n > 0) String(head, 0, n, Charsets.ISO_8859_1) else ""
+    if (kind == QuickKind.PDF) text.contains("%PDF-") else text.startsWith(ZIP_MAGIC) // EPUB = zip
 }
 
 private suspend fun pump(src: InputStream, out: OutputStream, digest: MessageDigest): Long {

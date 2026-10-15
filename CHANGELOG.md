@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-15 (Quick view: EPUB)
+- Open-With of an EPUB is read directly too (cache copy, `QuickViewStore` now handles pdf + epub; same book already in the Library
+  opens that copy). Highlights/bookmarks stay in memory (`QuickEpubSession`); the first highlight asks to keep the book in the Library;
+  top-bar menu: Save to Library / Share / Save a copy. Save to Library copies highlights, bookmarks and the position and reopens
+  the Library copy. `importPdf` -> `importQuick(uri, title, type)`. No DB/schema change.
+
+## 2026-10-15 (Quick view: highlights + bookmarks)
+- Quick-view PDF: highlight/underline/note and bookmarks work (kept in memory; `QuickSession`). The first highlight asks
+  "Keep this PDF in your Library?"; Save to Library imports the PDF, copies highlights, bookmarks and the page, then reopens
+  the Library copy (`ReaderRedirects`). Not now = they are lost when the reader closes. No DB/schema change.
+
 ## 2026-10-14 (build fix + Quick view)
 - Build fix: removed duplicate declarations left by a partial upload (`HitKind`/`PendingHit`/`hitPending`, `TypeOption`/`typeLabel`);
   pending boxes now also have side handles (`PdfPendingHit.kt`, `dragSide`).

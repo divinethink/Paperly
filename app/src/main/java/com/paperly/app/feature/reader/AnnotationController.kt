@@ -52,11 +52,7 @@ class AnnotationController(
     /** Unsaved parts of the annotation being built (one page only); empty = null. Not persisted. */
     val pending: StateFlow<PendingParts?> = pendingState.asStateFlow()
 
-    /** Quick view (a PDF not in the Library): nothing can be annotated, there is no document row to attach it to. */
-    var readOnly = false
-
     fun toggleMode() {
-        if (readOnly) return
         pendingState.value = null // also drops a quick box (long-press on an image page) when entering annotate mode
         annotateOn.update { !it }
     }
@@ -102,7 +98,7 @@ class AnnotationController(
     fun commitPending(chosen: AnnotateStyle = style.value): AnnotationEditor? {
         val parts = pendingState.value
         return when {
-            readOnly || parts == null -> null
+            parts == null -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(parts.page, parts.rects.first(), null, parts.rects)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
@@ -121,7 +117,7 @@ class AnnotationController(
         val parts = rects.take(MAX_PARTS)
         val chosen = type?.let { style.value.copy(type = it) } ?: style.value
         return when {
-            readOnly || parts.isEmpty() -> null
+            parts.isEmpty() -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null)
@@ -132,7 +128,6 @@ class AnnotationController(
     }
 
     fun save(editor: AnnotationEditor, content: AnnotationContent) {
-        if (readOnly) return
         scope.launch {
             val existing = editor.existing
             if (existing == null) {

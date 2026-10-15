@@ -17,4 +17,11 @@ internal fun QuickOpenEffect(navController: NavHostController, viewModel: QuickO
         viewModel.consume(uri)
         if (id != null) navController.navigate(Routes.reader(id))
     }
+    val redirect by viewModel.redirect.collectAsStateWithLifecycle()
+    LaunchedEffect(redirect) {
+        val id = redirect ?: return@LaunchedEffect
+        viewModel.consumeRedirect(id)
+        navController.popBackStack() // the quick Reader; its temporary copy is deleted as it closes
+        navController.navigate(Routes.reader(id))
+    }
 }

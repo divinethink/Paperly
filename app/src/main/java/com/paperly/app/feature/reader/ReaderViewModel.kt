@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.paperly.app.R
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.QuickViewStore
+import com.paperly.app.core.intent.ReaderRedirects
 import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -56,7 +58,7 @@ class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DocumentRepository,
     private val readerState: ReaderStateRepository,
-    annotationRepository: AnnotationRepository,
+    private val annotationRepository: AnnotationRepository,
     annotateStyleStore: AnnotateStyleStore,
     private val preferences: ReaderPreferences,
     private val fileStore: DocumentFileStore,
@@ -64,6 +66,7 @@ class ReaderViewModel @Inject constructor(
     private val engineProvider: Provider<ReaderEngine>,
     private val pageOcr: PageOcr,
     private val quickStore: QuickViewStore,
+    private val redirects: ReaderRedirects,
 ) : ViewModel() {
 
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
@@ -89,18 +92,40 @@ class ReaderViewModel @Inject constructor(
 
     val reflowOcr = ReflowOcrController(viewModelScope, pageOcr, { engine }, documentId)
 
-    val annotations = AnnotationController(viewModelScope, annotationRepository, annotateStyleStore, documentId)
+    /** Quick view only: highlights, bookmarks and position live here until "Save to Library". */
+    private val quick = QuickSession()
+
+    private val _keepPrompt = MutableStateFlow(false)
+
+    /** Quick view: true once, after the first highlight, to ask whether to keep the PDF in the Library. */
+    val keepPrompt: StateFlow<Boolean> = _keepPrompt.asStateFlow()
+
+    val annotations = AnnotationController(
+        viewModelScope,
+        if (isQuick) quick.annotations else annotationRepository,
+        annotateStyleStore,
+        documentId,
+    )
 
     val theme: StateFlow<ReaderTheme> = preferences.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ReaderTheme.AUTO)
 
     val bookmarkedPages: StateFlow<Set<Int>> =
-        (if (documentId.isEmpty()) emptyFlow() else readerState.observeBookmarkedPages(documentId))
+        (when {
+            isQuick -> quick.bookmarks
+            documentId.isEmpty() -> emptyFlow()
+            else -> readerState.observeBookmarkedPages(documentId)
+        })
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptySet())
 
     init {
-        annotations.readOnly = isQuick
-        if (!isQuick) textSelect.onMiss = { page, from, to -> annotations.quickMiss(page, from, to) }
+        textSelect.onMiss = { page, from, to -> annotations.quickMiss(page, from, to) }
+        if (isQuick) {
+            viewModelScope.launch {
+                annotations.items.first { it.isNotEmpty() }
+                _keepPrompt.value = true // first highlight: offer to keep the PDF (with it) in the Library
+            }
+        }
         observeProgress()
         viewModelScope.launch {
             val document = PerfTrace.span("reader.open") { loadDocument() }
@@ -169,6 +194,7 @@ class ReaderViewModel @Inject constructor(
 
     fun onPageChanged(page: Int) {
         if (_uiState.value.pageCount > 0) currentPage.value = page
+        if (isQuick) quick.page = page
     }
 
     fun flush() {
@@ -193,7 +219,11 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun toggleBookmark(page: Int) {
-        if (isQuick || _uiState.value.pageCount <= 0) return
+        if (isQuick) {
+            quick.toggleBookmark(page)
+            return
+        }
+        if (_uiState.value.pageCount <= 0) return
         viewModelScope.launch { readerState.toggleBookmark(documentId, page) }
     }
 
@@ -221,18 +251,35 @@ class ReaderViewModel @Inject constructor(
         _notice.value = null
     }
 
-    /** Quick view -> Library: copies the temporary PDF in; the open Reader keeps reading the temp copy. */
+    fun dismissKeepPrompt() {
+        _keepPrompt.value = false
+    }
+
+    /** Quick view -> Library: imports the PDF, copies highlights/bookmarks/position, then reopens the Library copy. */
     fun saveToLibrary() {
+        _keepPrompt.value = false
         val file = quickStore.resolve(documentId) ?: return
         val title = _uiState.value.document?.title ?: "Document"
         viewModelScope.launch {
-            val message = when (repository.importPdf(Uri.fromFile(file).toString(), title)) {
-                is ImportResult.Success -> R.string.quick_saved
-                is ImportResult.Duplicate -> R.string.quick_already_saved
-                else -> R.string.quick_save_failed
+            val result = repository.importQuick(Uri.fromFile(file).toString(), title, DocumentType.PDF)
+            val target = when (result) {
+                is ImportResult.Success -> result.documentId
+                is ImportResult.Duplicate -> result.existingId
+                else -> null
             }
-            if (message != R.string.quick_save_failed) _saved.value = true
-            _notice.value = message
+            if (target == null) {
+                _notice.value = R.string.quick_save_failed
+                return@launch
+            }
+            quick.commitTo(
+                target,
+                annotationRepository,
+                readerState,
+                _uiState.value.pageCount,
+                fresh = result is ImportResult.Success,
+            )
+            _saved.value = true
+            redirects.post(target)
         }
     }
 

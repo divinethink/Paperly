@@ -9,13 +9,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 private const val PDF_MIME = "application/pdf"
+private const val EPUB_MIME = "application/epub+zip"
 
-/** "Open with" (VIEW) of a PDF: read it directly instead of importing. Share (SEND) and EPUB still import. */
+/** "Open with" (VIEW) of a PDF or EPUB: read it directly instead of importing. Share (SEND) still imports. */
 fun isQuickOpen(intent: Intent?, resolver: ContentResolver): Boolean {
     val view = intent ?: return false
     if (view.action != Intent.ACTION_VIEW) return false
     val type = view.type ?: view.data?.let { runCatching { resolver.getType(it) }.getOrNull() }
-    return type == PDF_MIME
+    return type == PDF_MIME || type == EPUB_MIME
 }
 
 /** Activity -> navigation hand-off for [isQuickOpen] requests; a state holder so a cold-start request is not lost. */

@@ -390,4 +390,7 @@
     <string name="quick_saved">Saved to Library</string>
     <string name="quick_already_saved">Already in your Library</string>
     <string name="quick_save_failed">Could not save to Library</string>
+    <string name="quick_keep_title">Keep this PDF in your Library?</string>
+    <string name="quick_keep_body">Highlights are kept only with a Library copy. Without it they are lost when you close the reader.</string>
+    <string name="quick_keep_later">Not now</string>
 </resources>

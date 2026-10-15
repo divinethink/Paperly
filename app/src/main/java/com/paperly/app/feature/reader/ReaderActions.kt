@@ -27,7 +27,7 @@ import com.paperly.app.domain.reader.ReaderTheme
 /** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
-    if (!viewModel.isQuick) BookmarkAndAnnotate(viewModel, page) // a quick-view PDF has no row to attach them to
+    BookmarkAndAnnotate(viewModel, page)
     var showComfort by remember { mutableStateOf(false) }
     if (showComfort) ComfortSheet { showComfort = false }
     OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
@@ -93,7 +93,7 @@ private fun OverflowMenu(
                 },
             )
         }
-        if (!viewModel.isQuick) SharePdfAnnotationsItem(viewModel) { open = false }
+        SharePdfAnnotationsItem(viewModel) { open = false }
         files?.let { FileMenuItems(it) { open = false } }
         if (isScan) {
             DropdownMenuItem(

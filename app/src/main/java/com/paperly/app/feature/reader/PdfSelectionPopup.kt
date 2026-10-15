@@ -87,7 +87,7 @@ internal fun PdfSelectionPopup(
                         },
                     ) { Text(stringResource(R.string.reader_select_copy)) }
                 }
-                if (!viewModel.isQuick) {
+                run {
                     listOf(
                         AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
                         AnnotationType.UNDERLINE to R.string.reader_annotation_underline,

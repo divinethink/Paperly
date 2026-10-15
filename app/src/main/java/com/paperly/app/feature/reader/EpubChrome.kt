@@ -65,7 +65,12 @@ internal class EpubBarActions(
 
 /** Overlay bar (toggling it never reflows the book): Back, Contents ... Search, Bookmark, Settings. */
 @Composable
-internal fun EpubTopBar(bar: EpubBarState, actions: EpubBarActions, modifier: Modifier = Modifier) {
+internal fun EpubTopBar(
+    bar: EpubBarState,
+    actions: EpubBarActions,
+    modifier: Modifier = Modifier,
+    trailing: @Composable () -> Unit = {},
+) {
     Row(
         modifier.fillMaxWidth().background(barColor()).statusBarsPadding(),
         verticalAlignment = Alignment.CenterVertically,
@@ -109,6 +114,7 @@ internal fun EpubTopBar(bar: EpubBarState, actions: EpubBarActions, modifier: Mo
         IconButton(onClick = actions.onSettings) {
             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.epub_settings))
         }
+        trailing()
     }
 }
 

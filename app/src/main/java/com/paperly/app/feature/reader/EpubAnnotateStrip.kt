@@ -36,11 +36,16 @@ internal val PDF_STRIP_TYPES = listOf(
 
 /** Top bar; when Annotate mode is on, the type/color strip sits right under it. */
 @Composable
-internal fun EpubTopOverlay(bar: EpubBarState, actions: EpubBarActions, annotations: EpubAnnotationController) {
+internal fun EpubTopOverlay(
+    bar: EpubBarState,
+    actions: EpubBarActions,
+    annotations: EpubAnnotationController,
+    trailing: @Composable () -> Unit = {},
+) {
     val annotating by annotations.mode.collectAsStateWithLifecycle()
     val style by annotations.style.collectAsStateWithLifecycle()
     Column {
-        EpubTopBar(bar.copy(annotating = annotating), actions)
+        EpubTopBar(bar.copy(annotating = annotating), actions, trailing = trailing)
         if (annotating) AnnotateStrip(style, EPUB_STRIP_TYPES, annotations::setStyle)
     }
 }

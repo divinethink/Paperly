@@ -59,8 +59,8 @@ class DocumentRepositoryImpl @Inject constructor(
         return result
     }
 
-    override suspend fun importPdf(pdfUri: String, title: String): ImportResult =
-        storeAndInsert(Uri.parse(pdfUri), "$title.pdf", DocumentType.PDF, allowDuplicate = false)
+    override suspend fun importQuick(fileUri: String, title: String, type: String): ImportResult =
+        storeAndInsert(Uri.parse(fileUri), "$title.$type", type, allowDuplicate = false)
 
     override suspend fun importConverted(epubUri: String, title: String, convertedFrom: String): ImportResult {
         val uri = Uri.parse(epubUri)

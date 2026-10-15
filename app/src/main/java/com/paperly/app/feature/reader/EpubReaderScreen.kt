@@ -110,7 +110,9 @@ private fun EpubReaderScreen(
             onSettings = { showSettings = true },
         )
         AnimatedVisibility(barsVisible, Modifier.align(Alignment.TopStart), enter = fadeIn(), exit = fadeOut()) {
-            EpubTopOverlay(EpubBarState(state.searchable, bookmarked), actions, viewModel.annotations)
+            EpubTopOverlay(EpubBarState(state.searchable, bookmarked), actions, viewModel.annotations) {
+                if (viewModel.isQuick) EpubQuickMenu(viewModel)
+            }
         }
         AnimatedVisibility(barsVisible, Modifier.align(Alignment.BottomStart), enter = fadeIn(), exit = fadeOut()) {
             EpubBottomBar(position, minutesLeft)

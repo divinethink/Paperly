@@ -47,8 +47,8 @@ interface DocumentRepository {
     /** P4: stores a scanner-produced PDF as a "scanned-pdf" document titled [title]. Never silently duplicates. */
     suspend fun importScan(pdfUri: String, title: String): ImportResult
 
-    /** Quick view -> "Save to Library": stores an app-private PDF (file:// URI; the caller keeps it) as a "pdf". */
-    suspend fun importPdf(pdfUri: String, title: String): ImportResult
+    /** Quick view -> "Save to Library": stores an app-private PDF/EPUB (file:// URI; caller keeps it) as [type]. */
+    suspend fun importQuick(fileUri: String, title: String, type: String): ImportResult
 
     /**
      * Converter: stores an already validated EPUB (app-private file:// URI) as an "epub" document titled [title],

@@ -27,8 +27,9 @@ class EpubAnnotationControllerFactory @Inject constructor(
     private val repository: EpubAnnotationRepository,
     private val styleStore: AnnotateStyleStore,
 ) {
-    fun create(scope: CoroutineScope, documentId: String) =
-        EpubAnnotationController(scope, repository, styleStore, documentId)
+    /** [quick] = an in-memory repository for a quick-view book (no Library row to attach highlights to). */
+    fun create(scope: CoroutineScope, documentId: String, quick: EpubAnnotationRepository? = null) =
+        EpubAnnotationController(scope, quick ?: repository, styleStore, documentId)
 }
 
 /** Reader-side EPUB annotation state; persistence via [EpubAnnotationRepository]. */

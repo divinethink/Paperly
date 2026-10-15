@@ -5,6 +5,7 @@ import com.paperly.app.core.file.QuickStage
 import com.paperly.app.core.file.QuickViewStore
 import com.paperly.app.core.intent.IncomingImportRequests
 import com.paperly.app.core.intent.QuickOpenRequests
+import com.paperly.app.core.intent.ReaderRedirects
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
@@ -14,8 +15,12 @@ class QuickOpenViewModel @Inject constructor(
     private val requests: QuickOpenRequests,
     private val store: QuickViewStore,
     private val imports: IncomingImportRequests,
+    private val redirects: ReaderRedirects,
 ) : ViewModel() {
     val pending: StateFlow<String?> = requests.pending
+    val redirect: StateFlow<String?> = redirects.target
+
+    fun consumeRedirect(id: String) = redirects.consume(id)
 
     /** Reader id to open for [uri] (a Library copy or a temporary quick copy); null = fell back to a normal import. */
     suspend fun stage(uri: String): String? {
