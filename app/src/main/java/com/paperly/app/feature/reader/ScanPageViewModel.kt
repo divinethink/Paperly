@@ -7,6 +7,7 @@ import com.paperly.app.core.model.DocumentType
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditorSettings
+import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.scanner.ScanPageInfo
 import com.paperly.app.domain.scanner.ScanPageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +26,7 @@ class ScanPageViewModel @Inject constructor(
     private val pages: ScanPageRepository,
     private val editor: ScanEditRepository,
     private val editorSettings: ScanEditorSettings,
+    private val ocr: ScanOcrRepository,
 ) : ViewModel() {
     val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
     private val _isScan = MutableStateFlow(false)
@@ -41,6 +43,9 @@ class ScanPageViewModel @Inject constructor(
             _canEditPages.value = _isScan.value && editorSettings.enabled.first() && editor.load(documentId) != null
         }
     }
+
+    /** S3: recognised text of the whole scan, null until the background OCR has read something. */
+    suspend fun scanText(): String? = ocr.text(documentId)
 
     fun observe(page: Int): Flow<ScanPageInfo> = pages.observe(documentId, page)
 

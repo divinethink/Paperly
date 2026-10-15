@@ -14,6 +14,9 @@ interface PageOcr {
     /** Text of page [index] (may be empty for a blank page); null when the data is missing or the page failed. */
     suspend fun pageText(documentId: String, engine: ReaderEngine, index: Int): String?
 
+    /** Text of page [index] read now, bypassing and not touching the cache (stored scan text must match the file). */
+    suspend fun freshText(engine: ReaderEngine, index: Int): String?
+
     /** Frees the recogniser's memory (Reader closed). Safe to call at any time; it is recreated on demand. */
     fun release()
 }

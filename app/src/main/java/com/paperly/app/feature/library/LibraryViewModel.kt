@@ -15,6 +15,7 @@ import com.paperly.app.domain.document.LibraryViewStore
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
 import com.paperly.app.domain.reader.ReaderStateRepository
+import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.trash.TrashRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -68,9 +69,10 @@ internal fun List<Document>.filterFor(
     query: String = "",
     folderId: String? = null,
     view: LibraryView = LibraryView(),
+    scanTextIds: Set<String> = emptySet(),
 ): List<Document> {
     val needle = query.trim()
-    val base = filter { it.inFolder(folderId) && it.matches(needle) && it.isType(view.type) }
+    val base = filter { it.inFolder(folderId) && it.matches(needle, scanTextIds) && it.isType(view.type) }
     return when (kind) {
         LibraryFilter.All -> base.sortedFor(view)
         LibraryFilter.Favorites -> base.filter { it.isFavorite }.sortedFor(view)
@@ -96,8 +98,10 @@ internal fun List<Document>.sortedFor(view: LibraryView): List<Document> {
     return sortedWith(if (view.ascending) order else order.reversed())
 }
 
-private fun Document.matches(needle: String): Boolean =
-    needle.isEmpty() || title.contains(needle, ignoreCase = true) || tags.any { it.contains(needle, ignoreCase = true) }
+/** Title, tag, or (S3) the recognised text of a scan: [scanTextIds] = scans whose OCR text contains the query. */
+private fun Document.matches(needle: String, scanTextIds: Set<String>): Boolean =
+    needle.isEmpty() || title.contains(needle, ignoreCase = true) ||
+        tags.any { it.contains(needle, ignoreCase = true) } || id in scanTextIds
 
 private data class Selection(
     val kind: LibraryFilter = LibraryFilter.All,
@@ -137,6 +141,7 @@ class LibraryViewModel @Inject constructor(
     private val incomingImports: IncomingImportRequests,
     viewStore: LibraryViewStore,
     readerState: ReaderStateRepository,
+    scanOcr: ScanOcrRepository,
 ) : ViewModel() {
 
     /** Each Library tab shows exactly one document type; the persisted type filter no longer applies. */
@@ -161,20 +166,27 @@ class LibraryViewModel @Inject constructor(
             .catch { emit(DocsResult.Failed) }
     }
 
+    /** S3: scans whose recognised text contains the typed query (empty set when there is no query). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val scanTextHits: Flow<Set<String>> = selection.map { it.query.trim() }.distinctUntilChanged()
+        .flatMapLatest { q -> if (q.isEmpty()) flowOf(emptySet<String>()) else scanOcr.observeMatchingIds(q) }
+
+    private val docsAndHits = combine(documentsResult, scanTextHits) { result, hits -> result to hits }
+
     val uiState: StateFlow<LibraryUiState> =
         combine(
-            documentsResult,
+            docsAndHits,
             folderRepository.observeFolders(),
             selection,
             transient,
             viewStore.view,
-        ) { result, folders, sel, t, view ->
+        ) { (result, hits), folders, sel, t, view ->
             val docs = (result as? DocsResult.Ready)?.docs.orEmpty()
             val tabView = view.copy(type = type)
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> folders.any { it.id == id } }
             LibraryUiState(
-                documents = docs.filterFor(sel.kind, sel.query, folderId, tabView),
+                documents = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits),
                 totalCount = docs.count { it.type == type.docType },
                 filter = sel.kind,
                 isImporting = t.importing,

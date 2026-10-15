@@ -49,6 +49,9 @@ class TesseractPageOcr @Inject constructor(
     override suspend fun pageText(documentId: String, engine: ReaderEngine, index: Int): String? =
         (cache.read(documentId, index) ?: recognise(documentId, engine, index))?.let(::fixDanda)
 
+    override suspend fun freshText(engine: ReaderEngine, index: Int): String? =
+        if (ready.value) readLocked(engine, index)?.let(::fixDanda) else null
+
     override fun release() {
         if (lock.tryLock()) {
             try {
@@ -63,16 +66,18 @@ class TesseractPageOcr @Inject constructor(
 
     private suspend fun recognise(documentId: String, engine: ReaderEngine, index: Int): String? {
         if (!ready.value) return null
-        val text = lock.withLock {
-            val result = runOcr(engine, index)
-            if (releaseWanted) {
-                drop()
-                releaseWanted = false
-            }
-            result
-        } ?: return null
+        val text = readLocked(engine, index) ?: return null
         cache.write(documentId, index, text)
         return text
+    }
+
+    private suspend fun readLocked(engine: ReaderEngine, index: Int): String? = lock.withLock {
+        val result = runOcr(engine, index)
+        if (releaseWanted) {
+            drop()
+            releaseWanted = false
+        }
+        result
     }
 
     private suspend fun runOcr(engine: ReaderEngine, index: Int): String? = try {

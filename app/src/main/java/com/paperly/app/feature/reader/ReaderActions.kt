@@ -80,6 +80,7 @@ private fun OverflowMenu(
     val canEditPages by scanPages.canEditPages.collectAsStateWithLifecycle()
     var editingPage by remember { mutableStateOf(false) }
     val files = rememberReaderFileActions(viewModel) // outside the dropdown: its launcher must outlive the menu
+    val copyScanText = rememberCopyScanText(scanPages)
     if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         // Readable text layers use the text; scans/Bengali/broken text layers are read by OCR (P10). Once sampled.
@@ -98,13 +99,7 @@ private fun OverflowMenu(
         SharePdfAnnotationsItem(viewModel) { open = false }
         files?.let { FileMenuItems(it) { open = false } }
         if (isScan) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.scan_page_edit)) },
-                onClick = {
-                    editingPage = true
-                    open = false
-                },
-            )
+            ScanMenuItems(onPageNote = { editingPage = true }, onCopyText = copyScanText) { open = false }
         }
         if (canEditPages) EditPagesMenuItem(scanPages.documentId) { open = false }
         DropdownMenuItem(

@@ -4,6 +4,7 @@ import android.content.Context
 import com.paperly.app.data.reader.PdfBoxAnnotationWriter
 import com.paperly.app.domain.reader.LibraryPdfFiles
 import com.paperly.app.domain.reader.PdfOpenCheck
+import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,6 +26,7 @@ class ScanPdfReplacer @Inject constructor(
     @ApplicationContext private val context: Context,
     private val files: LibraryPdfFiles,
     private val openCheck: PdfOpenCheck,
+    private val ocr: ScanOcrRepository,
 ) {
     suspend fun replace(documentId: String, file: File, tmp: File, expectedPages: Int) {
         val pages = PDDocument.load(tmp, MemoryUsageSetting.setupTempFileOnly()).use { it.numberOfPages }
@@ -37,6 +39,7 @@ class ScanPdfReplacer @Inject constructor(
         file.copyTo(File(backups, "${file.name}.bak"), overwrite = true) // no backup = no replace
         Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE)
         files.replaced(documentId, checksum, bytes)
+        ocr.invalidate(documentId) // pages changed: old text no longer matches; read again if the switch is ON
     }
 
     private fun pruneBackups(dir: File) {

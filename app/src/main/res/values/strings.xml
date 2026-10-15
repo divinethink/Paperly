@@ -162,6 +162,13 @@
     <string name="scan_edit_pages">Edit pages</string>
     <string name="settings_scan_editor">Scan page editor</string>
     <string name="settings_scan_editor_hint">On by default. Keeps your scanned pages so you can crop, rotate and filter them after saving, and adds Import from gallery. Turn off to go back to the plain scanner.</string>
+    <string name="settings_scan_ocr">Scan text recognition (OCR)</string>
+    <string name="settings_scan_ocr_hint">Off by default. Reads the text of your scans in the background (Bengali and English) so you can find them by their text in the Library search and copy it. The first time it downloads the recognition data once (a few MB). The scan itself is never changed, and the text can contain mistakes.</string>
+    <string name="settings_scan_ocr_downloading">Downloading recognition data…</string>
+    <string name="settings_scan_ocr_failed">Could not download the recognition data. Check your connection and try again.</string>
+    <string name="scan_text_copy">Copy scanned text</string>
+    <string name="scan_text_copied">Scanned text copied</string>
+    <string name="scan_text_none">No scanned text yet. Turn on Scan text recognition in Settings; scans are read in the background.</string>
     <string name="scan_error_save">Could not save the scan. Please try again.</string>
     <string name="settings_backup_header">Backup</string>
     <string name="settings_backup_hint">Export saves all documents to one ZIP file. Restore only adds what is missing; nothing is overwritten or deleted.</string>

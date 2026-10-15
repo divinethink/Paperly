@@ -3,6 +3,7 @@ package com.paperly.app.core.database
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
+import com.paperly.app.domain.scanner.escapeLike
 import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -257,6 +258,31 @@ class PaperlyMigrationTest {
             dao.upsertAll(listOf(ScanPageEditEntity("d1", 0, "p0.img", 90, null, "BW", 1L)))
             dao.upsertAll(listOf(ScanPageEditEntity("d1", 0, "p0.img", 180, null, "GRAY", 2L))) // replaces
             assertEquals(180, dao.getForDocument("d1").single().rotation)
+            assertEquals(1, db.aggregateDao().getAllActive().size)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun v10ScanOcrTableWorks() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.scanOcrDao()
+            assertEquals(0, dao.getForDocument("d1").size) // existing documents start without OCR rows
+            dao.upsert(ScanOcrEntity("d1", 0, "old", "ben+eng", 1, 1L))
+            dao.upsert(ScanOcrEntity("d1", 0, "100% sure_ম", "ben+eng", 1, 2L)) // replaces, never duplicates
+            dao.upsert(ScanOcrEntity("d1", 1, "", "ben+eng", 1, 2L)) // blank page is still "read"
+            assertEquals(setOf(0, 1), dao.donePages("d1", 1).toSet())
+            assertEquals(0, dao.donePages("d1", 2).size) // other engine version = read again
+            assertEquals(listOf("d1"), dao.observeMatching(escapeLike("100%")).first())
+            assertEquals(0, dao.observeMatching(escapeLike("1_0")).first().size) // `_` is literal, not a wildcard
+            assertEquals(listOf("d1"), dao.observeMatching(escapeLike("ম")).first())
+            assertEquals(2, dao.deleteForDocument("d1"))
             assertEquals(1, db.aggregateDao().getAllActive().size)
         } finally {
             db.close()

@@ -13,6 +13,7 @@ import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditorSettings
+import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.scanner.scanTitle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
@@ -54,6 +55,7 @@ class ScanViewModel @Inject constructor(
     private val folderRepository: FolderRepository,
     private val store: DataStore<Preferences>,
     private val editRepository: ScanEditRepository,
+    private val ocr: ScanOcrRepository,
     settings: ScanEditorSettings,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ScanUiState())
@@ -146,6 +148,7 @@ class ScanViewModel @Inject constructor(
             if (result is ImportResult.Success) {
                 if (job.folderId != null) folderRepository.moveDocument(result.documentId, job.folderId)
                 if (job.pageUris.isNotEmpty()) editRepository.storeSources(result.documentId, job.pageUris)
+                ocr.schedule(result.documentId) // background text recognition when the Settings switch is ON
             }
             store.edit { it.remove(PENDING_KEY) } // one attempt per pointer: no endless retry loop
             // Duplicate = an identical scan is already in the Library

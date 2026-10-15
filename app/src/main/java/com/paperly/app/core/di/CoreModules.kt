@@ -17,6 +17,7 @@ import com.paperly.app.core.database.FolderDao
 import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.database.PaperlyMigrations
 import com.paperly.app.core.database.ReaderDao
+import com.paperly.app.core.database.ScanOcrDao
 import com.paperly.app.core.database.ScanPageDao
 import com.paperly.app.core.database.ScanPageEditDao
 import com.paperly.app.core.database.SyncItemDao
@@ -77,6 +78,9 @@ object DatabaseModule {
 
     @Provides
     fun provideScanPageEditDao(db: PaperlyDatabase): ScanPageEditDao = db.scanPageEditDao()
+
+    @Provides
+    fun provideScanOcrDao(db: PaperlyDatabase): ScanOcrDao = db.scanOcrDao()
 
     @Provides
     fun provideSyncItemDao(db: PaperlyDatabase): SyncItemDao = db.syncItemDao()

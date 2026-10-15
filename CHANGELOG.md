@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-15 (Scan S3: optional text recognition of scans, DB v9 -> v10)
+- New Settings switch "Scan text recognition (OCR)" (`scan_ocr_enabled`, OFF by default). ON: downloads the existing Bengali+English
+  Tesseract data once (existing `OcrModel`), then reads scans in the background (WorkManager, battery-not-low, one scan at a time,
+  not a foreground service). New scans are queued after saving; turning the switch ON queues the existing scans.
+- Result is stored per page in the new table `scan_ocr(documentId, pageIndex, text, lang, engineVersion, updatedAt)` (v10, FK -> documents
+  CASCADE, new table only; hand-written `MIGRATION_9_10`). Resumable: finished pages are kept; a page read while the file was replaced
+  is dropped and retried (file stamp check); after 3 failed runs the rest stays unread. The PDF itself is never changed.
+- Uses: Library search also matches the recognised text of scans (`LibraryViewModel`, `filterFor(scanTextIds)`); Reader menu for scans
+  "Copy scanned text" (whole scan, pages joined). No invisible text layer inside the PDF (later, own approval).
+- A page edit (S2 `ScanPdfReplacer.replace`) deletes the scan's stored text and queues a new read, so text always matches the file.
+- Derived data: not in Backup/Sync (can be re-created). Turning the switch OFF stops queued work; stored text stays.
+- Known: the Reader's own OCR cache (`cacheDir/ocr1`, used by Reflow) is not cleared by a page edit (older behaviour, unchanged here).
+- Files: `core/database/ScanOcrDao.kt`, `PaperlyDatabase`, `PaperlyMigrations`, `CoreModules`, `domain/scanner/ScanOcr.kt`,
+  `data/scanner/ScanOcrRunner|ScanOcrWorker|ScanOcrRepositoryImpl`, `PageOcr.freshText`, `ScanPdfReplacer`, `ScanViewModel`,
+  `LibraryViewModel`, `ScanPageViewModel`, `ReaderActions`, `CopyScanText`, `ScanOcrRow|ScanOcrViewModel`, `SettingsScreen`, strings.
+- Tests: `PaperlyMigrationTest.v10ScanOcrTableWorks`, `ScanOcrTextTest`, `LibraryFilterTest`.
+
 ## 2026-10-15 (Scan S1: name + folder when saving a scan)
 - After the ML Kit scanner returns, a dialog asks for the scan's name (default `Scan <date>`) and a folder (none/existing). Not
   dismissible by Back/outside tap: "Save" or "Save as is" both store the scan, so it is never lost. A crash while the dialog is open

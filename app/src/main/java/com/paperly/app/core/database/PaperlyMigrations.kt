@@ -115,6 +115,19 @@ object PaperlyMigrations {
         }
     }
 
+    /** v9 → v10: add `scan_ocr` (S3 recognised text per scan page; FK → documents, CASCADE). New table only. */
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `scan_ocr` (`documentId` TEXT NOT NULL, `pageIndex` INTEGER NOT NULL, " +
+                    "`text` TEXT NOT NULL, `lang` TEXT NOT NULL, `engineVersion` INTEGER NOT NULL, " +
+                    "`updatedAt` INTEGER NOT NULL, PRIMARY KEY(`documentId`, `pageIndex`), " +
+                    "FOREIGN KEY(`documentId`) REFERENCES `documents`(`documentId`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -125,5 +138,6 @@ object PaperlyMigrations {
         MIGRATION_6_7,
         MIGRATION_7_8,
         MIGRATION_8_9,
+        MIGRATION_9_10,
     )
 }
