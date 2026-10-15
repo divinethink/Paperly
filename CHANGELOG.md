@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-15 (L3 step 2: PDF highlight writer, not wired yet)
+- New `PdfAnnotationWriter` (domain) + `PdfBoxAnnotationWriter` (data, PdfBox-Android 2.0.27.0): writes `/Highlight` `/Underline`
+  `/StrikeOut` `/Text` annotations (with `/QuadPoints`, colour, `/NM` = our annotation id) into a Library PDF. Safe order: temp copy
+  -> reopen/verify -> backup (7 days, `files/pdf_backups`) -> atomic replace; any failure leaves the original untouched.
+  Skips: > 50 MB, encrypted, out of memory. `PdfAnnotationGeometry` maps page fractions to PDF space for /Rotate 0/90/180/270 + CropBox.
+  Nothing calls it yet (setting, batching and checksum/sync update come in step 3). No DB/schema/rules change.
+
 ## 2026-10-15 (Quick view: EPUB)
 - Open-With of an EPUB is read directly too (cache copy, `QuickViewStore` now handles pdf + epub; same book already in the Library
   opens that copy). Highlights/bookmarks stay in memory (`QuickEpubSession`); the first highlight asks to keep the book in the Library;
