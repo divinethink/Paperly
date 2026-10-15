@@ -7,6 +7,7 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,20 +34,26 @@ import com.paperly.app.R
 
 /** P4: ML Kit Document Scanner (its own camera + gallery-import UI) -> PDF -> Library as "scanned-pdf". */
 @Composable
-fun ScanScreen(onSaved: () -> Unit, viewModel: ScanViewModel = hiltViewModel()) {
+fun ScanScreen(onSaved: (editDocumentId: String?) -> Unit, viewModel: ScanViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val folders by viewModel.folders.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val editorEnabled by viewModel.editorEnabled.collectAsStateWithLifecycle()
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            GmsDocumentScanningResult.fromActivityResultIntent(result.data)?.pdf
-                ?.let { viewModel.onScanned(it.uri.toString()) }
+            val scanned = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            val pages = scanned?.pages.orEmpty().map { it.imageUri.toString() }
+            scanned?.pdf?.let { viewModel.onScanned(it.uri.toString(), pages) }
         }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+        viewModel.onGalleryPicked(uris.map { it.toString() })
     }
     LaunchedEffect(state.saved) {
         if (state.saved) {
+            val editId = state.editDocumentId
             viewModel.consumeSaved()
-            onSaved()
+            onSaved(editId)
         }
     }
     if (state.naming) {
@@ -63,9 +71,15 @@ fun ScanScreen(onSaved: () -> Unit, viewModel: ScanViewModel = hiltViewModel()) 
     ) {
         Text(stringResource(R.string.scan_hint), style = MaterialTheme.typography.bodyMedium)
         Button(
-            onClick = { startScan(context.findActivity(), launcher, viewModel::onUnavailable) },
+            onClick = { startScan(context.findActivity(), launcher, editorEnabled, viewModel::onUnavailable) },
             enabled = !state.saving,
         ) { Text(stringResource(R.string.scan_start)) }
+        if (editorEnabled) {
+            OutlinedButton(
+                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                enabled = !state.saving,
+            ) { Text(stringResource(R.string.scan_gallery)) }
+        }
         if (state.saving) Text(stringResource(R.string.scan_saving))
         state.error?.let {
             val message = if (it == ScanError.Unavailable) R.string.scan_error_unavailable else R.string.scan_error_save
@@ -77,17 +91,25 @@ fun ScanScreen(onSaved: () -> Unit, viewModel: ScanViewModel = hiltViewModel()) 
 private fun startScan(
     activity: Activity?,
     launcher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
+    keepPages: Boolean,
     onUnavailable: () -> Unit,
 ) {
     if (activity == null) {
         onUnavailable()
         return
     }
-    val options = GmsDocumentScannerOptions.Builder()
+    val builder = GmsDocumentScannerOptions.Builder()
         .setGalleryImportAllowed(true)
-        .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_PDF)
         .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
-        .build()
+    // S2: the page JPEGs are kept (with the PDF) so pages can be edited after saving; flag OFF = PDF only, as before
+    val options = if (keepPages) {
+        builder.setResultFormats(
+            GmsDocumentScannerOptions.RESULT_FORMAT_JPEG,
+            GmsDocumentScannerOptions.RESULT_FORMAT_PDF,
+        )
+    } else {
+        builder.setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_PDF)
+    }.build()
     GmsDocumentScanning.getClient(options)
         .getStartScanIntent(activity)
         .addOnSuccessListener { launcher.launch(IntentSenderRequest.Builder(it).build()) }

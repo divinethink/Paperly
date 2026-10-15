@@ -18,6 +18,7 @@ import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.database.PaperlyMigrations
 import com.paperly.app.core.database.ReaderDao
 import com.paperly.app.core.database.ScanPageDao
+import com.paperly.app.core.database.ScanPageEditDao
 import com.paperly.app.core.database.SyncItemDao
 import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.AppPrivateDocumentFileStore
@@ -35,6 +36,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
+@Suppress("TooManyFunctions") // one provider per DAO
 object DatabaseModule {
     // No destructive fallback: schema changes need explicit migrations, each preceded by a verified backup.
     @Provides
@@ -72,6 +74,9 @@ object DatabaseModule {
 
     @Provides
     fun provideScanPageDao(db: PaperlyDatabase): ScanPageDao = db.scanPageDao()
+
+    @Provides
+    fun provideScanPageEditDao(db: PaperlyDatabase): ScanPageEditDao = db.scanPageEditDao()
 
     @Provides
     fun provideSyncItemDao(db: PaperlyDatabase): SyncItemDao = db.syncItemDao()

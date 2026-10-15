@@ -15,6 +15,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -39,12 +40,14 @@ import com.paperly.app.feature.library.LIBRARY_TYPE_ARG
 import com.paperly.app.feature.library.LibraryNavigation
 import com.paperly.app.feature.library.LibraryScreen
 import com.paperly.app.feature.reader.ReaderRoute
+import com.paperly.app.feature.scanner.LocalOpenScanEditor
+import com.paperly.app.feature.scanner.ScanEditScreen
 import com.paperly.app.feature.scanner.ScanScreen
 import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
 
-private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE)
+private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT)
 
 object Routes {
     private const val LIBRARY_PREFIX = "library_"
@@ -54,6 +57,8 @@ object Routes {
     const val STORAGE = "storage"
     const val READER = "reader/{documentId}"
     fun reader(documentId: String) = "reader/$documentId"
+    const val SCAN_EDIT = "scan-edit/{documentId}"
+    fun scanEdit(documentId: String) = "scan-edit/$documentId"
 
     /** One Library destination per tab (Scanned / PDF / EPUB): own back-stack entry, view model and saved state. */
     fun library(type: LibraryType) = LIBRARY_PREFIX + type.key
@@ -169,7 +174,15 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         }
     }
     composable(Routes.SCAN) {
-        ScanScreen(onSaved = { navController.navigateTopLevel(Routes.library(LibraryType.SCAN)) })
+        ScanScreen(
+            onSaved = { editId ->
+                if (editId != null) {
+                    navController.navigate(Routes.scanEdit(editId)) // gallery import: straight into the page editor
+                } else {
+                    navController.navigateTopLevel(Routes.library(LibraryType.SCAN))
+                }
+            },
+        )
     }
     composable(Routes.SETTINGS) { SettingsScreen() }
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
@@ -178,6 +191,18 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         Routes.READER,
         arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
     ) {
-        ReaderRoute(onBack = { navController.popBackStack() })
+        // Editing replaces the file, so the Reader (which holds it open) is popped first.
+        val openEditor: (String) -> Unit = { id ->
+            navController.navigate(Routes.scanEdit(id)) { popUpTo(Routes.READER) { inclusive = true } }
+        }
+        CompositionLocalProvider(LocalOpenScanEditor provides openEditor) {
+            ReaderRoute(onBack = { navController.popBackStack() })
+        }
+    }
+    composable(
+        Routes.SCAN_EDIT,
+        arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
+    ) {
+        ScanEditScreen(onDone = { navController.navigateTopLevel(Routes.library(LibraryType.SCAN)) })
     }
 }

@@ -145,6 +145,7 @@ private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
         }
         Text(stringResource(R.string.settings_dynamic_color_hint), style = MaterialTheme.typography.bodySmall)
         PdfFileWriteRow()
+        ScanEditorRow()
     }
 }
 

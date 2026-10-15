@@ -244,6 +244,25 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v9ScanPageEditTableWorks() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.scanPageEditDao()
+            assertEquals(0, dao.getForDocument("d1").size) // existing documents start without edit rows
+            dao.upsertAll(listOf(ScanPageEditEntity("d1", 0, "p0.img", 90, null, "BW", 1L)))
+            dao.upsertAll(listOf(ScanPageEditEntity("d1", 0, "p0.img", 180, null, "GRAY", 2L))) // replaces
+            assertEquals(180, dao.getForDocument("d1").single().rotation)
+            assertEquals(1, db.aggregateDao().getAllActive().size)
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =

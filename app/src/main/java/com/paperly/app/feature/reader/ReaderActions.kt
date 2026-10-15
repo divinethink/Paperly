@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.ReaderTheme
+import com.paperly.app.feature.scanner.LocalOpenScanEditor
 
 /** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
 @Composable
@@ -76,6 +77,7 @@ private fun OverflowMenu(
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
+    val canEditPages by scanPages.canEditPages.collectAsStateWithLifecycle()
     var editingPage by remember { mutableStateOf(false) }
     val files = rememberReaderFileActions(viewModel) // outside the dropdown: its launcher must outlive the menu
     if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
@@ -104,6 +106,7 @@ private fun OverflowMenu(
                 },
             )
         }
+        if (canEditPages) EditPagesMenuItem(scanPages.documentId) { open = false }
         DropdownMenuItem(
             text = { Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height)) },
             onClick = {
@@ -117,6 +120,19 @@ private fun OverflowMenu(
         }
         ThemeMenuItems(current, viewModel::setTheme) { open = false }
     }
+}
+
+/** S2: opens the scan page editor (navigation pops the Reader first: the editor replaces the file). */
+@Composable
+private fun EditPagesMenuItem(documentId: String, onDone: () -> Unit) {
+    val openEditor = LocalOpenScanEditor.current
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.scan_edit_pages)) },
+        onClick = {
+            onDone()
+            openEditor(documentId)
+        },
+    )
 }
 
 @Composable

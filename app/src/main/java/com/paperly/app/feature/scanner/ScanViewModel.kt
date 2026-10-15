@@ -11,6 +11,8 @@ import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
+import com.paperly.app.domain.scanner.ScanEditRepository
+import com.paperly.app.domain.scanner.ScanEditorSettings
 import com.paperly.app.domain.scanner.scanTitle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
@@ -38,6 +40,8 @@ data class ScanUiState(
     val error: ScanError? = null,
     val naming: Boolean = false,
     val defaultTitle: String = "",
+    /** Set with [saved] after a gallery import: the new document opens in the page editor. */
+    val editDocumentId: String? = null,
 )
 
 private const val TITLE_PREFIX = "Scan "
@@ -49,6 +53,8 @@ class ScanViewModel @Inject constructor(
     private val repository: DocumentRepository,
     private val folderRepository: FolderRepository,
     private val store: DataStore<Preferences>,
+    private val editRepository: ScanEditRepository,
+    settings: ScanEditorSettings,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ScanUiState())
     val state: StateFlow<ScanUiState> = _state.asStateFlow()
@@ -56,7 +62,13 @@ class ScanViewModel @Inject constructor(
     val folders: StateFlow<List<Folder>> =
         folderRepository.observeFolders().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** S2 flag: OFF = the previous behaviour (ML Kit PDF only, no gallery button, no editor). */
+    val editorEnabled: StateFlow<Boolean> =
+        settings.enabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     private var pendingUri: String? = null
+    private var pendingPages: List<String> = emptyList()
+    private var pendingGallery = false
 
     init {
         // Unfinished-session recovery: a scan whose save never completed (process death, even with the name dialog
@@ -67,19 +79,43 @@ class ScanViewModel @Inject constructor(
                 val uri = Uri.parse(pending)
                 uri.scheme != "file" || uri.path?.let { File(it).exists() } == true
             }
-            if (alive) save(pending, defaultTitle(), null) else store.edit { it.remove(PENDING_KEY) }
+            if (alive) save(Saving(pending, defaultTitle(), null)) else store.edit { it.remove(PENDING_KEY) }
         }
     }
 
     fun onUnavailable() = _state.update { it.copy(error = ScanError.Unavailable) }
 
-    fun consumeSaved() = _state.update { it.copy(saved = false) }
+    fun consumeSaved() = _state.update { it.copy(saved = false, editDocumentId = null) }
 
-    /** [pdfUri] = ML Kit's result PDF. Double delivery is ignored while a save runs or the dialog is open. */
-    fun onScanned(pdfUri: String) {
+    /**
+     * [pdfUri] = ML Kit's result PDF, [pageUris] = its page JPEGs (kept for the page editor; may be empty).
+     * Double delivery is ignored while a save runs or the dialog is open.
+     */
+    fun onScanned(pdfUri: String, pageUris: List<String> = emptyList()) {
         val current = _state.value
         if (current.saving || current.naming) return
+        beginNaming(pdfUri, pageUris, gallery = false)
+    }
+
+    /** Gallery pictures: build the unedited PDF first, then the normal name/folder step; the editor opens after. */
+    fun onGalleryPicked(uris: List<String>) {
+        val current = _state.value
+        if (current.saving || current.naming || uris.isEmpty()) return
+        _state.value = ScanUiState(saving = true)
+        viewModelScope.launch {
+            val staged = editRepository.stageGallery(uris)
+            if (staged == null) {
+                _state.value = ScanUiState(error = ScanError.Save)
+            } else {
+                beginNaming(staged.pdfUri, staged.pageUris, gallery = true)
+            }
+        }
+    }
+
+    private fun beginNaming(pdfUri: String, pageUris: List<String>, gallery: Boolean) {
         pendingUri = pdfUri
+        pendingPages = pageUris
+        pendingGallery = gallery
         _state.value = ScanUiState(naming = true, defaultTitle = defaultTitle())
         // pointer survives a crash while the dialog is open
         viewModelScope.launch { store.edit { it[PENDING_KEY] = pdfUri } }
@@ -89,23 +125,37 @@ class ScanViewModel @Inject constructor(
     fun confirmName(title: String, folderId: String?) {
         val uri = pendingUri ?: return
         pendingUri = null
-        save(uri, scanTitle(title, _state.value.defaultTitle), folderId)
+        save(Saving(uri, scanTitle(title, _state.value.defaultTitle), folderId, pendingPages, pendingGallery))
     }
 
     private fun defaultTitle() = TITLE_PREFIX + SimpleDateFormat(TITLE_PATTERN, Locale.US).format(Date())
 
-    private fun save(pdfUri: String, title: String, folderId: String?) {
+    private class Saving(
+        val pdfUri: String,
+        val title: String,
+        val folderId: String?,
+        val pageUris: List<String> = emptyList(),
+        val openEditor: Boolean = false,
+    )
+
+    private fun save(job: Saving) {
         _state.value = ScanUiState(saving = true)
         viewModelScope.launch {
-            store.edit { it[PENDING_KEY] = pdfUri } // pointer survives a crash until the save is done
-            val result = repository.importScan(pdfUri, title)
-            if (result is ImportResult.Success && folderId != null) {
-                folderRepository.moveDocument(result.documentId, folderId)
+            store.edit { it[PENDING_KEY] = job.pdfUri } // pointer survives a crash until the save is done
+            val result = repository.importScan(job.pdfUri, job.title)
+            if (result is ImportResult.Success) {
+                if (job.folderId != null) folderRepository.moveDocument(result.documentId, job.folderId)
+                if (job.pageUris.isNotEmpty()) editRepository.storeSources(result.documentId, job.pageUris)
             }
             store.edit { it.remove(PENDING_KEY) } // one attempt per pointer: no endless retry loop
             // Duplicate = an identical scan is already in the Library
             val ok = result is ImportResult.Success || result is ImportResult.Duplicate
-            _state.value = if (ok) ScanUiState(saved = true) else ScanUiState(error = ScanError.Save)
+            val editId = (result as? ImportResult.Success)?.documentId?.takeIf { job.openEditor }
+            _state.value = if (ok) {
+                ScanUiState(saved = true, editDocumentId = editId)
+            } else {
+                ScanUiState(error = ScanError.Save)
+            }
         }
     }
 }

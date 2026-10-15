@@ -101,6 +101,20 @@ object PaperlyMigrations {
         }
     }
 
+    /** v8 → v9: add `scan_page_edit` (S2 page editor state; FK → documents, CASCADE). New table only. */
+    val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `scan_page_edit` (`documentId` TEXT NOT NULL, " +
+                    "`pageIndex` INTEGER NOT NULL, `srcFile` TEXT NOT NULL, `rotation` INTEGER NOT NULL, " +
+                    "`cornersJson` TEXT, `filter` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`documentId`, `pageIndex`), " +
+                    "FOREIGN KEY(`documentId`) REFERENCES `documents`(`documentId`) " +
+                    "ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -110,5 +124,6 @@ object PaperlyMigrations {
         MIGRATION_5_6,
         MIGRATION_6_7,
         MIGRATION_7_8,
+        MIGRATION_8_9,
     )
 }

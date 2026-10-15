@@ -1,0 +1,42 @@
+package com.paperly.app.domain.scanner
+
+/** S2 page filters. [parse] never throws: an unknown/missing name (older/newer data) falls back to ORIGINAL. */
+enum class ScanFilter {
+    ORIGINAL,
+    COLOR,
+    GRAY,
+    BW,
+    ;
+
+    companion object {
+        fun parse(name: String?): ScanFilter = entries.firstOrNull { it.name == name } ?: ORIGINAL
+    }
+}
+
+/** Output size of a rebuilt PDF: longest page side in pixels and JPEG quality. */
+enum class ScanOutputSize(val maxSide: Int, val jpegQuality: Int) {
+    SMALL(SMALL_SIDE, SMALL_QUALITY),
+    MEDIUM(MEDIUM_SIDE, MEDIUM_QUALITY),
+    LARGE(LARGE_SIDE, LARGE_QUALITY),
+}
+
+private const val SMALL_SIDE = 1280
+private const val SMALL_QUALITY = 60
+private const val MEDIUM_SIDE = 1754
+private const val MEDIUM_QUALITY = 75
+private const val LARGE_SIDE = 2480
+private const val LARGE_QUALITY = 85
+
+/** Rotation in degrees clockwise, always one of 0/90/180/270. */
+fun normalizeRotation(degrees: Int): Int = ((degrees % FULL_TURN) + FULL_TURN) % FULL_TURN
+
+fun rotateRight(degrees: Int): Int = normalizeRotation(degrees + QUARTER_TURN)
+
+private const val QUARTER_TURN = 90
+private const val FULL_TURN = 360
+
+/**
+ * Risk rule (roadmap S2): highlights/annotations are stored as page fractions, so a page that has any must keep its
+ * geometry. Filters stay allowed.
+ */
+fun canCropOrRotate(pageHasAnnotations: Boolean): Boolean = !pageHasAnnotations
