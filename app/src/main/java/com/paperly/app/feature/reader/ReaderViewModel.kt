@@ -308,7 +308,10 @@ class ReaderViewModel @Inject constructor(
             var baseline: List<Annotation>? = null
             annotationRepository.observe(documentId).collect { now ->
                 val before = baseline
-                if (before == null) baseline = now else if (now != before) annotationsChanged = true
+                when {
+                    before == null -> baseline = now
+                    now != before -> annotationsChanged = true
+                }
             }
         }
     }
