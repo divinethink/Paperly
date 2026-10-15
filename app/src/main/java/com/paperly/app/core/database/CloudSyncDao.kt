@@ -64,6 +64,17 @@ abstract class CloudSyncDao {
     @Query("UPDATE documents SET updatedAt = :updatedAt WHERE documentId = :id")
     abstract suspend fun setUpdatedAt(id: String, updatedAt: Long): Int
 
+    /**
+     * L3: the PDF file now carries our highlights, so its bytes changed. The Drive copy no longer matches: forget it
+     * (the file is uploaded again; the upload step removes the stale copy). Bumps `updatedAt` so the metadata
+     * (new checksum/size) is a normal newer version for sync.
+     */
+    @Query(
+        "UPDATE documents SET checksum = :checksum, sizeBytes = :size, updatedAt = :now, cloudRef = NULL, " +
+            "storageState = :state WHERE documentId = :id",
+    )
+    abstract suspend fun replaceFile(id: String, checksum: String, size: Long, now: Long, state: String): Int
+
     @Query("SELECT documentId, checksum FROM documents WHERE storageState = :state")
     abstract suspend fun awaitingDownload(state: String): List<AwaitingDownloadRow>
 

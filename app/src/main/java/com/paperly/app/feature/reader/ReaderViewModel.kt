@@ -16,8 +16,10 @@ import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
 import com.paperly.app.domain.ocr.PageOcr
 import com.paperly.app.domain.reader.AnnotateStyleStore
+import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.OpenResult
+import com.paperly.app.domain.reader.PdfHighlightFileSync
 import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderPreferences
 import com.paperly.app.domain.reader.ReaderStateRepository
@@ -68,6 +70,7 @@ class ReaderViewModel @Inject constructor(
     private val pageOcr: PageOcr,
     private val quickStore: QuickViewStore,
     private val redirects: ReaderRedirects,
+    private val highlightFileSync: PdfHighlightFileSync,
 ) : ViewModel() {
 
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
@@ -81,6 +84,9 @@ class ReaderViewModel @Inject constructor(
     private val renderLock = Mutex() // one render at a time keeps peak memory bounded
     private val currentPage = MutableStateFlow<Int?>(null)
     private var lastSaved = -1
+
+    /** L3: a highlight changed in this session, so on close it is offered to the PDF-file writer. */
+    private var annotationsChanged = false
 
     val search = ReaderSearchController(
         scope = viewModelScope,
@@ -128,6 +134,7 @@ class ReaderViewModel @Inject constructor(
                 _keepPrompt.value = true // first highlight: offer to keep the PDF (with it) in the Library
             }
         }
+        observeAnnotationChanges()
         observeProgress()
         viewModelScope.launch {
             val document = PerfTrace.span("reader.open") { loadDocument() }
@@ -290,6 +297,20 @@ class ReaderViewModel @Inject constructor(
         pageOcr.release()
         engine?.close()
         cache.clear()
+        // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
+        if (annotationsChanged) highlightFileSync.schedule(documentId)
+    }
+
+    /** First emission = what was already there; any later difference means a highlight was added/edited/removed. */
+    private fun observeAnnotationChanges() {
+        if (isQuick || documentId.isEmpty()) return
+        viewModelScope.launch {
+            var baseline: List<Annotation>? = null
+            annotationRepository.observe(documentId).collect { now ->
+                val before = baseline
+                if (before == null) baseline = now else if (now != before) annotationsChanged = true
+            }
+        }
     }
 
     private companion object {

@@ -343,6 +343,8 @@
     <string name="reader_hide_bars">Hide status and navigation bars</string>
     <string name="settings_dynamic_color">Use system colours (Material You)</string>
     <string name="settings_dynamic_color_hint">Off by default. Applies to the app screens; reading themes are unchanged.</string>
+    <string name="settings_pdf_write">Write highlights into the PDF file</string>
+    <string name="settings_pdf_write_hint">Off by default. After you close a PDF in your Library, new highlights are also saved inside the file, so other PDF apps show them. Later edits or deletes are not written. Not for files over 50 MB. The file changes, so it is uploaded again if cloud sync is on.</string>
     <string name="reader_rotate_landscape">Rotate to landscape</string>
     <string name="reader_rotate_portrait">Rotate to portrait</string>
     <plurals name="reader_pages_left">

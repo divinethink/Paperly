@@ -1,0 +1,23 @@
+package com.paperly.app.domain.reader
+
+import java.io.File
+
+/** L3: asks for the app's highlights of a Library PDF to be written into the file (if the setting is on). */
+interface PdfHighlightFileSync {
+    /** Fire and forget (app scope, survives the Reader closing). The Reader must have closed the file first. */
+    fun schedule(documentId: String)
+}
+
+/** The Library side of the write: which file may be written, and what to record once its bytes changed. */
+interface LibraryPdfFiles {
+    /** The stored file of a live (not trashed, downloaded) PDF/scanned-PDF document; null otherwise. */
+    suspend fun writableFile(documentId: String): File?
+
+    /** The file was replaced: record the new checksum/size and queue the cloud update. */
+    suspend fun replaced(documentId: String, checksum: String, sizeBytes: Long)
+}
+
+/** Extra check of a finished temp PDF: does the viewer engine open it? */
+fun interface PdfOpenCheck {
+    suspend fun opens(file: File): Boolean
+}

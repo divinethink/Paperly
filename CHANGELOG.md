@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-15 (L3 step 3: highlights written into Library PDFs)
+- New setting Settings -> Reading "Write highlights into the PDF file" (DataStore `write_highlights_to_pdf`, default OFF).
+- When ON: after a Library PDF/scanned-PDF Reader closes (engine closed first) and a highlight was added/edited/removed in that
+  session, `PdfHighlightFileSync` (app scope, one write at a time) passes all of the document's annotations to `PdfAnnotationWriter`
+  (dedupe by `/NM`; verify = the viewer engine opens the temp file). On `Written`: `LibraryPdfFiles.replaced` updates
+  `checksum`/`sizeBytes`/`updatedAt`, clears `cloudRef`, sets `storageState = QUEUED`, re-arms the FILE item and queues the DOCUMENT
+  item, so Drive gets the new bytes (the upload step already removes the stale Drive copy). Skipped/Failed = nothing changes.
+- Limits (v1): only additions are written (later edit/delete stays in the file); highlights made while the setting was OFF are
+  written the next time a highlight changes in that PDF; other devices keep their old file; a kill between the file swap and the
+  row update would leave a checksum mismatch (retried 3x, window is milliseconds). Quick view and EPUB untouched.
+- Unknown until device test: whether `androidx.pdf` also draws the file's own annotations (would show a highlight twice -> step 3b).
+- No DB schema / Firestore rules change (one new `@Query` in `CloudSyncDao`). Tests: `PdfHighlightFileSyncImplTest`, `LibraryPdfFilesImplTest`.
+
 ## 2026-10-15 (L3 step 2: PDF highlight writer, not wired yet)
 - New `PdfAnnotationWriter` (domain) + `PdfBoxAnnotationWriter` (data, PdfBox-Android 2.0.27.0): writes `/Highlight` `/Underline`
   `/StrikeOut` `/Text` annotations (with `/QuadPoints`, colour, `/NM` = our annotation id) into a Library PDF. Safe order: temp copy
