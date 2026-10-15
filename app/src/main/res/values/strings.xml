@@ -344,7 +344,7 @@
     <string name="settings_dynamic_color">Use system colours (Material You)</string>
     <string name="settings_dynamic_color_hint">Off by default. Applies to the app screens; reading themes are unchanged.</string>
     <string name="settings_pdf_write">Write highlights into the PDF file</string>
-    <string name="settings_pdf_write_hint">Off by default. After you close a PDF in your Library, new highlights are also saved inside the file, so other PDF apps show them. Later edits or deletes are not written. Not for files over 50 MB. The file changes, so it is uploaded again if cloud sync is on.</string>
+    <string name="settings_pdf_write_hint">On by default. After you close a PDF, new highlights are also saved inside the file, so other PDF apps show them. A PDF opened from your device is changed in place when Android allows it; otherwise it is kept in your Library. Later edits or deletes are not written. Not for files over 50 MB. The file changes, so it is uploaded again if cloud sync is on.</string>
     <string name="reader_rotate_landscape">Rotate to landscape</string>
     <string name="reader_rotate_portrait">Rotate to portrait</string>
     <plurals name="reader_pages_left">
@@ -393,8 +393,7 @@
     <string name="quick_already_saved">Already in your Library</string>
     <string name="quick_save_failed">Could not save to Library</string>
     <string name="quick_write_ok">Highlights saved into the original file</string>
-    <string name="quick_write_readonly">The original file is read-only, so highlights were not saved there. Use Save to Library to keep them.</string>
-    <string name="quick_write_changed">The original file changed meanwhile, so highlights were not written into it</string>
+    <string name="quick_write_library">The original file cannot be changed, so the PDF was kept in your Library with its highlights</string>
     <string name="quick_write_failed">Could not write highlights into the original file; it was left unchanged</string>
     <string name="quick_keep_title">Keep this PDF in your Library?</string>
     <string name="quick_keep_body">Highlights are kept only with a Library copy. Without it they are lost when you close the reader.</string>

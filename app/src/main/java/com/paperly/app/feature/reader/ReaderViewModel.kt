@@ -40,7 +40,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -134,12 +133,6 @@ class ReaderViewModel @Inject constructor(
 
     init {
         textSelect.onMiss = { page, from, to -> annotations.quickMiss(page, from, to) }
-        if (isQuick) {
-            viewModelScope.launch {
-                annotations.items.first { it.isNotEmpty() }
-                _keepPrompt.value = true // first highlight: offer to keep the PDF (with it) in the Library
-            }
-        }
         observeAnnotationChanges()
         observeProgress()
         viewModelScope.launch {
@@ -304,7 +297,9 @@ class ReaderViewModel @Inject constructor(
         engine?.close()
         cache.clear()
         // Quick view: engine closed -> highlights into the original (if allowed); the temp copy is deleted after.
-        if (isQuick) quickWriteBack.finish(documentId, quick.annotations.snapshot().map(::toFileItem))
+        if (isQuick) {
+            quickWriteBack.finish(documentId, quick.annotations.snapshot().map(::toFileItem), savedTargetId != null)
+        }
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
         if (annotationsChanged) highlightFileSync.schedule(documentId)
         savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent

@@ -27,6 +27,9 @@ fun interface PdfOpenCheck {
  * source allows writing, then always removes the temporary copy. Never throws into the UI.
  */
 interface QuickPdfWriteBack {
-    /** Fire and forget (app scope). The Reader must have closed the temporary file first. */
-    fun finish(token: String, items: List<PdfAnnotationItem>)
+    /**
+     * Fire and forget (app scope). The Reader must have closed the temporary file first. If the original cannot be
+     * written and [savedToLibrary] is false, the PDF is kept in the Library with its highlights instead.
+     */
+    fun finish(token: String, items: List<PdfAnnotationItem>, savedToLibrary: Boolean)
 }

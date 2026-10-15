@@ -22,10 +22,10 @@ class PdfFileWriteSettingsImpl @Inject constructor(
     private val store: DataStore<Preferences>,
 ) : PdfFileWriteSettings {
 
-    // Additive key; missing = false. No migration.
+    // Additive key; missing = true (ON by default). No migration.
     override val writeHighlights: Flow<Boolean> = store.data
         .catch { if (it is IOException) emptyFlow<Preferences>() else throw it }
-        .map { it[KEY] ?: false }
+        .map { it[KEY] ?: true }
 
     override suspend fun setWriteHighlights(enabled: Boolean) {
         store.edit { it[KEY] = enabled }

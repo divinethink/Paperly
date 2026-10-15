@@ -15,7 +15,7 @@ class PdfFileWriteViewModel @Inject constructor(
     private val settings: PdfFileWriteSettings,
 ) : ViewModel() {
     val enabled: StateFlow<Boolean> =
-        settings.writeHighlights.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+        settings.writeHighlights.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     fun setEnabled(value: Boolean) {
         viewModelScope.launch { settings.setWriteHighlights(value) }
