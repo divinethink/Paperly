@@ -70,7 +70,7 @@ fun SettingsScreen(
         SettingsCard {
             CardTitle(R.string.settings_reading_header)
             Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 8.dp))
-            ReadingToggles(dynamicColor, appearance::setDynamicColor)
+            DynamicColorRow(dynamicColor, appearance::setDynamicColor)
         }
         GroupLabel(R.string.settings_group_data)
         SettingsCard {
@@ -131,14 +131,7 @@ private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
-/** The Reading card's switches: Material You (L3: and writing highlights into the PDF file). */
-@Composable
-private fun ReadingToggles(dynamicColor: Boolean, onDynamicColor: (Boolean) -> Unit) {
-    DynamicColorRow(dynamicColor, onDynamicColor)
-    PdfFileWriteRow()
-}
-
-/** Optional Material You colours; the brand palette stays the default. */
+/** Optional Material You colours (brand palette stays the default); then the "write highlights into the PDF" switch. */
 @Composable
 private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
     Column {
@@ -151,6 +144,7 @@ private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
             Switch(checked = enabled, onCheckedChange = null)
         }
         Text(stringResource(R.string.settings_dynamic_color_hint), style = MaterialTheme.typography.bodySmall)
+        PdfFileWriteRow()
     }
 }
 
