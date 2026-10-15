@@ -60,7 +60,7 @@ class QuickPdfWriteBackImpl @Inject constructor(
         val file = store.resolve(token)
         if (source == null || file == null || !settings.writeHighlights.first()) return null
         val keepable = !saved && runCatching { file.copyTo(pristine, overwrite = true) }.isSuccess // before any write
-        return when (val result = step.run(token, source, file, items)) {
+        return when (step.run(token, source, file, items)) {
             null -> null
             OriginalWriteResult.WRITTEN -> R.string.quick_write_ok
             else -> when {

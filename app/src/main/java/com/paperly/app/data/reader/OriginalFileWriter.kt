@@ -37,24 +37,25 @@ class OriginalFileWriter @Inject constructor(@ApplicationContext private val con
         backupName: String,
     ): OriginalWriteResult = withContext(Dispatchers.IO) {
         val pfd = openForWrite(uri) ?: return@withContext OriginalWriteResult.NO_PERMISSION
-        pfd.use { run(uri, it, expectedChecksum, newFile, newChecksum, backupName) }
+        val job = Job(uri, expectedChecksum, newFile, newChecksum, backupName)
+        pfd.use { run(it, job) }
     }
 
-    private fun run(
-        uri: Uri,
-        pfd: ParcelFileDescriptor,
-        expectedChecksum: String,
-        newFile: File,
-        newChecksum: String,
-        backupName: String,
-    ): OriginalWriteResult {
-        if (readChecksum(uri) != expectedChecksum) return OriginalWriteResult.CHANGED
-        val backup = backupOf(uri, expectedChecksum, backupName) ?: return OriginalWriteResult.FAILED
+    private class Job(
+        val uri: Uri,
+        val expectedChecksum: String,
+        val newFile: File,
+        val newChecksum: String,
+        val backupName: String,
+    )
+
+    private fun run(pfd: ParcelFileDescriptor, job: Job): OriginalWriteResult {
+        if (readChecksum(job.uri) != job.expectedChecksum) return OriginalWriteResult.CHANGED
+        val backup = backupOf(job.uri, job.expectedChecksum, job.backupName) ?: return OriginalWriteResult.FAILED
         val out = FileOutputStream(pfd.fileDescriptor).channel // not closed here: the descriptor is owned by [pfd]
-        val ok = runCatching { replaceAll(out, newFile) }.isSuccess && readChecksum(uri) == newChecksum
-        if (ok) return OriginalWriteResult.WRITTEN
-        runCatching { replaceAll(out, backup) } // the original must never stay half-written
-        return OriginalWriteResult.FAILED
+        val ok = runCatching { replaceAll(out, job.newFile) }.isSuccess && readChecksum(job.uri) == job.newChecksum
+        if (!ok) runCatching { replaceAll(out, backup) } // the original must never stay half-written
+        return if (ok) OriginalWriteResult.WRITTEN else OriginalWriteResult.FAILED
     }
 
     private fun openForWrite(uri: Uri): ParcelFileDescriptor? =
