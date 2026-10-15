@@ -19,7 +19,9 @@ import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.OpenResult
+import com.paperly.app.domain.reader.PdfAnnotationItem
 import com.paperly.app.domain.reader.PdfHighlightFileSync
+import com.paperly.app.domain.reader.QuickPdfWriteBack
 import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderPreferences
 import com.paperly.app.domain.reader.ReaderStateRepository
@@ -71,6 +73,7 @@ class ReaderViewModel @Inject constructor(
     private val quickStore: QuickViewStore,
     private val redirects: ReaderRedirects,
     private val highlightFileSync: PdfHighlightFileSync,
+    private val quickWriteBack: QuickPdfWriteBack,
 ) : ViewModel() {
 
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
@@ -297,14 +300,17 @@ class ReaderViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        if (isQuick) quickStore.delete(documentId) // the temporary copy dies with the Reader
         pageOcr.release()
         engine?.close()
         cache.clear()
+        // Quick view: engine closed -> highlights into the original (if allowed); the temp copy is deleted after.
+        if (isQuick) quickWriteBack.finish(documentId, quick.annotations.snapshot().map(::toFileItem))
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
         if (annotationsChanged) highlightFileSync.schedule(documentId)
         savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent
     }
+
+    private fun toFileItem(a: Annotation) = PdfAnnotationItem(a.id, a.page, a.type, a.color, a.rects, a.noteText)
 
     /** First emission = what was already there; any later difference means a highlight was added/edited/removed. */
     private fun observeAnnotationChanges() {

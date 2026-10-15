@@ -21,3 +21,12 @@ interface LibraryPdfFiles {
 fun interface PdfOpenCheck {
     suspend fun opens(file: File): Boolean
 }
+
+/**
+ * Quick view: the Reader closed; puts the in-memory highlights into the ORIGINAL file if the setting is on and the
+ * source allows writing, then always removes the temporary copy. Never throws into the UI.
+ */
+interface QuickPdfWriteBack {
+    /** Fire and forget (app scope). The Reader must have closed the temporary file first. */
+    fun finish(token: String, items: List<PdfAnnotationItem>)
+}

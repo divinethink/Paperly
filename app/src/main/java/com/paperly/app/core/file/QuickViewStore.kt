@@ -13,6 +13,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +54,9 @@ sealed interface QuickStage {
     data object Failed : QuickStage
 }
 
+/** Where a quick-view copy came from and its SHA-256 at staging time (detects a changed original before any write). */
+data class QuickSource(val uri: String, val checksum: String)
+
 /**
  * Open-With for a PDF: the file is copied to the cache (never to the Library), checksum-matched against the Library,
  * and read from there. Nothing is written to the database; the cache copy dies with the Reader.
@@ -63,6 +67,7 @@ class QuickViewStore @Inject constructor(
     private val dao: DocumentDao,
 ) {
     private val dir: File get() = quickViewDir(context).apply { mkdirs() }
+    private val sources = ConcurrentHashMap<String, QuickSource>() // in memory only: gone with the process
 
     /** Removes leftovers of earlier sessions (e.g. the app was killed while a quick PDF was open). Best-effort. */
     suspend fun prune() = withContext(Dispatchers.IO) {
@@ -85,6 +90,7 @@ class QuickViewStore @Inject constructor(
             } else {
                 val title = name?.substringBeforeLast('.')?.trim().orEmpty().ifBlank { "Document" }.take(MAX_TITLE)
                 runCatching { File(dir, "$token.txt").writeText(title) } // best-effort; title falls back
+                sources[token] = QuickSource(sourceUri, checksum)
                 QuickStage.Temp(token)
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -107,8 +113,11 @@ class QuickViewStore @Inject constructor(
     fun resolve(token: String): File? =
         if (isToken(token)) QuickKind.entries.map { File(dir, "$token.${it.ext}") }.firstOrNull { it.isFile } else null
 
+    fun source(token: String): QuickSource? = sources[token]
+
     fun delete(token: String) {
         if (!isToken(token)) return
+        sources.remove(token)
         QuickKind.entries.forEach { kind -> runCatching { File(dir, "$token.${kind.ext}").delete() } }
         runCatching { File(dir, "$token.txt").delete() }
     }
