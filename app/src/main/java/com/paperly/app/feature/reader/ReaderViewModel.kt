@@ -88,6 +88,9 @@ class ReaderViewModel @Inject constructor(
     /** L3: a highlight changed in this session, so on close it is offered to the PDF-file writer. */
     private var annotationsChanged = false
 
+    /** Step 4: Library copy made by "Save to Library"; its highlights go into the file once this Reader closes. */
+    private var savedTargetId: String? = null
+
     val search = ReaderSearchController(
         scope = viewModelScope,
         engine = { engine },
@@ -287,6 +290,7 @@ class ReaderViewModel @Inject constructor(
                 _uiState.value.pageCount,
                 fresh = result is ImportResult.Success,
             )
+            savedTargetId = target
             _saved.value = true
             redirects.post(target)
         }
@@ -299,6 +303,7 @@ class ReaderViewModel @Inject constructor(
         cache.clear()
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
         if (annotationsChanged) highlightFileSync.schedule(documentId)
+        savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent
     }
 
     /** First emission = what was already there; any later difference means a highlight was added/edited/removed. */
