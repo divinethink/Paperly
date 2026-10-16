@@ -64,6 +64,16 @@ class PdfSelectionClampTest {
         assertEquals(b, out[1])
     }
 
+    @Test
+    fun aCellTheFingerReachedIsKept() {
+        val name = MatchRect(0.20f, 0.50f, 0.27f, 0.52f)
+        val nextCell = MatchRect(0.30f, 0.50f, 0.45f, 0.52f)
+        val last = MatchRect(0.20f, 0.52f, 0.30f, 0.54f)
+        val out = clampEnds(listOf(name, nextCell, last), Offset(0.21f, 0.51f), Offset(0.40f, 0.53f))
+        assertEquals(3, out.size)
+        assertEquals(nextCell, out[1])
+    }
+
     private companion object {
         const val EPS = 0.0001f
     }

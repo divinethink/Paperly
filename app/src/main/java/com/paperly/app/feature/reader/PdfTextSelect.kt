@@ -157,11 +157,13 @@ private fun anchorsOf(rects: List<MatchRect>): HandleAnchors {
     )
 }
 
-/** Handle centres (px) just below the start of the first line and the end of the last line. */
+/** Handle centres (px) just below and outside the start of the first line and the end of the last line. */
 private fun handleCenters(rects: List<MatchRect>, w: Float, h: Float, radius: Float): Pair<Offset, Offset> {
     val first = rects.first()
     val last = rects.last()
-    return Offset(first.left * w, first.bottom * h + radius) to Offset(last.right * w, last.bottom * h + radius)
+    // Pushed outward by one radius so the two handles never sit on top of each other (a one-word selection).
+    return Offset(first.left * w - radius, first.bottom * h + radius) to
+        Offset(last.right * w + radius, last.bottom * h + radius)
 }
 
 /**

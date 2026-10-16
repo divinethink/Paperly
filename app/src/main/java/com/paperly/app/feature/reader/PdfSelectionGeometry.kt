@@ -25,17 +25,15 @@ internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<M
     val last = out.last()
     val right = minOf(last.right, end.x + NEAR_X)
     if (right > last.left) out[out.lastIndex] = last.copy(right = right)
-    return dropOtherColumns(out)
+    return dropOtherColumns(out, minOf(start.x, end.x) - NEAR_X, maxOf(start.x, end.x) + NEAR_X)
 }
 
 /**
- * Stream-order selection runs through every table cell between the two ends. A middle line that does not touch the
- * horizontal band of the first/last line (the other cells of the row, the serial-number column) is dropped.
+ * Stream-order selection runs through every table cell between the two ends. A middle line outside the horizontal
+ * band the finger actually covered ([bandLeft]..[bandRight]) is dropped; where the finger goes, the selection goes.
  */
-private fun dropOtherColumns(rects: List<MatchRect>): List<MatchRect> {
+private fun dropOtherColumns(rects: List<MatchRect>, bandLeft: Float, bandRight: Float): List<MatchRect> {
     if (rects.size <= 2) return rects
-    val bandLeft = minOf(rects.first().left, rects.last().left)
-    val bandRight = maxOf(rects.first().right, rects.last().right)
     return rects.filterIndexed { i, r -> i == 0 || i == rects.lastIndex || (r.right > bandLeft && r.left < bandRight) }
 }
 
