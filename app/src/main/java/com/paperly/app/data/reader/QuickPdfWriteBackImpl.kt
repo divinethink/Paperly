@@ -54,14 +54,15 @@ class QuickPdfWriteBackImpl @Inject constructor(
         }
     }
 
-    /** Message to show, or null when nothing was attempted (setting off / source unknown / nothing new). */
+    /** Message to show; every outcome (also "nothing attempted") says why, so highlights never vanish silently. */
     internal suspend fun process(token: String, items: List<PdfAnnotationItem>, saved: Boolean, pristine: File): Int? {
         val source = store.source(token)
         val file = store.resolve(token)
-        if (source == null || file == null || !settings.writeHighlights.first()) return null
+        if (source == null || file == null) return R.string.quick_write_nosource
+        if (!settings.writeHighlights.first()) return R.string.quick_write_off
         val keepable = !saved && runCatching { file.copyTo(pristine, overwrite = true) }.isSuccess // before any write
         return when (step.run(token, source, file, items)) {
-            null -> null
+            null -> R.string.quick_write_nothing
             OriginalWriteResult.WRITTEN -> R.string.quick_write_ok
             else -> when {
                 saved -> R.string.quick_write_failed // the Library copy already holds the highlights
