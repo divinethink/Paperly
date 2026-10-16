@@ -1,0 +1,280 @@
+@import "tailwindcss";
+@import "@fontsource/noto-sans-bengali/400.css";
+@import "@fontsource/noto-sans-bengali/500.css";
+@import "@fontsource/noto-sans-bengali/600.css";
+@import "@fontsource/noto-serif-bengali/500.css";
+@import "@fontsource/noto-serif-bengali/700.css";
+@import "@fontsource/hind-siliguri/400.css";
+@import "@fontsource/hind-siliguri/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/roboto/400.css";
+@import "@fontsource/roboto/700.css";
+@import "../theme/tokens.css";
+
+/* P12-১: SolaimanLipi/Kalpurush — self-hosted, বাংলা+Latin subset (.woff); শুধু ব্যবহৃত হলে লোড */
+@font-face {
+  font-family: "SolaimanLipi";
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/solaimanlipi-400.woff") format("woff");
+}
+@font-face {
+  font-family: "SolaimanLipi";
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/solaimanlipi-700.woff") format("woff");
+}
+@font-face {
+  font-family: "Kalpurush";
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/kalpurush-400.woff") format("woff");
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+}
+
+/* Accessibility baseline: focus দৃশ্যমান, skip-link, reduced-motion */
+:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -64px;
+  padding: 12px 16px;
+  background: var(--btn-bg);
+  color: var(--btn-tx);
+  border-radius: 8px;
+  z-index: 100;
+}
+.skip-link:focus {
+  top: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Editor: লেখার ঘরের টাইপোগ্রাফি — Arch §১৩; --ff/--fs/--lh/--mw আরাম-প্যানেল (P2b-১) বসায় */
+.editor-col {
+  /* transform নয়: ভেতরের fixed toolbar-এর containing block ভাঙত */
+  width: min(var(--mw, 680px), 100%);
+  margin-inline: auto;
+}
+/* Dashboard shell (P2b-৩): root <main>-এর max-w/padding শেল নিজে সামলায় */
+main:has(.dash-shell) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.pm {
+  outline: none;
+  min-height: 55vh;
+  font-family: var(--ff, var(--font-serif));
+  font-size: var(--fs, 19px);
+  line-height: var(--lh, 1.9);
+  caret-color: var(--accent);
+}
+/* লেখার সহায়ক (P7b-১): <html data-tw/data-pf> — comfortStore.applyEditorAids বসায় */
+.pm > * {
+  transition: opacity 0.2s;
+}
+/* শুধু ফোকাস মোড চালু + ক্যারেট বডিতে থাকলে ঝাপসা (শিরোনাম/মেনুতে গেলে বা ফোকাস বন্ধে লেখা স্বাভাবিক) */
+[data-pf="1"] [data-focus="on"] .pm:focus > :not(.pf-cur) {
+  opacity: 0.35;
+}
+[data-tw="1"] .pm {
+  padding-bottom: 45vh; /* শেষ লাইনও লক্ষ্য-উচ্চতায় উঠতে পারে */
+}
+@media (prefers-reduced-motion: reduce) {
+  .pm > * {
+    transition: none;
+  }
+}
+
+.pm p {
+  margin: 0 0 1em;
+}
+.pm h2,
+.pm h3 {
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 1em 0 0.4em;
+}
+.pm h2 {
+  font-size: 1.25em;
+}
+.pm h3 {
+  font-size: 1.1em;
+}
+.pm blockquote {
+  margin: 1em 0;
+  padding-left: 16px;
+  border-left: 3px solid var(--accent);
+  color: var(--accent-text);
+}
+.pm ul,
+.pm ol {
+  margin: 0 0 1em;
+  padding-left: 1.5em;
+}
+.pm ul {
+  list-style: disc;
+}
+.pm ol {
+  list-style: decimal;
+}
+.pm a {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+.pm hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.5em 0;
+}
+
+/* Public পাঠ (P2a-৩খ): editor-এর (.pm) টাইপোগ্রাফির সাথে মিল — Arch §১৩; drop-cap/progress P10b */
+.reading {
+  font-family: var(--font-serif);
+  font-size: 18.5px;
+  line-height: 1.95;
+}
+.reading p {
+  margin: 0 0 1em;
+}
+/* লেখার শেষ অনুচ্ছেদের নিচে বাড়তি ফাঁক নেই (শেষ-সারি নিজেই দূরত্ব দেয়) */
+.reading > :last-child {
+  margin-bottom: 0;
+}
+.reading h2,
+.reading h3 {
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 1.4em 0 0.4em;
+}
+.reading h2 {
+  font-size: 1.25em;
+}
+.reading h3 {
+  font-size: 1.1em;
+}
+.reading blockquote {
+  margin: 1.2em 0;
+  padding-left: 16px;
+  border-left: 3px solid var(--accent);
+  color: var(--accent-text);
+}
+.reading-figure {
+  margin: 1.2em 0;
+}
+.reading-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: var(--line);
+}
+.reading-figure figcaption {
+  margin-top: 0.5em;
+  font-size: 0.85em;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--muted);
+}
+.reading ul,
+.reading ol {
+  margin: 0 0 1em;
+  padding-left: 1.5em;
+}
+.reading ul {
+  list-style: disc;
+}
+.reading ol {
+  list-style: decimal;
+}
+.reading a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.reading hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.5em 0;
+}
+
+/* পাঠক-টুল (P10b-২): লেখার-আকার (<html data-rsize>) ও কবিতার view */
+[data-rsize="s"] .reading {
+  font-size: 16.5px;
+}
+[data-rsize="l"] .reading {
+  font-size: 21px;
+}
+/* P12-১: পাঠকের ফন্ট (<html data-rfont>) — stack lib/fonts.ts-এর FONT_STACK-এর সাথে হুবহু (fonts.test.ts যাচাই করে) */
+[data-rfont="serif"] .reading { font-family: "Noto Serif Bengali", Georgia, serif; }
+[data-rfont="sans"] .reading { font-family: "Noto Sans Bengali", system-ui, sans-serif; }
+[data-rfont="hind"] .reading { font-family: "Hind Siliguri", "Noto Sans Bengali", system-ui, sans-serif; }
+[data-rfont="solaiman"] .reading { font-family: "SolaimanLipi", "Noto Sans Bengali", system-ui, sans-serif; }
+[data-rfont="kalpurush"] .reading { font-family: "Kalpurush", "Noto Sans Bengali", system-ui, sans-serif; }
+[data-rfont="inter"] .reading { font-family: "Inter", "Noto Sans Bengali", system-ui, sans-serif; }
+[data-rfont="roboto"] .reading { font-family: "Roboto", "Noto Sans Bengali", system-ui, sans-serif; }
+
+/* জেন মোড (P12-১): <html data-zen="true"> — header/footer/সূচি/শেয়ার/মন্তব্য ইত্যাদি (.zen-hide) লুকিয়ে বিশুদ্ধ পড়ার view */
+[data-zen="true"] .zen-hide {
+  display: none !important;
+}
+
+.reading-poem {
+  max-width: 30rem;
+  margin-inline: auto;
+  text-align: center;
+  line-height: 1.75;
+}
+/* পঙ্‌ক্তি = ঘন; ফাঁকা অনুচ্ছেদ = এক লাইনের স্তবক-ফাঁক; <br>-যুক্ত অনুচ্ছেদ (স্তবক) শেষে এক লাইন ফাঁক */
+.reading-poem p {
+  margin: 0;
+}
+.reading-poem p:empty::before {
+  content: "\00a0";
+}
+/* কবিতার শেষে জমে থাকা ফাঁকা অনুচ্ছেদ লুকানো (নিচের অংশ উপরে ওঠে); মাঝে পরপর ফাঁকা হলেও একটাই ফাঁক */
+.reading-poem p:empty:not(:has(~ :not(:empty))),
+.reading-poem p:empty + p:empty {
+  display: none;
+}
+.reading-poem p:has(br) {
+  margin-bottom: 1em;
+}
+.reading-poem blockquote {
+  text-align: start;
+}
+
+/* ফোকাস মোড (P2b-২): টাইপ চলাকালে header/toolbar মিলিয়ে যায়; মাউস/আঙুল নড়লে বা focus সরলে ফেরে */
+.chrome {
+  transition: opacity 0.6s;
+}
+[data-typing="true"] .chrome,
+:root[data-typing="true"] .chrome {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ফর্ম-ফিল্ড: ফোকাসে ডাবল-রেখা নয় — outline বাদ, বর্ডারের রঙ বদল (দৃশ্যমান থাকে) */
+.field-clean:focus-visible {
+  outline: none;
+  border-color: var(--accent-text);
+}
