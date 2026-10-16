@@ -76,6 +76,18 @@ internal sealed interface LibraryDialog {
     data class DeleteFolderWithDocs(val folder: Folder) : LibraryDialog
 }
 
+/** "Delete folder" acts at once (documents are kept); "+ documents" returns the confirm dialog to show. */
+internal fun deleteFolderAction(
+    state: LibraryUiState,
+    withDocuments: Boolean,
+    organize: OrganizeViewModel,
+): LibraryDialog? {
+    val folder = state.folders.firstOrNull { it.id == state.selectedFolderId } ?: return null
+    if (withDocuments) return LibraryDialog.DeleteFolderWithDocs(folder)
+    organize.deleteFolder(folder.id)
+    return null
+}
+
 @Composable
 internal fun LibraryDialogHost(
     dialog: LibraryDialog,

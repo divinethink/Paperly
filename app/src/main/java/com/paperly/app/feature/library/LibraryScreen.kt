@@ -134,11 +134,7 @@ fun LibraryScreen(
             selectedId = state.selectedFolderId,
             onSelect = viewModel::selectFolder,
             onNew = { dialog = LibraryDialog.NewFolder },
-            onDelete = { state.selectedFolderId?.let(organize::deleteFolder) },
-            onDeleteWithDocuments = {
-                state.folders.firstOrNull { it.id == state.selectedFolderId }
-                    ?.let { dialog = LibraryDialog.DeleteFolderWithDocs(it) }
-            },
+            onDelete = { deleteFolderAction(state, it, organize)?.let { d -> dialog = d } },
         )
         ViewRow(state.view)
         ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
