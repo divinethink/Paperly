@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -309,7 +310,15 @@ class ReaderViewModel @Inject constructor(
 
     /** First emission = what was already there; any later difference means a highlight was added/edited/removed. */
     private fun observeAnnotationChanges() {
-        if (isQuick || documentId.isEmpty()) return
+        if (isQuick) {
+            // first highlight of a quick view: offer to keep the PDF (its highlights live only with a Library copy)
+            viewModelScope.launch {
+                annotations.items.first { it.isNotEmpty() }
+                _keepPrompt.value = true
+            }
+            return
+        }
+        if (documentId.isEmpty()) return
         viewModelScope.launch {
             var baseline: List<Annotation>? = null
             annotationRepository.observe(documentId).collect { now ->
