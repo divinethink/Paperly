@@ -7,6 +7,7 @@
   `pinchZoom` no longer consumes a second finger that only lands. New `GestureLock`: while a long-press selection or handle drag runs,
   the page neither pans nor zooms. Popup clearance 24 -> 36dp so the menu never covers a handle.
 - Table cells: `clampEnds` trims the first line's left and the last line's right to the touch points (+3% page width).
+- Table cells, round 2: a selection from one cell to a cell in the next row no longer includes the cells in between (`dropOtherColumns`: middle lines that miss the first/last line's column band are dropped).
 - Needs on-device check: table selection and the 88% underline height (one constant). Test: `PdfSelectionClampTest` (JVM, logic also run standalone).
 
 ## 2026-10-15 (Scan S4a: add, delete and reorder pages of a scan; no schema change, DB stays v10)

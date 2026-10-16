@@ -9,8 +9,9 @@ private const val NEAR_Y = 0.012f
 private const val HALF = 0.5f
 
 /**
- * A drag that crosses table cells can come back as whole-line rects. The first line starts at the start touch and the
- * last line ends at the end touch, give or take [NEAR_X]; the engine's own snapping stays inside that margin.
+ * A drag that crosses table cells can come back as whole-line rects, or with other cells in between. The first line
+ * starts at the start touch and the last line ends at the end touch, give or take [NEAR_X]; the engine's own
+ * snapping stays inside that margin.
  */
 internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<MatchRect> {
     val first = rects.firstOrNull() ?: return rects
@@ -24,7 +25,18 @@ internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<M
     val last = out.last()
     val right = minOf(last.right, end.x + NEAR_X)
     if (right > last.left) out[out.lastIndex] = last.copy(right = right)
-    return out
+    return dropOtherColumns(out)
+}
+
+/**
+ * Stream-order selection runs through every table cell between the two ends. A middle line that does not touch the
+ * horizontal band of the first/last line (the other cells of the row, the serial-number column) is dropped.
+ */
+private fun dropOtherColumns(rects: List<MatchRect>): List<MatchRect> {
+    if (rects.size <= 2) return rects
+    val bandLeft = minOf(rects.first().left, rects.last().left)
+    val bandRight = maxOf(rects.first().right, rects.last().right)
+    return rects.filterIndexed { i, r -> i == 0 || i == rects.lastIndex || (r.right > bandLeft && r.left < bandRight) }
 }
 
 /**
