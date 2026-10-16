@@ -14,11 +14,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
-private val LoupeRadius = 48.dp
+private val LoupeRadius = 36.dp
 private val LoupeBorder = 2.dp
 private val LoupeDot = 2.dp
 private const val LOUPE_MAGNIFY = 2f
-private const val LOUPE_LIFT = 1.6f // loupe centre sits this many radii above the finger (below it near the page top)
+private const val LOUPE_LIFT = 2.4f // loupe centre sits this many radii above the finger (below it near the page top)
 
 /**
  * Magnifier bubble for precise handle/edge placement: the page bitmap around [finger] drawn [LOUPE_MAGNIFY]x in a

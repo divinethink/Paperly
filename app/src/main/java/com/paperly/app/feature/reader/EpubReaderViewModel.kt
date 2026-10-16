@@ -43,6 +43,7 @@ data class EpubUiState(
 )
 
 private const val PROGRESS_DEBOUNCE_MS = 800L
+private const val EPUB_EXTENSION = "epub"
 
 /** Decides PDF vs EPUB for the reader route; for EPUB opens the book, resumes, saves progress, bookmarks. */
 @OptIn(FlowPreview::class)
@@ -216,6 +217,10 @@ class EpubReaderViewModel @Inject constructor(
 
     override fun onCleared() {
         _uiState.value.publication?.close()
-        if (isQuick) deps.quickStore.delete(documentId) // the temporary copy dies with the Reader
+        // Only an EPUB's temporary copy dies here. This ViewModel also exists for a quick PDF (same route); that copy
+        // belongs to the PDF reader, whose write-back into the original needs it after this ViewModel is gone.
+        if (isQuick && deps.quickStore.resolve(documentId)?.extension == EPUB_EXTENSION) {
+            deps.quickStore.delete(documentId)
+        }
     }
 }

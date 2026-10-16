@@ -9,6 +9,8 @@
 - Table cells: `clampEnds` trims the first line's left and the last line's right to the touch points (+3% page width).
 - Table cells, round 2: a selection from one cell to a cell in the next row no longer includes the cells in between (`dropOtherColumns`: middle lines that miss the first/last line's column band are dropped).
 - Quick view (PDF): highlights go into the original file when the reader closes (existing write-back; no Library prompt, by choice). Every outcome now shows a message, including the cases that used to be silent (setting off, original unknown, nothing to add).
+- Quick view root cause: the EPUB view model (it exists for every reader route) deleted the quick copy of a PDF when the reader closed, before the write-back could use it ("original file is unknown"). It now deletes only EPUB copies.
+- Magnifier (loupe) smaller (radius 48 -> 36dp) and higher above the finger (1.6 -> 2.4 radii), so it no longer hides the line being selected.
 - Needs on-device check: table selection and the 88% underline height (one constant). Test: `PdfSelectionClampTest` (JVM, logic also run standalone).
 
 ## 2026-10-15 (Scan S4a: add, delete and reorder pages of a scan; no schema change, DB stays v10)
