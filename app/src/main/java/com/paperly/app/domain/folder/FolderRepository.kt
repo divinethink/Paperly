@@ -13,6 +13,9 @@ interface FolderRepository {
     /** Documents inside are kept and become "no folder". */
     suspend fun deleteFolder(id: String)
 
+    /** Folder and everything in it: the documents go to Trash (Restore still works), then the folder is removed. */
+    suspend fun deleteFolderWithDocuments(id: String)
+
     /** [folderId] null = remove from folder. Ignored if the folder no longer exists. */
     suspend fun moveDocument(documentId: String, folderId: String?)
 

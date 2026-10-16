@@ -23,6 +23,10 @@ class OrganizeViewModel @Inject constructor(
         viewModelScope.launch { folders.deleteFolder(id) }
     }
 
+    fun deleteFolderWithDocuments(id: String) {
+        viewModelScope.launch { folders.deleteFolderWithDocuments(id) }
+    }
+
     fun moveDocument(doc: Document, folderId: String?) {
         viewModelScope.launch { folders.moveDocument(doc.id, folderId) }
     }

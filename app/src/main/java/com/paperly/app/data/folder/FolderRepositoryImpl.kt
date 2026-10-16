@@ -4,6 +4,7 @@ import com.paperly.app.core.database.Converters
 import com.paperly.app.core.database.DocumentDao
 import com.paperly.app.core.database.FolderDao
 import com.paperly.app.core.database.FolderEntity
+import com.paperly.app.core.database.TrashDao
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
 import com.paperly.app.domain.folder.normalizeFolderName
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.map
 class FolderRepositoryImpl @Inject constructor(
     private val folderDao: FolderDao,
     private val documentDao: DocumentDao,
+    private val trashDao: TrashDao,
     private val syncQueue: SyncQueue,
 ) : FolderRepository {
 
@@ -36,6 +38,15 @@ class FolderRepositoryImpl @Inject constructor(
 
     override suspend fun deleteFolder(id: String) {
         val affected = documentDao.getIdsByFolder(id) // read first: afterwards they are no longer in the folder
+        folderDao.deleteAndUnassign(id)
+        syncQueue.documentsChanged(affected)
+    }
+
+    /** Each step is repeatable (softDelete only touches live rows), so a retry after a crash just finishes the job. */
+    override suspend fun deleteFolderWithDocuments(id: String) {
+        val affected = documentDao.getIdsByFolder(id)
+        val now = System.currentTimeMillis()
+        affected.forEach { trashDao.softDelete(it, now) }
         folderDao.deleteAndUnassign(id)
         syncQueue.documentsChanged(affected)
     }

@@ -3,6 +3,7 @@ package com.paperly.app.data.trash
 import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.data.document.toDomain
+import com.paperly.app.data.scanner.ScanSourceStore
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.sync.SyncQueue
 import com.paperly.app.domain.trash.TrashRepository
@@ -22,6 +23,7 @@ class TrashRepositoryImpl @Inject constructor(
     private val dao: TrashDao,
     private val fileStore: DocumentFileStore,
     private val syncQueue: SyncQueue,
+    private val scanStore: ScanSourceStore,
 ) : TrashRepository {
 
     override fun observeTrash(): Flow<List<Document>> =
@@ -42,7 +44,10 @@ class TrashRepositoryImpl @Inject constructor(
         if (dao.countTrashed(id) == 0) return false // never touch a document that is not in Trash
         val fileGone = withContext(Dispatchers.IO) { fileStore.resolve(id) == null } || fileStore.delete(id)
         val deleted = fileGone && dao.deleteTrashedRow(id) > 0
-        if (deleted) syncQueue.documentDeleted(id)
+        if (deleted) {
+            withContext(Dispatchers.IO) { runCatching { scanStore.deleteAll(id) } } // kept scan pages go with it
+            syncQueue.documentDeleted(id)
+        }
         return deleted
     }
 

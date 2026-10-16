@@ -73,6 +73,7 @@ internal sealed interface LibraryDialog {
     data class Move(val doc: Document) : LibraryDialog
     data class Tags(val doc: Document) : LibraryDialog
     data object NewFolder : LibraryDialog
+    data class DeleteFolderWithDocs(val folder: Folder) : LibraryDialog
 }
 
 @Composable
@@ -105,6 +106,15 @@ internal fun LibraryDialogHost(
             initial = dialog.doc.tags.joinToString(", "),
             onConfirm = {
                 organize.setTags(dialog.doc, it)
+                onDismiss()
+            },
+            onDismiss = onDismiss,
+        )
+        is LibraryDialog.DeleteFolderWithDocs -> DeleteFolderWithDocsDialog(
+            name = dialog.folder.name,
+            onConfirm = {
+                organize.deleteFolderWithDocuments(dialog.folder.id)
+                library.selectFolder(null)
                 onDismiss()
             },
             onDismiss = onDismiss,
@@ -142,6 +152,17 @@ internal fun MoveFolderDialog(
             }
         },
         confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+@Composable
+private fun DeleteFolderWithDocsDialog(name: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.folder_delete_docs_title)) },
+        text = { Text(stringResource(R.string.folder_delete_docs_message, name)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.trash_confirm_delete)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }

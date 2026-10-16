@@ -61,6 +61,7 @@ internal fun FolderRow(
     onSelect: (String?) -> Unit,
     onNew: () -> Unit,
     onDelete: () -> Unit,
+    onDeleteWithDocuments: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -82,6 +83,7 @@ internal fun FolderRow(
         AssistChip(onClick = onNew, label = { Text(stringResource(R.string.folder_new)) })
         if (selectedId != null) {
             TextButton(onClick = onDelete) { Text(stringResource(R.string.folder_delete)) }
+            TextButton(onClick = onDeleteWithDocuments) { Text(stringResource(R.string.folder_delete_with_docs)) }
         }
     }
 }

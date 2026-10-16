@@ -10,6 +10,9 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Parent of every document's kept page images (also cleared by "Delete all my data"). */
+internal const val SCANS_DIR = "scans"
+
 /** The kept page images: `files/scans/<documentId>/p<i>.img`. Plain file work, no database. */
 @Singleton
 @Suppress("TooManyFunctions") // plain file helpers, one per folder operation
@@ -122,6 +125,13 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
         nextDir(documentId)?.deleteRecursively()
     }
 
+    /** Permanent delete of a document: its page images, any half-done page edit and staged pictures. */
+    fun deleteAll(documentId: String) {
+        dir(documentId)?.deleteRecursively()
+        nextDir(documentId)?.deleteRecursively()
+        stagedDir(documentId)?.deleteRecursively()
+    }
+
     private fun copy(uri: Uri, target: File) {
         val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Cannot open page image")
         input.use { source -> target.outputStream().buffered().use { source.copyTo(it) } }
@@ -132,7 +142,6 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
     }
 
     private companion object {
-        const val SCANS_DIR = "scans"
         const val GALLERY_DIR = "scan_gallery"
         const val ADD_DIR = "scan_add"
         val STAGED_NAME = Regex("a[0-9a-f-]{36}\\.img")

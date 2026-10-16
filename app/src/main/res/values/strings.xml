@@ -108,6 +108,9 @@
     <string name="folder_all">All folders</string>
     <string name="folder_new">New folder</string>
     <string name="folder_delete">Delete folder</string>
+    <string name="folder_delete_with_docs">Delete folder + documents</string>
+    <string name="folder_delete_docs_title">Delete folder and its documents?</string>
+    <string name="folder_delete_docs_message">\"%1$s\" and every document in it move to Trash. Delete them from Trash to remove them for good (scanned pages included).</string>
     <string name="folder_name_label">Folder name</string>
     <string name="folder_create">Create</string>
     <string name="doc_move">Move to folder</string>
