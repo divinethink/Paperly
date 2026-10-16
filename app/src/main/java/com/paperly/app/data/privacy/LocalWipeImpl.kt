@@ -36,7 +36,7 @@ class LocalWipeImpl @Inject constructor(
             db.clearAllTables()
             deleteContents(File(context.filesDir, DOCUMENTS_DIR))
             deleteContents(File(context.filesDir, "db-backups"))
-        deleteContents(File(context.filesDir, SCANS_DIR))
+            deleteContents(File(context.filesDir, SCANS_DIR))
             deleteContents(context.cacheDir)
             settings.edit { it.clear() }
             check(marker.delete() || !marker.exists()) { "cannot remove wipe marker" }
