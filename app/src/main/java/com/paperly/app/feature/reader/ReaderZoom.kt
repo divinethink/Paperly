@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -66,6 +67,7 @@ class PageZoomState(initialZoom: Float = MIN_ZOOM) {
 @Composable
 internal fun Modifier.pinchZoom(
     panEnabled: Boolean,
+    lock: GestureLock,
     onPan: (Float) -> Unit,
     onTransform: (Float, Offset, Offset) -> Unit,
 ): Modifier {
@@ -77,13 +79,26 @@ internal fun Modifier.pinchZoom(
             awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             do {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (event.changes.size > 1) {
-                    transform(event.calculateZoom(), event.calculateCentroid(), event.calculatePan())
-                    event.changes.forEach { it.consume() }
-                } else if (enabled) {
+                // a selection/handle drag owns the finger while the lock is held: no pan, no zoom, nothing consumed
+                if (!lock.held && event.changes.size > 1) {
+                    val zoom = event.calculateZoom()
+                    val move = event.calculatePan()
+                    transform(zoom, event.calculateCentroid(), move)
+                    // a second finger that merely lands (no zoom/pan yet) stays unconsumed: a handle can still take it
+                    if (zoom != 1f || move != Offset.Zero) event.changes.forEach { it.consume() }
+                } else if (!lock.held && enabled) {
                     pan(event.calculatePan().x)
                 }
             } while (event.changes.any { it.pressed })
         }
     }
 }
+
+/** True while a text-selection or handle drag owns the finger; [pinchZoom] then leaves the touch alone. */
+@Stable
+class GestureLock {
+    @Volatile
+    var held: Boolean = false
+}
+
+internal val LocalGestureLock = staticCompositionLocalOf { GestureLock() }

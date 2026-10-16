@@ -229,15 +229,17 @@ private fun PdfPages(
         val zoom = zoomState.zoom
         // Render resolution follows the zoom step (1.5x, 2x, 3x, 4x of the page width) so zoomed text stays sharp.
         val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
+        val gestureLock = remember { GestureLock() }
         val gesture = Modifier.fillMaxSize().pinchZoom(
             panEnabled = !annotate,
+            lock = gestureLock,
             onPan = { zoomState.panX(it, viewportPx, basePx) },
             onTransform = { factor, focus, pan ->
                 listState.dispatchRawDelta(zoomState.transform(factor, focus, pan, viewportPx, basePx))
             },
         )
         val zoomProvider = remember(zoomState) { { zoomState.zoom } }
-        CompositionLocalProvider(LocalPageZoom provides zoomProvider) {
+        CompositionLocalProvider(LocalPageZoom provides zoomProvider, LocalGestureLock provides gestureLock) {
             Box(gesture) {
                 // Layout height shrinks by the zoom so the scaled list exactly fills the viewport.
                 LazyColumn(
@@ -286,7 +288,8 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
-    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks) { finger = it } }
+    val lock = LocalGestureLock.current
+    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks, lock) { finger = it } }
     val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }
     Box(

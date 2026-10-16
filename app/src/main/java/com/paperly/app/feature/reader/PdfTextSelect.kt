@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 private val SelectionFill = Color(0x5542A5F5)
 private val SelectHandleColor = Color(0xFF1E88E5)
@@ -54,7 +56,7 @@ class PdfTextSelectController(
             val pdf = engine() ?: return@launch
             val picked = pdf.selectText(page, from.x, from.y, to.x, to.y)?.takeIf { isNear(it.rects, from) }
             if (picked != null) {
-                selectionState.value = PdfSelection(page, picked.rects, picked.text)
+                selectionState.value = PdfSelection(page, clampEnds(picked.rects, from, to), picked.text)
             } else if (selectionState.value == null) {
                 onMiss?.invoke(page, from, to)
             }
@@ -90,7 +92,12 @@ data class SelectHooks(
 )
 
 /** One page's view of [SelectHooks]; [onFinger] drives the loupe. */
-internal class SelectEdit(val page: Int, val hooks: SelectHooks, val onFinger: (Offset?) -> Unit)
+internal class SelectEdit(
+    val page: Int,
+    val hooks: SelectHooks,
+    val lock: GestureLock,
+    val onFinger: (Offset?) -> Unit,
+)
 
 /** Offered for any readable text layer, Unicode Bengali included (rects are geometry; only Copy is lossy). */
 @Composable
@@ -105,6 +112,25 @@ internal fun rememberSelectHooks(viewModel: ReaderViewModel, enabled: Boolean): 
             SelectHooks(selection, controller::update, controller::selectWord, controller::clear)
         }
     }
+}
+
+/**
+ * A drag that crosses table cells can come back as whole-line rects. The first line starts at the start touch and the
+ * last line ends at the end touch, give or take [NEAR_X]; the engine's own snapping stays inside that margin.
+ */
+internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<MatchRect> {
+    val first = rects.firstOrNull() ?: return rects
+    val sameLine = abs(from.y - to.y) < (first.bottom - first.top) * HALF
+    val forward = if (sameLine) from.x <= to.x else from.y < to.y
+    val start = if (forward) from else to
+    val end = if (forward) to else from
+    val out = rects.toMutableList()
+    val left = maxOf(first.left, start.x - NEAR_X)
+    if (left < first.right) out[0] = first.copy(left = left)
+    val last = out.last()
+    val right = minOf(last.right, end.x + NEAR_X)
+    if (right > last.left) out[out.lastIndex] = last.copy(right = right)
+    return out
 }
 
 /**
@@ -133,11 +159,16 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
     edit.onFinger(pressed.position)
     val slop = viewConfiguration.touchSlop * 2
     var dragged = false
-    drag(down.id) { change ->
-        change.consume()
-        if (!dragged && (change.position - down.position).getDistance() > slop) dragged = true
-        if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
-        edit.onFinger(change.position)
+    edit.lock.held = true // page pan/zoom must not move the page under the finger while selecting
+    try {
+        drag(down.id) { change ->
+            change.consume()
+            if (!dragged && (change.position - down.position).getDistance() > slop) dragged = true
+            if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
+            edit.onFinger(change.position)
+        }
+    } finally {
+        edit.lock.held = false
     }
     edit.onFinger(null)
     // the lift is ours too: otherwise the tap handler sees a plain tap and drops the selection/box
@@ -168,17 +199,41 @@ private fun handleCenters(rects: List<MatchRect>, w: Float, h: Float, radius: Fl
  * misses both handles is left alone (long-press, tap and scroll handle it).
  */
 internal suspend fun AwaitPointerEventScope.selectHandleGesture(current: () -> SelectEdit?, zoomOf: () -> Float) {
-    val down = awaitFirstDown(requireUnconsumed = true)
-    val edit = current() ?: return
-    val rects = edit.hooks.selection?.takeIf { it.page == edit.page }?.rects?.takeIf { it.isNotEmpty() } ?: return
-    val zoom = maxOf(zoomOf(), MIN_ZOOM)
+    // every new touch of this gesture is checked, not only the first: a resting palm/finger must not hide a handle
+    do {
+        val event = awaitPointerEvent()
+        val down = event.changes.firstOrNull { it.changedToDown() }
+        if (down != null && grabHandle(down, current, zoomOf)) return
+    } while (event.changes.any { it.pressed })
+}
+
+/** True when [down] landed on a handle of the current selection and that handle was dragged. */
+private suspend fun AwaitPointerEventScope.grabHandle(
+    down: PointerInputChange,
+    current: () -> SelectEdit?,
+    zoomOf: () -> Float,
+): Boolean {
+    val edit = current() ?: return false
+    val rects = edit.hooks.selection?.takeIf { it.page == edit.page }?.rects.orEmpty()
+    val moveStart = handleHit(down.position, rects, zoomOf())
+    if (moveStart != null) {
+        down.consume()
+        dragHandle(down, edit, anchorsOf(rects), moveStart)
+    }
+    return moveStart != null
+}
+
+/** true = start handle, false = end handle, null = neither (or no selection). */
+private fun AwaitPointerEventScope.handleHit(at: Offset, rects: List<MatchRect>, zoomNow: Float): Boolean? {
+    if (rects.isEmpty()) return null
+    val zoom = maxOf(zoomNow, MIN_ZOOM)
     val radius = SelectHandleRadius.toPx() / zoom
     val (startAt, endAt) = handleCenters(rects, size.width.toFloat(), size.height.toFloat(), radius)
     val reach = HandleReach.toPx() / zoom
-    val moveStart = (down.position - startAt).getDistance() <= reach
-    if (moveStart || (down.position - endAt).getDistance() <= reach) {
-        down.consume()
-        dragHandle(down, edit, anchorsOf(rects), moveStart)
+    return when {
+        (at - startAt).getDistance() <= reach -> true
+        (at - endAt).getDistance() <= reach -> false
+        else -> null
     }
 }
 
@@ -191,11 +246,16 @@ private suspend fun AwaitPointerEventScope.dragHandle(
     val moving = if (moveStart) anchors.start else anchors.end
     val fixed = if (moveStart) anchors.end else anchors.start
     val origin = Offset(moving.x * size.width, moving.y * size.height)
-    drag(down.id) { change ->
-        change.consume()
-        val to = fraction(origin + (change.position - down.position), size)
-        if (moveStart) edit.hooks.onUpdate(edit.page, to, fixed) else edit.hooks.onUpdate(edit.page, fixed, to)
-        edit.onFinger(change.position)
+    edit.lock.held = true
+    try {
+        drag(down.id) { change ->
+            change.consume()
+            val to = fraction(origin + (change.position - down.position), size)
+            if (moveStart) edit.hooks.onUpdate(edit.page, to, fixed) else edit.hooks.onUpdate(edit.page, fixed, to)
+            edit.onFinger(change.position)
+        }
+    } finally {
+        edit.lock.held = false
     }
     edit.onFinger(null)
 }

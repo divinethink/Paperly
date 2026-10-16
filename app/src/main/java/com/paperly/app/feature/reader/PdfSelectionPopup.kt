@@ -31,7 +31,7 @@ import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotationType
 
 private val MenuGap = 8.dp
-private val HandleClearance = 24.dp // below the last line sit the round selection handles
+private val HandleClearance = 36.dp // below the last line sit the round selection handles
 private val MenuElevation = 6.dp
 private const val HALF = 0.5f
 

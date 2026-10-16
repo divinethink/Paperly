@@ -41,6 +41,8 @@ private val NoteStroke = Color(0xFF1E88E5)
 private val DraftFill = Color(0x3300796B)
 private val LineWidth = 1.5.dp // on-screen thickness; drawAnnotations divides by the zoom so it stays constant
 private const val HIGHLIGHT_ALPHA = 0.4f
+private const val UNDERLINE_AT = 0.88f // fraction of the line box height; tune here if it looks high/low
+private const val STRIKE_AT = 0.5f
 private const val MIN_SIDE = 0.01f // smaller drags (fraction of the page) are treated as accidental
 
 /** Current page-list zoom, read lazily in the draw phase so pinching only redraws (never recomposes) the pages. */
@@ -126,18 +128,25 @@ internal fun Modifier.annotationGestures(
 fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
     val lineWidth = LineWidth.toPx() / maxOf(zoom, MIN_ZOOM)
     items.forEach { a ->
-        val topLeft = Offset(a.rect.left * size.width, a.rect.top * size.height)
-        val area = Size((a.rect.right - a.rect.left) * size.width, (a.rect.bottom - a.rect.top) * size.height)
-        val lineY = if (a.type == AnnotationType.STRIKETHROUGH) topLeft.y + area.height / 2 else topLeft.y + area.height
         val base = (a.color ?: AnnotationColor.defaultFor(a.type)).argb()
-        when (a.type) {
-            AnnotationType.HIGHLIGHT -> drawRect(base.copy(alpha = HIGHLIGHT_ALPHA), topLeft, area)
-            AnnotationType.NOTE -> {
-                drawRect(NoteFill, topLeft, area)
-                drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
-            }
-            else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
+        // one quad per line (like Xodo/Apryse TextMarkup): never the bounding box of all parts
+        a.rects.forEach { drawPart(a.type, it, base, lineWidth) }
+    }
+}
+
+private fun DrawScope.drawPart(type: AnnotationType, r: MatchRect, base: Color, lineWidth: Float) {
+    val topLeft = Offset(r.left * size.width, r.top * size.height)
+    val area = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height)
+    // line bounds include the descender/leading, so an underline sits a little above the very bottom
+    val at = if (type == AnnotationType.STRIKETHROUGH) STRIKE_AT else UNDERLINE_AT
+    val lineY = topLeft.y + area.height * at
+    when (type) {
+        AnnotationType.HIGHLIGHT -> drawRect(base.copy(alpha = HIGHLIGHT_ALPHA), topLeft, area)
+        AnnotationType.NOTE -> {
+            drawRect(NoteFill, topLeft, area)
+            drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
         }
+        else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
     }
 }
 
