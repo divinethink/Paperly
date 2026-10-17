@@ -31,6 +31,7 @@ private val SelectHandleRadius = 12.dp // big drop-shaped handle, easy to grab (
 private val SelectHandleReach = 36.dp // touch reach around a handle
 private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, so the end characters stay selected
 private const val HALF = 0.5f
+private const val MIN_LINE = 0.005f // page fraction: floor for a line height used by the forward test
 
 /** Text picked on one [page]: line [rects] (page fractions) and its plain [text]. Not persisted. */
 data class PdfSelection(val page: Int, val rects: List<MatchRect>, val text: String)
@@ -42,7 +43,9 @@ class PdfTextSelectController(
 ) {
     private val selectionState = MutableStateFlow<PdfSelection?>(null)
     val state: StateFlow<PdfSelection?> = selectionState.asStateFlow()
-    private var job: Job? = null
+    private var job: Job? = null // long-press word pick
+    private var worker: Job? = null // drains [latest]; one engine call at a time
+    private var latest: UpdateRequest? = null
     private val draggingState = MutableStateFlow(false)
 
     /** True while a finger is down on a selection gesture (long-press or handle drag): the mark panel stays hidden. */
@@ -55,23 +58,38 @@ class PdfTextSelectController(
     /** Called when a press/drag lands where there is no text (scan, watermark-only layer): the quick box takes over. */
     var onMiss: ((Int, Offset, Offset?) -> Unit)? = null
 
-    /** Selects between two page-fraction points; a drag over blank space keeps the previous selection. */
-    fun update(page: Int, from: Offset, to: Offset) {
-        job?.cancel()
-        job = scope.launch {
-            val pdf = engine() ?: return@launch
-            val picked = pdf.selectText(page, from.x, from.y, to.x, to.y)?.takeIf { isNear(it.rects, from) }
-            if (picked != null) {
-                selectionState.value = PdfSelection(page, clampEnds(picked.rects, from, to), picked.text)
-            } else if (selectionState.value == null) {
-                onMiss?.invoke(page, from, to)
+    /**
+     * Selects between two page-fraction points; a drag over blank space keeps the previous selection. Calls never
+     * cancel each other (a finger moving faster than the engine would starve every call): the newest request waits
+     * for the running one, older unstarted ones are dropped. [pin] keeps the fixed end of a handle drag in place.
+     */
+    fun update(page: Int, from: Offset, to: Offset, pin: SelectionPin? = null) {
+        job?.cancel() // a slow word pick must not land on top of the drag
+        latest = UpdateRequest(page, from, to, pin)
+        if (worker?.isActive == true) return
+        worker = scope.launch {
+            while (true) {
+                val request = latest ?: break
+                latest = null
+                apply(request)
             }
+        }
+    }
+
+    private suspend fun apply(r: UpdateRequest) {
+        val pdf = engine() ?: return
+        val picked = pdf.selectText(r.page, r.from.x, r.from.y, r.to.x, r.to.y)?.takeIf { isNear(it.rects, r.from) }
+        if (picked != null) {
+            val rects = pinEnds(clampEnds(picked.rects, r.from, r.to), r.pin)
+            selectionState.value = PdfSelection(r.page, rects, picked.text)
+        } else if (selectionState.value == null) {
+            onMiss?.invoke(r.page, r.from, r.to)
         }
     }
 
     /** Long-press without drag: selects the word under [at] (page fractions). */
     fun selectWord(page: Int, at: Offset) {
-        job?.cancel()
+        stopPending()
         job = scope.launch {
             val pdf = engine() ?: return@launch
             val picked = pickWordAt(pdf, page, at)?.takeIf { isNear(it.rects, at) }
@@ -83,17 +101,25 @@ class PdfTextSelectController(
         }
     }
 
-    fun clear() {
+    private fun stopPending() {
         job?.cancel()
+        worker?.cancel()
+        latest = null
+    }
+
+    fun clear() {
+        stopPending()
         selectionState.value = null
         draggingState.value = false
     }
 }
 
+private class UpdateRequest(val page: Int, val from: Offset, val to: Offset, val pin: SelectionPin?)
+
 /** Selection wiring handed down to each page; null = text selection off (annotate mode, no readable text layer). */
 data class SelectHooks(
     val selection: PdfSelection?,
-    val onUpdate: (Int, Offset, Offset) -> Unit,
+    val onUpdate: (Int, Offset, Offset, SelectionPin?) -> Unit,
     val onWord: (Int, Offset) -> Unit,
     val onClear: () -> Unit,
     val onDragging: (Boolean) -> Unit = {},
@@ -151,7 +177,7 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
         drag(down.id) { change ->
             change.consume()
             if (!dragged && (change.position - down.position).getDistance() > slop) dragged = true
-            if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size))
+            if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size), null)
             edit.onFinger(change.position)
         }
     } finally {
@@ -179,8 +205,10 @@ private fun handleCenters(rects: List<MatchRect>, w: Float, h: Float, radius: Fl
     val first = rects.first()
     val last = rects.last()
     // Pushed outward by one radius so the two handles never sit on top of each other (a one-word selection).
-    return Offset(first.left * w - radius, first.bottom * h + radius) to
-        Offset(last.right * w + radius, last.bottom * h + radius)
+    // Kept inside the page: text at a page edge must not push a handle off screen where it cannot be grabbed.
+    val maxX = (w - radius).coerceAtLeast(radius)
+    return Offset((first.left * w - radius).coerceIn(radius, maxX), first.bottom * h + radius) to
+        Offset((last.right * w + radius).coerceIn(radius, maxX), last.bottom * h + radius)
 }
 
 /**
@@ -207,7 +235,7 @@ private suspend fun AwaitPointerEventScope.grabHandle(
     val moveStart = handleHit(down.position, rects, zoomOf())
     if (moveStart != null) {
         down.consume()
-        dragHandle(down, edit, anchorsOf(rects), moveStart)
+        dragHandle(down, edit, anchorsOf(rects), rects, moveStart)
     }
     return moveStart != null
 }
@@ -232,23 +260,34 @@ private suspend fun AwaitPointerEventScope.dragHandle(
     down: PointerInputChange,
     edit: SelectEdit,
     anchors: HandleAnchors,
+    grabbed: List<MatchRect>,
     moveStart: Boolean,
 ) {
     val moving = if (moveStart) anchors.start else anchors.end
     val fixed = if (moveStart) anchors.end else anchors.start
     val origin = Offset(moving.x * size.width, moving.y * size.height)
+    val lineHeight = (grabbed.last().bottom - grabbed.last().top).coerceAtLeast(MIN_LINE)
     edit.lock.held = true
     try {
         drag(down.id) { change ->
             change.consume()
             val to = fraction(origin + (change.position - down.position), size)
-            if (moveStart) edit.hooks.onUpdate(edit.page, to, fixed) else edit.hooks.onUpdate(edit.page, fixed, to)
+            // the fixed end keeps its grabbed line rect while the moving end stays on its far side
+            val pin = if (moveStart) {
+                SelectionPin(last = grabbed.last().takeIf { isForward(to, fixed, lineHeight) })
+            } else {
+                SelectionPin(first = grabbed.first().takeIf { isForward(fixed, to, lineHeight) })
+            }
+            val (from, end) = if (moveStart) to to fixed else fixed to to
+            edit.hooks.onUpdate(edit.page, from, end, pin)
             edit.onFinger(change.position)
         }
     } finally {
         edit.lock.held = false
         edit.onFinger(null)
     }
+    // the lift is ours too: otherwise the tap handler sees a plain tap and drops the selection
+    currentEvent.changes.forEach { it.consume() }
 }
 
 /** Selected lines plus two round handles; handle size stays constant on screen at any zoom. */

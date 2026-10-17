@@ -74,6 +74,37 @@ class PdfSelectionClampTest {
         assertEquals(nextCell, out[1])
     }
 
+    @Test
+    fun pinPutsTheGrabbedFirstLeftBack() {
+        val grabbed = MatchRect(0.20f, 0.50f, 0.27f, 0.52f)
+        val slipped = MatchRect(0.215f, 0.50f, 0.60f, 0.52f) // engine started one character late
+        assertEquals(listOf(slipped.copy(left = 0.20f)), pinEnds(listOf(slipped), SelectionPin(first = grabbed)))
+    }
+
+    @Test
+    fun pinPutsTheGrabbedLastRightBackAndLeavesOtherLines() {
+        val first = MatchRect(0.20f, 0.50f, 0.90f, 0.52f)
+        val tail = MatchRect(0.10f, 0.52f, 0.40f, 0.54f)
+        val grabbed = MatchRect(0.10f, 0.52f, 0.45f, 0.54f)
+        val out = pinEnds(listOf(first, tail), SelectionPin(last = grabbed))
+        assertEquals(listOf(first, tail.copy(right = 0.45f)), out)
+    }
+
+    @Test
+    fun pinIgnoresAnEngineLineThatIsNotTheGrabbedLine() {
+        val grabbed = MatchRect(0.20f, 0.50f, 0.27f, 0.52f)
+        val other = MatchRect(0.30f, 0.60f, 0.50f, 0.62f)
+        assertEquals(listOf(other), pinEnds(listOf(other), SelectionPin(first = grabbed)))
+        assertEquals(listOf(other), pinEnds(listOf(other), null))
+    }
+
+    @Test
+    fun forwardMeansRightOnTheSameLineElseDown() {
+        assertEquals(true, isForward(Offset(0.2f, 0.51f), Offset(0.6f, 0.511f), 0.02f))
+        assertEquals(false, isForward(Offset(0.6f, 0.51f), Offset(0.2f, 0.511f), 0.02f))
+        assertEquals(true, isForward(Offset(0.8f, 0.51f), Offset(0.1f, 0.60f), 0.02f))
+    }
+
     private companion object {
         const val EPS = 0.0001f
     }

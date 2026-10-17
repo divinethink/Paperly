@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-17 (Selection handles vs Xodo: fixed end holds, drag keeps up, handles stay on screen; no schema change)
+
+- Dragging one handle no longer moves the other: the grabbed line end is pinned (`pinEnds`, `SelectionPin`) while the moving end stays on its far side.
+- Handle drag no longer starves: `PdfTextSelectController.update` queues the newest request instead of cancelling the running engine call on every move; a late long-press word pick can no longer overwrite a drag.
+- The lift of a handle drag is consumed, so it is not read as a tap.
+- Handles are kept inside the page (`handleCenters` clamps x), so a handle for text at the left/right page edge is fully visible and grabbable.
+- Needs on-device check (not reproducible in the sandbox): items 1-3 of the Xodo comparison. Tests: `PdfSelectionClampTest` (pin + forward).
+
 ## 2026-10-16 (PDF marking fixes: per-line underline, handles that hold, table ends; no schema change)
 - Underline/highlight/strikethrough are now drawn per saved line part (`Annotation.rects`), not as one bounding box: a multi-line
   underline shows on every line. Underline sits at 88% of the line box (`UNDERLINE_AT`), so it no longer hangs below Bengali lines.

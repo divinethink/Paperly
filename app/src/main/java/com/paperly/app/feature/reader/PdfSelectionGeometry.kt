@@ -15,8 +15,7 @@ private const val HALF = 0.5f
  */
 internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<MatchRect> {
     val first = rects.firstOrNull() ?: return rects
-    val sameLine = abs(from.y - to.y) < (first.bottom - first.top) * HALF
-    val forward = if (sameLine) from.x <= to.x else from.y < to.y
+    val forward = isForward(from, to, first.bottom - first.top)
     val start = if (forward) from else to
     val end = if (forward) to else from
     val out = rects.toMutableList()
@@ -43,4 +42,33 @@ private fun dropOtherColumns(rects: List<MatchRect>, bandLeft: Float, bandRight:
  */
 internal fun isNear(rects: List<MatchRect>, p: Offset): Boolean = rects.any {
     p.x in (it.left - NEAR_X)..(it.right + NEAR_X) && p.y in (it.top - NEAR_Y)..(it.bottom + NEAR_Y)
+}
+
+/** The fixed end of a handle drag: its line rect, kept as it was grabbed. Null = that end is the one being moved. */
+internal data class SelectionPin(val first: MatchRect? = null, val last: MatchRect? = null)
+
+/** True when [to] lies after [from] in reading order (same line: further right; else further down). */
+internal fun isForward(from: Offset, to: Offset, lineHeight: Float): Boolean =
+    if (abs(from.y - to.y) < lineHeight * HALF) from.x <= to.x else from.y < to.y
+
+private fun MatchRect.midY() = (top + bottom) * HALF
+
+private fun MatchRect.onLineOf(other: MatchRect) = abs(midY() - other.midY()) < (other.bottom - other.top) * HALF
+
+/**
+ * The engine re-snaps the fixed end on every move and can slip a character (Bengali vowel signs sit left of their
+ * consonant), so the fixed end would creep while the other handle is dragged. Put the grabbed line end back.
+ */
+internal fun pinEnds(rects: List<MatchRect>, pin: SelectionPin?): List<MatchRect> {
+    if (pin == null || rects.isEmpty()) return rects
+    val out = rects.toMutableList()
+    pin.first?.let { p ->
+        val head = out.first()
+        if (head.onLineOf(p) && p.left < head.right) out[0] = head.copy(left = p.left)
+    }
+    pin.last?.let { p ->
+        val tail = out.last()
+        if (tail.onLineOf(p) && p.right > tail.left) out[out.lastIndex] = tail.copy(right = p.right)
+    }
+    return out
 }
