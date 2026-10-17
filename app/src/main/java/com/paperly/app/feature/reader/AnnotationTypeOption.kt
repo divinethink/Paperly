@@ -33,6 +33,7 @@ internal fun TypeOption(option: AnnotationType, selected: Boolean, onSelect: () 
 internal fun typeLabel(type: AnnotationType): Int = when (type) {
     AnnotationType.HIGHLIGHT -> R.string.reader_annotation_highlight
     AnnotationType.UNDERLINE -> R.string.reader_annotation_underline
+    AnnotationType.SQUIGGLY -> R.string.reader_annotation_squiggly
     AnnotationType.STRIKETHROUGH -> R.string.reader_annotation_strikethrough
     AnnotationType.NOTE -> R.string.reader_annotation_note
 }

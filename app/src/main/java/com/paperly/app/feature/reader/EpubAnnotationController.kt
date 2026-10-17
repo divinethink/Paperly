@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+// Readium decorations have only highlight and underline; these PDF-only types read as underline in EPUB.
+private val PDF_ONLY_TYPES = setOf(AnnotationType.STRIKETHROUGH, AnnotationType.SQUIGGLY)
+
 /** [locatorJson] = the new selection (existing == null), or [existing] being edited. */
 data class EpubAnnotationEditor(val locatorJson: String?, val existing: EpubAnnotation?)
 
@@ -49,9 +52,9 @@ class EpubAnnotationController(
     private val _mode = MutableStateFlow(false)
     val mode: StateFlow<Boolean> = _mode.asStateFlow()
 
-    // Readium has no strikethrough decoration, so a style picked in the PDF reader reads as underline here.
+    // Readium has no strikethrough/squiggly decoration, so such a style picked in the PDF reader reads as underline.
     val style: StateFlow<AnnotateStyle> = styleStore.style
-        .map { if (it.type == AnnotationType.STRIKETHROUGH) it.copy(type = AnnotationType.UNDERLINE) else it }
+        .map { if (it.type in PDF_ONLY_TYPES) it.copy(type = AnnotationType.UNDERLINE) else it }
         .stateIn(scope, SharingStarted.Eagerly, AnnotateStyle())
 
     fun toggleMode() {

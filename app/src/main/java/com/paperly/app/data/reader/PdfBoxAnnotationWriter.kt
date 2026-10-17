@@ -199,6 +199,7 @@ private fun hasName(annots: COSArray, id: String): Boolean =
 
 private fun subtypeOf(type: AnnotationType): String = when (type) {
     AnnotationType.UNDERLINE -> PDAnnotationTextMarkup.SUB_TYPE_UNDERLINE
+    AnnotationType.SQUIGGLY -> PDAnnotationTextMarkup.SUB_TYPE_SQUIGGLY
     AnnotationType.STRIKETHROUGH -> PDAnnotationTextMarkup.SUB_TYPE_STRIKEOUT
     else -> PDAnnotationTextMarkup.SUB_TYPE_HIGHLIGHT
 }

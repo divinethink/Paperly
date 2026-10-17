@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 enum class AnnotationType(val key: String) {
     HIGHLIGHT("highlight"),
     UNDERLINE("underline"),
+    SQUIGGLY("squiggly"),
     STRIKETHROUGH("strikethrough"),
     NOTE("note"),
     ;

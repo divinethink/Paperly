@@ -352,6 +352,7 @@
     <string name="reader_annotation_edit">Edit annotation</string>
     <string name="reader_annotation_highlight">Highlight</string>
     <string name="reader_annotation_underline">Underline</string>
+    <string name="reader_annotation_squiggly">Squiggly</string>
     <string name="reader_annotation_strikethrough">Strikethrough</string>
     <string name="reader_annotation_note">Note</string>
     <string name="reader_annotation_note_hint">Note text</string>

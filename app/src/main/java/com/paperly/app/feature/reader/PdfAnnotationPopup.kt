@@ -72,34 +72,49 @@ internal fun PdfAnnotationPopup(viewModel: ReaderViewModel, port: SelectionViewp
             tonalElevation = PopupElevation,
             shadowElevation = PopupElevation,
         ) {
-            Column {
-                if (tapped.type != AnnotationType.NOTE) {
-                    val current = tapped.color ?: AnnotationColor.defaultFor(tapped.type)
-                    Row(Modifier.fillMaxWidth()) {
-                        AnnotationColor.entries.forEach { color ->
-                            ColorSwatch(color, color == current, Modifier.weight(1f)) {
-                                controller.save(editor, AnnotationContent(tapped.type, color, null))
-                                popup.onTap(null)
-                            }
-                        }
+            AnnotationMenu(tapped, editor, controller, popup)
+        }
+    }
+}
+
+/** Colour swatches and one-tap type icons (not for notes), then Edit / Delete / Cancel. */
+@Composable
+private fun AnnotationMenu(
+    tapped: Annotation,
+    editor: AnnotationEditor,
+    controller: AnnotationController,
+    popup: PopupHooks,
+) {
+    Column {
+        if (tapped.type != AnnotationType.NOTE) {
+            val current = tapped.color ?: AnnotationColor.defaultFor(tapped.type)
+            Row(Modifier.fillMaxWidth()) {
+                AnnotationColor.entries.forEach { color ->
+                    ColorSwatch(color, color == current, Modifier.weight(1f)) {
+                        controller.save(editor, AnnotationContent(tapped.type, color, null))
+                        popup.onTap(null)
                     }
                 }
-                Row {
-                    TextButton(
-                        onClick = {
-                            popup.onEditor(editor)
-                            popup.onTap(null)
-                        },
-                    ) { Text(stringResource(R.string.reader_annotation_edit)) }
-                    TextButton(
-                        onClick = {
-                            controller.delete(tapped.id)
-                            popup.onTap(null)
-                        },
-                    ) { Text(stringResource(R.string.reader_annotation_delete)) }
-                    TextButton(onClick = { popup.onTap(null) }) { Text(stringResource(R.string.action_cancel)) }
-                }
             }
+            MarkIconRow(tapped.type, current, Modifier.fillMaxWidth()) { type ->
+                controller.save(editor, AnnotationContent(type, tapped.color, null))
+                popup.onTap(null)
+            }
+        }
+        Row {
+            TextButton(
+                onClick = {
+                    popup.onEditor(editor)
+                    popup.onTap(null)
+                },
+            ) { Text(stringResource(R.string.reader_annotation_edit)) }
+            TextButton(
+                onClick = {
+                    controller.delete(tapped.id)
+                    popup.onTap(null)
+                },
+            ) { Text(stringResource(R.string.reader_annotation_delete)) }
+            TextButton(onClick = { popup.onTap(null) }) { Text(stringResource(R.string.action_cancel)) }
         }
     }
 }

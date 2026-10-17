@@ -4,9 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,11 +30,13 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
 
 private val MenuGap = 8.dp
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
 private val MenuElevation = 6.dp
+private val SwatchWidth = 44.dp
 private const val HALF = 0.5f
 
 /** What the popup needs to turn page fractions into screen pixels: list scroll, zoom, page width, viewport size. */
@@ -44,9 +48,17 @@ internal class SelectionViewport(
     val heightPx: Float,
 )
 
+/** What the bar can do; bundled so the bar composable stays within the detekt parameter limit. */
+private class SelectionActions(
+    val onColor: (AnnotationColor) -> Unit,
+    val onMark: (AnnotationType) -> Unit,
+    val onCopy: () -> Unit,
+)
+
 /**
- * Copy | Highlight | Underline | Note right above the selected text (below it when there is no room), inside the
- * page area. Tapping a type saves with the colour already chosen; hidden in annotate mode and Reflow.
+ * Floating bar right above the selected text (below it when there is no room), inside the page area: colour row,
+ * then Highlight / Underline / Squiggly / Strikethrough one-tap icons, Note and Copy. A mark saves with the colour
+ * shown; hidden in annotate mode and Reflow.
  */
 @Composable
 internal fun PdfSelectionPopup(
@@ -58,6 +70,7 @@ internal fun PdfSelectionPopup(
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val style by viewModel.annotations.style.collectAsStateWithLifecycle()
     val picked = selection
     if (picked == null || annotate || reflow) return
     val context = LocalContext.current
@@ -69,6 +82,14 @@ internal fun PdfSelectionPopup(
         viewModel.annotations.annotateSelection(picked.page, picked.rects, type)?.let(onEditor)
         viewModel.textSelect.clear()
     }
+    val actions = SelectionActions(
+        onColor = { viewModel.annotations.setStyle(style.copy(color = it)) },
+        onMark = ::annotateAs,
+        onCopy = {
+            copyText(context, picked.text)
+            viewModel.textSelect.clear()
+        },
+    )
     Box(Modifier.fillMaxSize()) {
         Surface(
             modifier = Modifier
@@ -78,24 +99,27 @@ internal fun PdfSelectionPopup(
             tonalElevation = MenuElevation,
             shadowElevation = MenuElevation,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!search.partialMatch) { // Bengali extraction drops vowel signs: never copy broken text
-                    TextButton(
-                        onClick = {
-                            copyText(context, picked.text)
-                            viewModel.textSelect.clear()
-                        },
-                    ) { Text(stringResource(R.string.reader_select_copy)) }
-                }
-                run {
-                    listOf(
-                        AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
-                        AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
-                        AnnotationType.NOTE to R.string.reader_annotation_note,
-                    ).forEach { (type, label) ->
-                        TextButton(onClick = { annotateAs(type) }) { Text(stringResource(label)) }
-                    }
-                }
+            // Bengali extraction drops vowel signs: never offer a copy of broken text
+            SelectionBar(style.color, canCopy = !search.partialMatch, actions)
+        }
+    }
+}
+
+@Composable
+private fun SelectionBar(color: AnnotationColor, canCopy: Boolean, actions: SelectionActions) {
+    Column {
+        Row {
+            AnnotationColor.entries.forEach { option ->
+                ColorSwatch(option, option == color, Modifier.width(SwatchWidth)) { actions.onColor(option) }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MarkIconRow(selected = null, color = color, onPick = actions.onMark)
+            TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }) {
+                Text(stringResource(R.string.reader_annotation_note))
+            }
+            if (canCopy) {
+                TextButton(onClick = actions.onCopy) { Text(stringResource(R.string.reader_select_copy)) }
             }
         }
     }

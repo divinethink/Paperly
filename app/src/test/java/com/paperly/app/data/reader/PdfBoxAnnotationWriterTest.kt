@@ -85,6 +85,15 @@ class PdfBoxAnnotationWriterTest {
     }
 
     @Test
+    fun squigglyIsWrittenAsSquigglySubtype() {
+        val file = samplePdf()
+        assertTrue(run(file, listOf(item("s1", AnnotationType.SQUIGGLY))) is PdfWriteResult.Written)
+        PDDocument.load(file).use { doc ->
+            assertEquals("Squiggly", doc.getPage(0).getAnnotations().single().getSubtype())
+        }
+    }
+
+    @Test
     fun failedVerificationLeavesOriginalAndNoTempBehind() {
         val file = samplePdf()
         val before = file.readBytes()

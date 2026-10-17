@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -43,6 +44,8 @@ private val LineWidth = 1.5.dp // on-screen thickness; drawAnnotations divides b
 private const val HIGHLIGHT_ALPHA = 0.4f
 private const val UNDERLINE_AT = 0.88f // fraction of the line box height; tune here if it looks high/low
 private const val STRIKE_AT = 0.5f
+private const val SQUIGGLE_STEP = 2.5f // half-wave length, in line widths
+private const val SQUIGGLE_AMP = 1.2f // wave height either side of the line, in line widths
 private const val MIN_SIDE = 0.01f // smaller drags (fraction of the page) are treated as accidental
 
 /** Current page-list zoom, read lazily in the draw phase so pinching only redraws (never recomposes) the pages. */
@@ -146,8 +149,25 @@ private fun DrawScope.drawPart(type: AnnotationType, r: MatchRect, base: Color, 
             drawRect(NoteFill, topLeft, area)
             drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
         }
+        AnnotationType.SQUIGGLY -> drawSquiggle(base, topLeft.x, lineY, area.width, lineWidth)
         else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
     }
+}
+
+/** Zig-zag line (the same wave in the page and in the toolbar icon); [stroke] sets thickness and wave size. */
+internal fun DrawScope.drawSquiggle(color: Color, x: Float, y: Float, width: Float, stroke: Float) {
+    val step = stroke * SQUIGGLE_STEP
+    val amp = stroke * SQUIGGLE_AMP
+    val end = x + width
+    val path = Path().apply { moveTo(x, y + amp) }
+    var cx = x
+    var up = true
+    while (cx < end) {
+        cx = minOf(cx + step, end)
+        path.lineTo(cx, if (up) y - amp else y + amp)
+        up = !up
+    }
+    drawPath(path, color, style = Stroke(stroke))
 }
 
 fun DrawScope.drawDraft(rect: MatchRect) {

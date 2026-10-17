@@ -17,7 +17,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 
 private const val ANNOTATION_GROUP = "annotations"
 
-/** Highlight/Note -> highlight; Underline/Strikethrough -> underline (Readium has no strikethrough style). */
+/** Highlight/Note -> highlight; Underline/Squiggly/Strikethrough -> underline (Readium has only these two styles). */
 internal fun EpubAnnotation.toDecoration(): Decoration? {
     val locator = decodeLocator(locatorJson) ?: return null
     val tint = (if (type == AnnotationType.NOTE) AnnotationColor.BLUE else color ?: AnnotationColor.defaultFor(type))
@@ -25,7 +25,8 @@ internal fun EpubAnnotation.toDecoration(): Decoration? {
         .toArgb()
     val style = when (type) {
         AnnotationType.HIGHLIGHT, AnnotationType.NOTE -> Decoration.Style.Highlight(tint)
-        AnnotationType.UNDERLINE, AnnotationType.STRIKETHROUGH -> Decoration.Style.Underline(tint)
+        AnnotationType.UNDERLINE, AnnotationType.SQUIGGLY, AnnotationType.STRIKETHROUGH ->
+            Decoration.Style.Underline(tint)
     }
     return Decoration(id = id, locator = locator, style = style)
 }
