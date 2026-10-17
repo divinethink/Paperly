@@ -133,20 +133,21 @@ class PdfTextSelectController(
         val forward = r.from.page < r.to.page
         val first = if (forward) r.from else r.to
         val last = if (forward) r.to else r.from
-        if (last.page - first.page + 1 > MAX_SELECT_PAGES) return null
         val parts = ArrayList<SelectionPart>()
-        for (page in first.page..last.page) {
-            if (latest != null) return null // superseded: the newest request will redo this
+        var valid = last.page - first.page + 1 <= MAX_SELECT_PAGES
+        var page = first.page
+        // stops at once when a newer request is waiting (it redoes this one) or the press is not on text
+        while (valid && latest == null && page <= last.page) {
             val from = if (page == first.page) first.point else PAGE_TOP_LEFT
             val to = if (page == last.page) last.point else PAGE_BOTTOM_RIGHT
             val picked = pdf.selectText(page, from.x, from.y, to.x, to.y)?.takeIf { it.rects.isNotEmpty() }
-            val onText = picked != null && (page != r.from.page || isNear(picked.rects, r.from.point))
-            if (!onText && page == r.from.page) return null // the press itself is not on text
-            if (picked != null) {
+            valid = page != r.from.page || (picked != null && isNear(picked.rects, r.from.point))
+            if (valid && picked != null) {
                 parts += SelectionPart(page, pageEnds(picked.rects, page, first, last, r.pin), picked.text)
             }
+            page++
         }
-        return parts.takeIf { it.isNotEmpty() }
+        return parts.takeIf { valid && latest == null && it.isNotEmpty() }
     }
 
     /** Only the first page trims/pins its start, only the last page its end; middle pages stay whole. */
@@ -218,9 +219,6 @@ internal class SelectEdit(
     /** Page and page-fraction point under [local] (this page's own px, may lie on a neighbouring page). */
     fun pointAt(local: Offset, size: IntSize): PagePoint =
         locator?.locate(page, local.y, local.x / size.width) ?: PagePoint(page, fraction(local, size))
-
-    /** Finger height in viewport layout px, for the edge auto-scroll; null when this page is not shown. */
-    fun viewportY(local: Offset?): Float? = local?.let { locator?.viewportY(page, it.y) }
 }
 
 /** Offered for any readable text layer, Unicode Bengali included (rects are geometry; only Copy is lossy). */

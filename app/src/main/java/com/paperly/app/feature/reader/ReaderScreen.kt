@@ -231,7 +231,6 @@ private fun PdfPages(
         val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
         val gestureLock = remember { GestureLock() }
         val edgeScroll = remember { EdgeScroll() }
-        val pageLocator = remember(listState) { PageLocator(listState) }
         val gesture = Modifier.fillMaxSize().pinchZoom(
             panEnabled = !annotate,
             lock = gestureLock,
@@ -245,7 +244,7 @@ private fun PdfPages(
             LocalPageZoom provides zoomProvider,
             LocalGestureLock provides gestureLock,
             LocalEdgeScroll provides edgeScroll,
-            LocalPageLocator provides pageLocator,
+            LocalPageLocator provides remember(listState) { PageLocator(listState) },
         ) {
             Box(gesture) {
                 // Layout height shrinks by the zoom so the scaled list exactly fills the viewport.
@@ -280,6 +279,22 @@ private fun PdfPages(
     }
 }
 
+/** Selection wiring of page [index]; [onFinger] also moves the loupe. Null = text selection off. */
+@Composable
+private fun pageSelectEdit(index: Int, hooks: SelectHooks?, onFinger: (Offset?) -> Unit): SelectEdit? {
+    val edgeScroll = LocalEdgeScroll.current
+    val locator = LocalPageLocator.current
+    val lock = LocalGestureLock.current
+    return hooks?.let {
+        SelectEdit(index, it, lock, edgeScroll, locator) { touch ->
+            onFinger(touch)
+            // near the top/bottom edge the page scrolls on (the finger may be over another page by now)
+            edgeScroll.track(touch?.let { t -> locator?.viewportY(index, t.y) })
+            it.onDragging(touch != null) // the mark panel hides while a finger is down
+        }
+    }
+}
+
 @Composable
 private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec: PageSpec) {
     var failed by remember(index) { mutableStateOf(false) }
@@ -296,17 +311,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
-    val lock = LocalGestureLock.current
-    val edgeScroll = LocalEdgeScroll.current
-    val locator = LocalPageLocator.current
-    val select = spec.hooks.select?.let { hooks ->
-        SelectEdit(index, hooks, lock, edgeScroll, locator) { touch ->
-            finger = touch
-            // near the top/bottom edge the page scrolls on (the finger may be over another page by now)
-            edgeScroll.track(locator?.viewportY(index, touch?.y ?: 0f)?.takeIf { touch != null })
-            hooks.onDragging(touch != null) // the mark panel hides while a finger is down
-        }
-    }
+    val select = pageSelectEdit(index, spec.hooks.select) { finger = it }
     val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }
     Box(
