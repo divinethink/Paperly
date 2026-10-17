@@ -8,7 +8,7 @@ import androidx.compose.ui.geometry.Offset
 internal data class PageBox(val index: Int, val offset: Float, val size: Float)
 
 /** A point on [page] in page fractions. */
-internal data class PagePoint(val page: Int, val point: Offset)
+data class PagePoint(val page: Int, val point: Offset)
 
 /**
  * The shown page under a finger that is [y] px below the top of page [from] (its own layout px, may be negative or

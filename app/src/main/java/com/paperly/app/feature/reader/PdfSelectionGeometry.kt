@@ -80,7 +80,7 @@ internal fun isForwardAcross(from: PagePoint, to: PagePoint, lineHeight: Float):
 private fun MatchRect.touches(y: Float) = y in (top - NEAR_Y)..(bottom + NEAR_Y)
 
 /**
- * First page of a multi-page selection: the first line starts at the start touch ([x],[y]) — only when that touch is
+ * First page of a multi-page selection: the first line starts at the start touch [at] — only when that touch is
  * on the line, otherwise the engine's own snap stays.
  */
 internal fun trimStart(rects: List<MatchRect>, at: Offset): List<MatchRect> {
