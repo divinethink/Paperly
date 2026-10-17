@@ -113,6 +113,7 @@ private fun OverflowMenu(
             onComfort()
             open = false
         }
+        SelectLogMenuItem { open = false }
         ThemeMenuItems(current, viewModel::setTheme) { open = false }
     }
 }

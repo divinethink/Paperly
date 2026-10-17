@@ -18,6 +18,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.ReaderEngine
+import com.paperly.app.feature.reader.SelectDebugLog.caller
+import com.paperly.app.feature.reader.SelectDebugLog.f
+import com.paperly.app.feature.reader.SelectDebugLog.log
+import com.paperly.app.feature.reader.SelectDebugLog.pt
+import com.paperly.app.feature.reader.SelectDebugLog.rs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,6 +98,8 @@ class PdfTextSelectController(
      */
     fun update(from: PagePoint, to: PagePoint, pin: SelectionPin? = null) {
         job?.cancel() // a slow word pick must not land on top of the drag
+        val pins = "${pin?.first != null}/${pin?.last != null}"
+        log("REQ p${from.page}${pt(from.point)}->p${to.page}${pt(to.point)} pin=$pins")
         latest = UpdateRequest(from, to, pin)
         if (worker?.isActive == true) return
         worker = scope.launch {
@@ -108,6 +115,7 @@ class PdfTextSelectController(
         val pdf = engine() ?: return
         val samePage = r.from.page == r.to.page
         val parts = if (samePage) pickOnePage(pdf, r) else pickAcross(pdf, r)
+        log("PICK same=$samePage ${parts?.joinToString { "p${it.page} ${rs(it.rects)}" }}")
         if (parts != null) {
             selectionState.value = PdfSelection(parts)
         } else if (selectionState.value == null && (samePage || latest == null)) {
@@ -119,7 +127,9 @@ class PdfTextSelectController(
     private suspend fun pickOnePage(pdf: ReaderEngine, r: UpdateRequest): List<SelectionPart>? {
         val (page, from) = r.from
         val to = r.to.point
-        val picked = pdf.selectText(page, from.x, from.y, to.x, to.y)?.takeIf { isNear(it.rects, from) } ?: return null
+        val raw = pdf.selectText(page, from.x, from.y, to.x, to.y)
+        log("RAW ${pt(from)}->${pt(to)} ${raw?.let { rs(it.rects) }} len=${raw?.text?.length}")
+        val picked = raw?.takeIf { isNear(it.rects, from) } ?: return null
         return listOf(SelectionPart(page, pinEnds(clampEnds(picked.rects, from, to), r.pin), picked.text))
     }
 
@@ -170,6 +180,7 @@ class PdfTextSelectController(
         job = scope.launch {
             val pdf = engine() ?: return@launch
             val picked = pickWordAt(pdf, page, at)?.takeIf { isNear(it.rects, at) }
+            log("WORD p$page ${pt(at)} -> ${picked?.let { rs(it.rects) }}")
             if (picked != null) {
                 selectionState.value = PdfSelection.single(page, picked.rects, picked.text.trim())
             } else {
@@ -190,6 +201,7 @@ class PdfTextSelectController(
     }
 
     fun clear() {
+        log("CLEAR <${caller()}")
         stopPending()
         selectionState.value = null
         draggingState.value = false
@@ -251,10 +263,15 @@ private fun fraction(p: Offset, size: IntSize) =
  */
 internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) {
     val down = awaitFirstDown(requireUnconsumed = true) // a grabbed handle already consumed its down
-    val pressed = awaitLongPressOrCancellation(down.id) ?: return
+    log("LP down p${edit.page} ${pt(down.position)}")
+    val pressed = awaitLongPressOrCancellation(down.id) ?: run {
+        log("LP cancelled")
+        return
+    }
     if (size.width <= 0 || size.height <= 0) return
     pressed.consume()
     val start = fraction(down.position, size)
+    log("LP FIRED p${edit.page} ${pt(start)} hadSelection=${edit.hooks.selection != null}")
     edit.hooks.onClear()
     edit.hooks.onWord(edit.page, start)
     edit.onFinger(pressed.position)
@@ -270,8 +287,9 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
         edit.onFinger(latest)
     }
     edit.lock.held = true // page pan/zoom must not move the page under the finger while selecting
+    var finished = false
     try {
-        drag(down.id) { change ->
+        finished = drag(down.id) { change ->
             change.consume()
             latest = change.position
             if (!dragged && (latest - down.position).getDistance() > slop) dragged = true
@@ -279,6 +297,7 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
             edit.onFinger(latest)
         }
     } finally {
+        log("LP end dragged=$dragged finished=$finished")
         edit.edge.onShift = null
         edit.lock.held = false
         edit.onFinger(null)
@@ -358,10 +377,10 @@ private fun AwaitPointerEventScope.handleHit(
     val toStart = if (hasStart) (at - startAt).getDistance() else Float.MAX_VALUE
     val toEnd = if (hasEnd) (at - endAt).getDistance() else Float.MAX_VALUE
     // the nearer handle wins: on a short selection the two reach areas overlap and the left one must not steal it
-    return when {
-        minOf(toStart, toEnd) > reach -> null
-        else -> toStart <= toEnd
-    }
+    val hit = if (minOf(toStart, toEnd) > reach) null else toStart <= toEnd
+    val side = hit?.let { if (it) "start" else "end" }
+    log("HIT ${pt(at)} toStart=${f(toStart)} toEnd=${f(toEnd)} reach=${f(reach)} -> $side")
+    return hit
 }
 
 private suspend fun AwaitPointerEventScope.dragHandle(
@@ -383,6 +402,7 @@ private suspend fun AwaitPointerEventScope.dragHandle(
     val lineHeight = (grabbedLast.bottom - grabbedLast.top).coerceAtLeast(MIN_LINE)
     val sz = size
     var latest = down.position
+    log("DRAG start moveStart=$moveStart fixed=p${fixed.page}${pt(fixed.point)} origin=${pt(origin)}")
     fun push() {
         val to = edit.pointAt(origin + (latest - down.position), sz)
         // the fixed end keeps its grabbed line rect while the moving end stays on its far side
@@ -392,6 +412,7 @@ private suspend fun AwaitPointerEventScope.dragHandle(
             SelectionPin(first = grabbedFirst.takeIf { isForwardAcross(fixed, to, lineHeight) })
         }
         val (from, end) = if (moveStart) to to fixed else fixed to to
+        log("PUSH to=p${to.page}${pt(to.point)} pin=${pin.first != null}/${pin.last != null}")
         edit.hooks.onUpdate(from, end, pin)
         edit.onFinger(latest)
     }
@@ -401,13 +422,15 @@ private suspend fun AwaitPointerEventScope.dragHandle(
         push()
     }
     edit.lock.held = true
+    var finished = false
     try {
-        drag(down.id) { change ->
+        finished = drag(down.id) { change ->
             change.consume()
             latest = change.position
             push()
         }
     } finally {
+        log("DRAG end finished=$finished")
         edit.edge.onShift = null
         edit.lock.held = false
         edit.onFinger(null)
