@@ -27,6 +27,7 @@ import com.paperly.app.domain.reader.ReaderPreferences
 import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.reader.ReaderTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.coroutines.cancellation.CancellationException
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -246,6 +248,21 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
+    /** Quick view: true while at least one mark exists (the "with marks" menu items then appear). */
+    val hasQuickMarks: StateFlow<Boolean> = quick.annotations.observe(documentId)
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** Quick view: a copy of the PDF with the marks in it (Save with marks / Share / Print); null = failed. */
+    suspend fun markedCopy(): File? = quickWriteBack.markedCopy(documentId, quickItems())
+
+    /** Quick view: writes the marks into the original file now (the caller asked and confirmed). */
+    fun replaceOriginal() {
+        viewModelScope.launch {
+            _notice.value = quickWriteBack.replaceNow(documentId, quickItems())
+        }
+    }
+
     private val _saved = MutableStateFlow(false)
 
     /** Quick view only: the PDF has been added to the Library (the menu item then disappears). */
@@ -298,12 +315,14 @@ class ReaderViewModel @Inject constructor(
         cache.clear()
         // Quick view: engine closed -> highlights into the original (if allowed); the temp copy is deleted after.
         if (isQuick) {
-            quickWriteBack.finish(documentId, quick.annotations.snapshot().map(::toFileItem), savedTargetId != null)
+            quickWriteBack.finish(documentId, quickItems(), savedTargetId != null)
         }
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
         if (annotationsChanged) highlightFileSync.schedule(documentId)
         savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent
     }
+
+    private fun quickItems() = quick.annotations.snapshot().map(::toFileItem)
 
     private fun toFileItem(a: Annotation) =
         PdfAnnotationItem(a.id, a.page, a.type, a.color, a.rects, a.noteText, a.stroke)

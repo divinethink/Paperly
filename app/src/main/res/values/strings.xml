@@ -456,6 +456,14 @@
     <string name="quick_write_library">The original file cannot be changed, so the PDF was kept in your Library with its highlights</string>
     <string name="quick_write_failed">Could not write highlights into the original file; it was left unchanged</string>
     <string name="quick_write_nosource">Highlights were not saved: the original file is unknown (the app was restarted while it was open)</string>
+    <string name="quick_save_with_marks">Save with marks</string>
+    <string name="quick_replace_with_marks">Replace original with marks</string>
+    <string name="quick_replace_title">Replace the original file?</string>
+    <string name="quick_replace_body">Your marks are written into the original file. A backup of the original is kept for 7 days.</string>
+    <string name="quick_replace_confirm">Replace</string>
+    <string name="quick_replace_ok">The original file now has your marks (a backup is kept for 7 days)</string>
+    <string name="quick_replace_no_permission">This file cannot be changed from here. Use \"Save with marks\" to save a copy instead</string>
+    <string name="quick_replace_changed">The original file changed after it was opened, so it was left as it is. Use \"Save with marks\" instead</string>
     <string name="quick_write_off">Highlights were not saved: \"Write highlights into the PDF file\" is off in Settings</string>
     <string name="quick_write_nothing">Highlights were not saved: nothing could be added to the file</string>
     <string name="quick_keep_title">Keep this PDF in your Library?</string>

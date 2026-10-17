@@ -40,14 +40,17 @@ internal class DocumentExport(
 )
 
 @Composable
-internal fun rememberDocumentExport(doc: Document): DocumentExport {
+internal fun rememberDocumentExport(doc: Document, marked: (suspend () -> File?)? = null): DocumentExport {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val viewModel: ExportViewModel = hiltViewModel()
     val name = ExportFiles.fileName(doc.title, doc.type)
     val mime = ExportFiles.mimeType(doc.type)
+
+    // [marked] = a quick-view PDF with marks: Save / Share / Print then use a copy that has them (null result = failed)
+    suspend fun fileOf(): File? = if (marked != null) marked() else viewModel.file(doc.id)
     val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(mime)) { uri ->
-        if (uri != null) scope.launch { toast(context, saveTo(context, viewModel.file(doc.id), uri)) }
+        if (uri != null) scope.launch { toast(context, saveTo(context, fileOf(), uri)) }
     }
     var askFormat by remember { mutableStateOf(false) }
     if (askFormat) {
@@ -61,7 +64,7 @@ internal fun rememberDocumentExport(doc: Document): DocumentExport {
     }
     val isPdf = ExportFiles.isPdf(doc.type)
     val isScan = doc.type == SCAN_TYPE
-    val sharePdf: () -> Unit = { scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) } }
+    val sharePdf: () -> Unit = { scope.launch { shareFile(context, fileOf(), name, mime) } }
     // Scans: Share / Save a copy first ask PDF or JPG (JPG = the existing background image export).
     var askScan by remember { mutableStateOf<ScanAction?>(null) }
     ScanFormatPrompt(
@@ -75,7 +78,7 @@ internal fun rememberDocumentExport(doc: Document): DocumentExport {
         share = { if (isScan) askScan = ScanAction.SHARE else sharePdf() },
         saveCopy = { if (isScan) askScan = ScanAction.SAVE else saver.launch(name) },
         print = if (isPdf) {
-            { printFile(context, viewModel.file(doc.id), name) }
+            { scope.launch { printFile(context, fileOf(), name) } }
         } else {
             null
         },

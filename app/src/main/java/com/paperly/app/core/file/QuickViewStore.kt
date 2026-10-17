@@ -115,6 +115,11 @@ class QuickViewStore @Inject constructor(
 
     fun source(token: String): QuickSource? = sources[token]
 
+    /** The original's bytes changed (we wrote our marks into it): later writes must expect the new checksum. */
+    fun updateChecksum(token: String, checksum: String) {
+        sources.computeIfPresent(token) { _, old -> old.copy(checksum = checksum) }
+    }
+
     fun delete(token: String) {
         if (!isToken(token)) return
         sources.remove(token)

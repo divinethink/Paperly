@@ -7,6 +7,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -16,7 +19,13 @@ import com.paperly.app.feature.library.rememberDocumentExport
 import com.paperly.app.feature.library.toast
 
 /** File actions of the open PDF; [saveToLibrary] exists only for a quick-view PDF that is not in the Library yet. */
-internal class ReaderFileActions(val export: DocumentExport, val saveToLibrary: (() -> Unit)?)
+internal class ReaderFileActions(
+    val export: DocumentExport,
+    val saveToLibrary: (() -> Unit)?,
+    /** Quick view with marks: "Replace original with marks" (asks first); null = not offered. */
+    val replaceOriginal: (() -> Unit)? = null,
+    val withMarks: Boolean = false,
+)
 
 /** Must be called outside the dropdown: the Save-a-copy result launcher has to outlive the closing menu. */
 @Composable
@@ -25,6 +34,8 @@ internal fun rememberReaderFileActions(viewModel: ReaderViewModel): ReaderFileAc
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val hasMarks by viewModel.hasQuickMarks.collectAsStateWithLifecycle()
+    var confirmReplace by remember { mutableStateOf(false) }
     val context = LocalContext.current
     LaunchedEffect(notice) {
         notice?.let {
@@ -33,8 +44,30 @@ internal fun rememberReaderFileActions(viewModel: ReaderViewModel): ReaderFileAc
         }
     }
     val doc = state.document ?: return null
-    val export = rememberDocumentExport(doc)
-    return ReaderFileActions(export, if (viewModel.isQuick && !saved) viewModel::saveToLibrary else null)
+    val withMarks = viewModel.isQuick && hasMarks
+    val export = rememberDocumentExport(doc, if (withMarks) viewModel::markedCopy else null)
+    ReplaceConfirm(confirmReplace, onYes = {
+        confirmReplace = false
+        viewModel.replaceOriginal()
+    }, onNo = { confirmReplace = false })
+    return ReaderFileActions(
+        export = export,
+        saveToLibrary = if (viewModel.isQuick && !saved) viewModel::saveToLibrary else null,
+        replaceOriginal = if (withMarks) ({ confirmReplace = true }) else null,
+        withMarks = withMarks,
+    )
+}
+
+@Composable
+private fun ReplaceConfirm(show: Boolean, onYes: () -> Unit, onNo: () -> Unit) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onNo,
+        title = { Text(stringResource(R.string.quick_replace_title)) },
+        text = { Text(stringResource(R.string.quick_replace_body)) },
+        confirmButton = { TextButton(onClick = onYes) { Text(stringResource(R.string.quick_replace_confirm)) } },
+        dismissButton = { TextButton(onClick = onNo) { Text(stringResource(R.string.action_cancel)) } },
+    )
 }
 
 @Composable
@@ -42,7 +75,9 @@ internal fun FileMenuItems(actions: ReaderFileActions, onDone: () -> Unit) {
     listOfNotNull<Pair<Int, () -> Unit>>(
         actions.saveToLibrary?.let { R.string.quick_save_to_library to it },
         R.string.doc_share to actions.export.share,
-        R.string.doc_save_copy to actions.export.saveCopy,
+        (if (actions.withMarks) R.string.quick_save_with_marks else R.string.doc_save_copy) to
+            actions.export.saveCopy,
+        actions.replaceOriginal?.let { R.string.quick_replace_with_marks to it },
         actions.export.print?.let { R.string.doc_print to it },
     ).forEach { (label, action) ->
         DropdownMenuItem(

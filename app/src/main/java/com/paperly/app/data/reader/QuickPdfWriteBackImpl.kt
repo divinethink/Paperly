@@ -14,6 +14,7 @@ import com.paperly.app.domain.reader.QuickPdfWriteBack
 import com.paperly.app.domain.settings.PdfFileWriteSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -37,10 +38,12 @@ class QuickPdfWriteBackImpl @Inject constructor(
     private val fallback: QuickLibraryFallback,
 ) : QuickPdfWriteBack {
     private val lock = Mutex()
+    private val replaced = ConcurrentHashMap<String, List<PdfAnnotationItem>>() // what "Replace" already wrote
 
     override fun finish(token: String, items: List<PdfAnnotationItem>, savedToLibrary: Boolean) {
-        if (items.isEmpty()) {
-            store.delete(token)
+        val alreadyInFile = replaced.remove(token) == items
+        if (items.isEmpty() || alreadyInFile) {
+            dropTemporaryFiles(token)
             return
         }
         scope.launch {
@@ -49,9 +52,51 @@ class QuickPdfWriteBackImpl @Inject constructor(
                 lock.withLock { process(token, items, savedToLibrary, pristine)?.let(::toast) }
             } finally {
                 pristine.delete()
-                store.delete(token)
+                dropTemporaryFiles(token)
             }
         }
+    }
+
+    override suspend fun markedCopy(token: String, items: List<PdfAnnotationItem>): File? = lock.withLock {
+        val file = store.resolve(token)
+        val out = File(quickViewDir(context), "$token$MARKED_SUFFIX")
+        if (file != null && items.isNotEmpty() && step.markedCopy(token, file, out, items)) out else null
+    }
+
+    override suspend fun replaceNow(token: String, items: List<PdfAnnotationItem>): Int = lock.withLock {
+        val source = store.source(token)
+        val file = store.resolve(token)
+        val work = File(quickViewDir(context), "$token$REPLACE_SUFFIX")
+        try {
+            when {
+                source == null || file == null -> R.string.quick_write_nosource
+                items.isEmpty() -> R.string.quick_write_nothing
+                runCatching { file.copyTo(work, overwrite = true) }.isFailure -> R.string.quick_write_failed
+                else -> {
+                    // its own backup name: the first one holds the true original and must not be overwritten
+                    val backup = "$token-${System.currentTimeMillis()}"
+                    replaceMessage(step.run(token, source, work, items, backup)).also {
+                        if (it == R.string.quick_replace_ok) replaced[token] = items
+                    }
+                }
+            }
+        } finally {
+            work.delete()
+        }
+    }
+
+    private fun replaceMessage(result: OriginalWriteResult?): Int = when (result) {
+        OriginalWriteResult.WRITTEN -> R.string.quick_replace_ok
+        OriginalWriteResult.NO_PERMISSION -> R.string.quick_replace_no_permission
+        OriginalWriteResult.CHANGED -> R.string.quick_replace_changed
+        null -> R.string.quick_write_nothing
+        else -> R.string.quick_write_failed
+    }
+
+    private fun dropTemporaryFiles(token: String) {
+        File(quickViewDir(context), "$token$MARKED_SUFFIX").delete()
+        File(quickViewDir(context), "$token$REPLACE_SUFFIX").delete()
+        store.delete(token)
     }
 
     /** Message to show; every outcome (also "nothing attempted") says why, so highlights never vanish silently. */
@@ -74,5 +119,10 @@ class QuickPdfWriteBackImpl @Inject constructor(
 
     private fun toast(@StringRes message: Int) {
         Handler(Looper.getMainLooper()).post { Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+    }
+
+    private companion object {
+        const val MARKED_SUFFIX = ".marked.pdf"
+        const val REPLACE_SUFFIX = ".replace.pdf"
     }
 }

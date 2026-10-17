@@ -43,6 +43,14 @@ class PdfTextSelectController(
     private val selectionState = MutableStateFlow<PdfSelection?>(null)
     val state: StateFlow<PdfSelection?> = selectionState.asStateFlow()
     private var job: Job? = null
+    private val draggingState = MutableStateFlow(false)
+
+    /** True while a finger is down on a selection gesture (long-press or handle drag): the mark panel stays hidden. */
+    val dragging: StateFlow<Boolean> = draggingState.asStateFlow()
+
+    fun setDragging(value: Boolean) {
+        draggingState.value = value
+    }
 
     /** Called when a press/drag lands where there is no text (scan, watermark-only layer): the quick box takes over. */
     var onMiss: ((Int, Offset, Offset?) -> Unit)? = null
@@ -78,6 +86,7 @@ class PdfTextSelectController(
     fun clear() {
         job?.cancel()
         selectionState.value = null
+        draggingState.value = false
     }
 }
 
@@ -87,6 +96,7 @@ data class SelectHooks(
     val onUpdate: (Int, Offset, Offset) -> Unit,
     val onWord: (Int, Offset) -> Unit,
     val onClear: () -> Unit,
+    val onDragging: (Boolean) -> Unit = {},
 )
 
 /** One page's view of [SelectHooks]; [onFinger] drives the loupe. */
@@ -107,7 +117,13 @@ internal fun rememberSelectHooks(viewModel: ReaderViewModel, enabled: Boolean): 
         null
     } else {
         remember(selection, controller) {
-            SelectHooks(selection, controller::update, controller::selectWord, controller::clear)
+            SelectHooks(
+                selection,
+                controller::update,
+                controller::selectWord,
+                controller::clear,
+                controller::setDragging,
+            )
         }
     }
 }
@@ -140,8 +156,8 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
         }
     } finally {
         edit.lock.held = false
+        edit.onFinger(null)
     }
-    edit.onFinger(null)
     // the lift is ours too: otherwise the tap handler sees a plain tap and drops the selection/box
     currentEvent.changes.forEach { it.consume() }
 }
@@ -203,10 +219,12 @@ private fun AwaitPointerEventScope.handleHit(at: Offset, rects: List<MatchRect>,
     val radius = SelectHandleRadius.toPx() / zoom
     val (startAt, endAt) = handleCenters(rects, size.width.toFloat(), size.height.toFloat(), radius)
     val reach = SelectHandleReach.toPx() / zoom
+    val toStart = (at - startAt).getDistance()
+    val toEnd = (at - endAt).getDistance()
+    // the nearer handle wins: on a short selection the two reach areas overlap and the left one must not steal it
     return when {
-        (at - startAt).getDistance() <= reach -> true
-        (at - endAt).getDistance() <= reach -> false
-        else -> null
+        minOf(toStart, toEnd) > reach -> null
+        else -> toStart <= toEnd
     }
 }
 
@@ -229,8 +247,8 @@ private suspend fun AwaitPointerEventScope.dragHandle(
         }
     } finally {
         edit.lock.held = false
+        edit.onFinger(null)
     }
-    edit.onFinger(null)
 }
 
 /** Selected lines plus two round handles; handle size stays constant on screen at any zoom. */

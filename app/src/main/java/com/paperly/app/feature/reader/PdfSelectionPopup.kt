@@ -64,7 +64,8 @@ private class SelectionActions(
 /**
  * Floating one-row bar right above the selected text (below it when there is no room), inside the page area:
  * colour dot, Highlight / Underline / Squiggly / Strikethrough one-tap icons, Note, Copy. The dot opens a colour and
- * thickness panel; a mark saves with what is shown. Hidden in annotate mode and Reflow.
+ * thickness panel; a mark saves with what is shown. Hidden in annotate mode, Reflow and while a finger is down on
+ * the selection (only the magnifier shows then); it returns when the finger lifts.
  */
 @Composable
 internal fun PdfSelectionPopup(
@@ -77,8 +78,10 @@ internal fun PdfSelectionPopup(
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val style by viewModel.annotations.style.collectAsStateWithLifecycle()
+    val dragging by viewModel.textSelect.dragging.collectAsStateWithLifecycle()
     val picked = selection
-    if (picked == null || annotate || reflow) return
+    val hidden = annotate || reflow || dragging
+    if (picked == null || hidden) return
     val context = LocalContext.current
     val density = LocalDensity.current
     var menu by remember { mutableStateOf(IntSize.Zero) }

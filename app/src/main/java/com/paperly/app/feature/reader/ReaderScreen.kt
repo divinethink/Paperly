@@ -289,7 +289,12 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
     val lock = LocalGestureLock.current
-    val select = spec.hooks.select?.let { hooks -> SelectEdit(index, hooks, lock) { finger = it } }
+    val select = spec.hooks.select?.let { hooks ->
+        SelectEdit(index, hooks, lock) { touch ->
+            finger = touch
+            hooks.onDragging(touch != null) // the mark panel hides while a finger is down
+        }
+    }
     val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }
     Box(
