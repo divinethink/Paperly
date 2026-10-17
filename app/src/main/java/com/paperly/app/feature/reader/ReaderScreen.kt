@@ -230,6 +230,7 @@ private fun PdfPages(
         // Render resolution follows the zoom step (1.5x, 2x, 3x, 4x of the page width) so zoomed text stays sharp.
         val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
         val gestureLock = remember { GestureLock() }
+        val edgeScroll = remember { EdgeScroll() }
         val gesture = Modifier.fillMaxSize().pinchZoom(
             panEnabled = !annotate,
             lock = gestureLock,
@@ -239,7 +240,11 @@ private fun PdfPages(
             },
         )
         val zoomProvider = remember(zoomState) { { zoomState.zoom } }
-        CompositionLocalProvider(LocalPageZoom provides zoomProvider, LocalGestureLock provides gestureLock) {
+        CompositionLocalProvider(
+            LocalPageZoom provides zoomProvider,
+            LocalGestureLock provides gestureLock,
+            LocalEdgeScroll provides edgeScroll,
+        ) {
             Box(gesture) {
                 // Layout height shrinks by the zoom so the scaled list exactly fills the viewport.
                 LazyColumn(
@@ -267,6 +272,7 @@ private fun PdfPages(
             }
         }
         val heightPx = with(density) { viewportHeight.toPx() }
+        EdgeScrollEffect(edgeScroll, listState, { zoomState.zoom }, heightPx)
         val port = SelectionViewport(listState, zoomState, basePx, viewportPx, heightPx)
         PdfSelectionPopup(viewModel, port, look.onEditor)
     }
@@ -289,9 +295,11 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     val zoomOf = LocalPageZoom.current
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
     val lock = LocalGestureLock.current
+    val edgeScroll = LocalEdgeScroll.current
     val select = spec.hooks.select?.let { hooks ->
-        SelectEdit(index, hooks, lock) { touch ->
+        SelectEdit(index, hooks, lock, edgeScroll) { touch ->
             finger = touch
+            edgeScroll.track(index, touch?.y) // near the top/bottom edge the page scrolls on
             hooks.onDragging(touch != null) // the mark panel hides while a finger is down
         }
     }

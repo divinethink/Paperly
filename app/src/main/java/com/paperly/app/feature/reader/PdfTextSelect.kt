@@ -138,6 +138,7 @@ internal class SelectEdit(
     val page: Int,
     val hooks: SelectHooks,
     val lock: GestureLock,
+    val edge: EdgeScroll,
     val onFinger: (Offset?) -> Unit,
 )
 
@@ -180,15 +181,25 @@ internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) 
     edit.onFinger(pressed.position)
     val slop = viewConfiguration.touchSlop * 2
     var dragged = false
+    var latest = pressed.position
+    val sz = size
+    // the page scrolls under a waiting finger near the screen edge: re-pick the end point after every step
+    edit.edge.onShift = { dy ->
+        latest = latest.copy(y = latest.y + dy)
+        if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(latest, sz), null)
+        edit.onFinger(latest)
+    }
     edit.lock.held = true // page pan/zoom must not move the page under the finger while selecting
     try {
         drag(down.id) { change ->
             change.consume()
-            if (!dragged && (change.position - down.position).getDistance() > slop) dragged = true
-            if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(change.position, size), null)
-            edit.onFinger(change.position)
+            latest = change.position
+            if (!dragged && (latest - down.position).getDistance() > slop) dragged = true
+            if (dragged) edit.hooks.onUpdate(edit.page, start, fraction(latest, sz), null)
+            edit.onFinger(latest)
         }
     } finally {
+        edit.edge.onShift = null
         edit.lock.held = false
         edit.onFinger(null)
     }
@@ -275,22 +286,34 @@ private suspend fun AwaitPointerEventScope.dragHandle(
     val fixed = if (moveStart) anchors.end else anchors.start
     val origin = Offset(moving.x * size.width, moving.y * size.height)
     val lineHeight = (grabbed.last().bottom - grabbed.last().top).coerceAtLeast(MIN_LINE)
+    val sz = size
+    var latest = down.position
+    fun push() {
+        val to = fraction(origin + (latest - down.position), sz)
+        // the fixed end keeps its grabbed line rect while the moving end stays on its far side
+        val pin = if (moveStart) {
+            SelectionPin(last = grabbed.last().takeIf { isForward(to, fixed, lineHeight) })
+        } else {
+            SelectionPin(first = grabbed.first().takeIf { isForward(fixed, to, lineHeight) })
+        }
+        val (from, end) = if (moveStart) to to fixed else fixed to to
+        edit.hooks.onUpdate(edit.page, from, end, pin)
+        edit.onFinger(latest)
+    }
+    // the page scrolls under a waiting finger near the screen edge: re-pick the moving end after every step
+    edit.edge.onShift = { dy ->
+        latest = latest.copy(y = latest.y + dy)
+        push()
+    }
     edit.lock.held = true
     try {
         drag(down.id) { change ->
             change.consume()
-            val to = fraction(origin + (change.position - down.position), size)
-            // the fixed end keeps its grabbed line rect while the moving end stays on its far side
-            val pin = if (moveStart) {
-                SelectionPin(last = grabbed.last().takeIf { isForward(to, fixed, lineHeight) })
-            } else {
-                SelectionPin(first = grabbed.first().takeIf { isForward(fixed, to, lineHeight) })
-            }
-            val (from, end) = if (moveStart) to to fixed else fixed to to
-            edit.hooks.onUpdate(edit.page, from, end, pin)
-            edit.onFinger(change.position)
+            latest = change.position
+            push()
         }
     } finally {
+        edit.edge.onShift = null
         edit.lock.held = false
         edit.onFinger(null)
     }

@@ -34,6 +34,7 @@ data class AnnotationEditor(
 data class PendingParts(val page: Int, val rects: List<MatchRect>)
 
 /** Reader-side annotation state for one document; persistence goes through [AnnotationRepository]. */
+@Suppress("TooManyFunctions") // small state handlers for pending parts, selection marks and saved items
 class AnnotationController(
     private val scope: CoroutineScope,
     private val repository: AnnotationRepository,

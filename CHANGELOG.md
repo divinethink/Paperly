@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-17c (Selection drag scrolls the page near the top/bottom edge; detekt fix; no schema change)
+
+- While a long-press drag or a handle drag is held in the top or bottom 15% of the screen, the page list scrolls (speed grows toward the edge, `edgeSpeed`; `PdfEdgeScroll.kt`). The selection end is re-picked after every scroll step, so a still finger keeps extending the selection. Stays inside one page (cross-page selection is a separate step).
+- `AnnotationController`: `@Suppress("TooManyFunctions")` (detekt, 11 functions), same pattern as `ReaderViewModel`.
+- Needs on-device check: scroll speed (`MAX_STEP_DP`, `BAND`) and that the end follows the finger. Test: `PdfEdgeScrollTest`.
+
 ## 2026-10-17b (Selection stays after a mark, so colour/type can change at once; no schema change)
 
 - A mark placed from the selection bar no longer clears the selection (only Note and Copy do). `PdfSelection.markId` ties the selection to the mark just saved (`annotateSelection(onSaved)` waits for it in `items`, 2 s cap).
