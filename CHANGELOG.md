@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-17d (faster CI: R8 check runs in parallel; bigger Gradle/Kotlin heap; no code change)
+
+- `build.yml`: the release/R8 build moved from the end of `build` into its own job `release-check`; both jobs run at the same time. Same checks, shorter wait. `build` keeps its name.
+- `gradle.properties`: Gradle and Kotlin daemon heap 2 GB -> 3 GB (runner has 16 GB).
+
 ## 2026-10-17c (Selection drag scrolls the page near the top/bottom edge; detekt fix; no schema change)
 
 - While a long-press drag or a handle drag is held in the top or bottom 15% of the screen, the page list scrolls (speed grows toward the edge, `edgeSpeed`; `PdfEdgeScroll.kt`). The selection end is re-picked after every scroll step, so a still finger keeps extending the selection. Stays inside one page (cross-page selection is a separate step).
