@@ -9,6 +9,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperly.app.R
@@ -55,9 +60,36 @@ internal fun rememberDocumentExport(doc: Document): DocumentExport {
         )
     }
     val isPdf = ExportFiles.isPdf(doc.type)
+    val isScan = doc.type == SCAN_TYPE
+    // Scans: Share / Save a copy first ask PDF or JPG (JPG = the existing background image export).
+    var askScan by remember { mutableStateOf<ScanAction?>(null) }
+    askScan?.let { action ->
+        ScanFormatDialog(
+            onPdf = {
+                askScan = null
+                if (action == ScanAction.SHARE) {
+                    scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) }
+                } else {
+                    saver.launch(name)
+                }
+            },
+            onJpg = {
+                askScan = null
+                viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(doc.title), false) }
+                toast(context, R.string.export_jpg_started)
+            },
+            onDismiss = { askScan = null },
+        )
+    }
     return DocumentExport(
-        share = { scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) } },
-        saveCopy = { saver.launch(name) },
+        share = {
+            if (isScan) {
+                askScan = ScanAction.SHARE
+            } else {
+                scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) }
+            }
+        },
+        saveCopy = { if (isScan) askScan = ScanAction.SAVE else saver.launch(name) },
         print = if (isPdf) {
             { printFile(context, viewModel.file(doc.id), name) }
         } else {
@@ -68,6 +100,26 @@ internal fun rememberDocumentExport(doc: Document): DocumentExport {
         } else {
             null
         },
+    )
+}
+
+private const val SCAN_TYPE = "scanned-pdf"
+
+private enum class ScanAction { SHARE, SAVE }
+
+@Composable
+private fun ScanFormatDialog(onPdf: () -> Unit, onJpg: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.export_choose_format)) },
+        text = {
+            Column {
+                TextButton(onClick = onPdf) { Text(stringResource(R.string.export_format_pdf)) }
+                TextButton(onClick = onJpg) { Text(stringResource(R.string.export_format_jpg)) }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.export_cancel)) } },
     )
 }
 
