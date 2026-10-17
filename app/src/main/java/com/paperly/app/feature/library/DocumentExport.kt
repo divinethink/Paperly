@@ -61,34 +61,18 @@ internal fun rememberDocumentExport(doc: Document): DocumentExport {
     }
     val isPdf = ExportFiles.isPdf(doc.type)
     val isScan = doc.type == SCAN_TYPE
+    val sharePdf: () -> Unit = { scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) } }
     // Scans: Share / Save a copy first ask PDF or JPG (JPG = the existing background image export).
     var askScan by remember { mutableStateOf<ScanAction?>(null) }
-    askScan?.let { action ->
-        ScanFormatDialog(
-            onPdf = {
-                askScan = null
-                if (action == ScanAction.SHARE) {
-                    scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) }
-                } else {
-                    saver.launch(name)
-                }
-            },
-            onJpg = {
-                askScan = null
-                viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(doc.title), false) }
-                toast(context, R.string.export_jpg_started)
-            },
-            onDismiss = { askScan = null },
-        )
-    }
+    ScanFormatPrompt(
+        action = askScan,
+        doc = doc,
+        viewModel = viewModel,
+        onPdf = { if (it == ScanAction.SHARE) sharePdf() else saver.launch(name) },
+        onClose = { askScan = null },
+    )
     return DocumentExport(
-        share = {
-            if (isScan) {
-                askScan = ScanAction.SHARE
-            } else {
-                scope.launch { shareFile(context, viewModel.file(doc.id), name, mime) }
-            }
-        },
+        share = { if (isScan) askScan = ScanAction.SHARE else sharePdf() },
         saveCopy = { if (isScan) askScan = ScanAction.SAVE else saver.launch(name) },
         print = if (isPdf) {
             { printFile(context, viewModel.file(doc.id), name) }
@@ -106,6 +90,30 @@ internal fun rememberDocumentExport(doc: Document): DocumentExport {
 private const val SCAN_TYPE = "scanned-pdf"
 
 private enum class ScanAction { SHARE, SAVE }
+
+@Composable
+private fun ScanFormatPrompt(
+    action: ScanAction?,
+    doc: Document,
+    viewModel: ExportViewModel,
+    onPdf: (ScanAction) -> Unit,
+    onClose: () -> Unit,
+) {
+    val context = LocalContext.current
+    if (action == null) return
+    ScanFormatDialog(
+        onPdf = {
+            onClose()
+            onPdf(action)
+        },
+        onJpg = {
+            onClose()
+            viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(doc.title), false) }
+            toast(context, R.string.export_jpg_started)
+        },
+        onDismiss = onClose,
+    )
+}
 
 @Composable
 private fun ScanFormatDialog(onPdf: () -> Unit, onJpg: () -> Unit, onDismiss: () -> Unit) {
