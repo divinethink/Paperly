@@ -33,8 +33,11 @@ private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, 
 private const val HALF = 0.5f
 private const val MIN_LINE = 0.005f // page fraction: floor for a line height used by the forward test
 
-/** Text picked on one [page]: line [rects] (page fractions) and its plain [text]. Not persisted. */
-data class PdfSelection(val page: Int, val rects: List<MatchRect>, val text: String)
+/**
+ * Text picked on one [page]: line [rects] (page fractions) and its plain [text]. Not persisted. [markId] = the mark
+ * already saved on exactly these lines; any change of the selection drops it (the next mark is a new one).
+ */
+data class PdfSelection(val page: Int, val rects: List<MatchRect>, val text: String, val markId: String? = null)
 
 /** Long-press + drag text selection for text-layer PDF pages (P3-K). Latest drag position wins. */
 class PdfTextSelectController(
@@ -99,6 +102,11 @@ class PdfTextSelectController(
                 onMiss?.invoke(page, at, null)
             }
         }
+    }
+
+    /** Ties [id] to [expected] while that selection is still the current one (a moved handle means a new mark). */
+    fun linkMark(expected: PdfSelection, id: String) {
+        if (selectionState.value == expected) selectionState.value = expected.copy(markId = id)
     }
 
     private fun stopPending() {

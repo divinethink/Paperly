@@ -79,6 +79,7 @@ internal fun PdfSelectionPopup(
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val style by viewModel.annotations.style.collectAsStateWithLifecycle()
     val dragging by viewModel.textSelect.dragging.collectAsStateWithLifecycle()
+    val items by viewModel.annotations.items.collectAsStateWithLifecycle()
     val picked = selection
     val hidden = annotate || reflow || dragging
     if (picked == null || hidden) return
@@ -87,13 +88,32 @@ internal fun PdfSelectionPopup(
     var menu by remember { mutableStateOf(IntSize.Zero) }
     val gap = with(density) { MenuGap.toPx() }
     val clearance = with(density) { HandleClearance.toPx() }
+    // the mark just placed on exactly this selection (still stored): colour/type changes restyle it, not add another
+    val mark = items.firstOrNull { it.id == picked.markId }
     fun annotateAs(type: AnnotationType) {
-        viewModel.annotations.annotateSelection(picked.page, picked.rects, type)?.let(onEditor)
-        viewModel.textSelect.clear()
+        if (mark != null && type != AnnotationType.NOTE) {
+            viewModel.annotations.restyleMark(mark.id) {
+                it.copy(type = type, color = style.color, stroke = style.stroke)
+            }
+            return
+        }
+        val editor = viewModel.annotations.annotateSelection(picked.page, picked.rects, type) { id ->
+            viewModel.textSelect.linkMark(picked, id) // the selection stays, so colour and type can still be changed
+        }
+        if (editor != null) {
+            onEditor(editor)
+            viewModel.textSelect.clear()
+        }
     }
     val actions = SelectionActions(
-        onColor = { viewModel.annotations.setStyle(style.copy(color = it)) },
-        onStroke = { viewModel.annotations.setStyle(style.copy(stroke = it)) },
+        onColor = { color ->
+            viewModel.annotations.setStyle(style.copy(color = color))
+            mark?.let { viewModel.annotations.restyleMark(it.id) { c -> c.copy(color = color) } }
+        },
+        onStroke = { stroke ->
+            viewModel.annotations.setStyle(style.copy(stroke = stroke))
+            mark?.let { viewModel.annotations.restyleMark(it.id) { c -> c.copy(stroke = stroke) } }
+        },
         onMark = ::annotateAs,
         onCopy = {
             copyText(context, picked.text)
@@ -110,18 +130,23 @@ internal fun PdfSelectionPopup(
             shadowElevation = MenuElevation,
         ) {
             // Bengali extraction drops vowel signs: never offer a copy of broken text
-            SelectionBar(style, canCopy = !search.partialMatch, actions)
+            SelectionBar(style, mark?.type, canCopy = !search.partialMatch, actions)
         }
     }
 }
 
 @Composable
-private fun SelectionBar(style: AnnotateStyle, canCopy: Boolean, actions: SelectionActions) {
+private fun SelectionBar(
+    style: AnnotateStyle,
+    marked: AnnotationType?,
+    canCopy: Boolean,
+    actions: SelectionActions,
+) {
     var panel by remember { mutableStateOf(false) } // colour + thickness, opened by the colour dot
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ColorDot(style.color, panel) { panel = !panel }
-            MarkIconRow(selected = null, color = style.color, onPick = actions.onMark)
+            MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
             TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }, contentPadding = BarPadding) {
                 Text(stringResource(R.string.reader_annotation_note))
             }

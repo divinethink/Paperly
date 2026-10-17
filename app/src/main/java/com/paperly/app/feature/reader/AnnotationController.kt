@@ -13,9 +13,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * What the annotation dialog edits: a new annotation on [page] made of [rects] (existing == null; [rect] is the
@@ -111,9 +113,15 @@ class AnnotationController(
 
     /**
      * Saves selected text lines as one annotation in the chosen style (no dialog); a Note returns an editor instead.
-     * Independent of the annotate-mode pending parts.
+     * Independent of the annotate-mode pending parts. [onSaved] gets the new annotation's id once it is stored, so the
+     * selection can stay and restyle that same mark ([restyleMark]) instead of adding a second one.
      */
-    fun annotateSelection(page: Int, rects: List<MatchRect>, type: AnnotationType? = null): AnnotationEditor? {
+    fun annotateSelection(
+        page: Int,
+        rects: List<MatchRect>,
+        type: AnnotationType? = null,
+        onSaved: (String) -> Unit = {},
+    ): AnnotationEditor? {
         val parts = rects.take(MAX_PARTS)
         val chosen = type?.let { style.value.copy(type = it) } ?: style.value
         return when {
@@ -121,10 +129,24 @@ class AnnotationController(
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null, chosen.stroke)
-                scope.launch { repository.add(documentId, page, parts.first(), content, parts) }
+                scope.launch {
+                    val known = items.value.mapTo(HashSet()) { it.id }
+                    repository.add(documentId, page, parts.first(), content, parts)
+                    val saved = withTimeoutOrNull(SAVED_WAIT_MS) {
+                        items.first { list -> list.any { it.id !in known && it.page == page } }
+                    }
+                    saved?.firstOrNull { it.id !in known && it.page == page }?.let { onSaved(it.id) }
+                }
                 null
             }
         }
+    }
+
+    /** Changes the stored look of mark [id] (type, colour, thickness) in place; no-op when it no longer exists. */
+    fun restyleMark(id: String, change: (AnnotationContent) -> AnnotationContent) {
+        val cur = items.value.firstOrNull { it.id == id } ?: return
+        val base = AnnotationContent(cur.type, cur.color, cur.noteText, cur.stroke)
+        scope.launch { repository.update(id, change(base)) }
     }
 
     fun save(editor: AnnotationEditor, content: AnnotationContent) {
@@ -145,6 +167,7 @@ class AnnotationController(
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+        const val SAVED_WAIT_MS = 2_000L // how long a fresh mark may take to show up in [items]
         const val MAX_PARTS = 50 // same cap the repository enforces
     }
 }

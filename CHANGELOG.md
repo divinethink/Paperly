@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-17b (Selection stays after a mark, so colour/type can change at once; no schema change)
+
+- A mark placed from the selection bar no longer clears the selection (only Note and Copy do). `PdfSelection.markId` ties the selection to the mark just saved (`annotateSelection(onSaved)` waits for it in `items`, 2 s cap).
+- With a linked mark, a new type, colour or thickness restyles that same mark in place (`AnnotationController.restyleMark`, existing `repository.update`) instead of adding a second one. The active type shows as selected in the bar.
+- Moving a handle or picking new text drops the link: the next mark is a new one. No repository/interface change.
+- Needs on-device check. Not unit-tested (controller needs the Room flow).
+
 ## 2026-10-17 (Selection handles vs Xodo: fixed end holds, drag keeps up, handles stay on screen; no schema change)
 
 - Dragging one handle no longer moves the other: the grabbed line end is pinned (`pinEnds`, `SelectionPin`) while the moving end stays on its far side.
