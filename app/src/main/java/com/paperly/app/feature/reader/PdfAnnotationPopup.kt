@@ -61,7 +61,7 @@ internal fun PdfAnnotationPopup(viewModel: ReaderViewModel, port: SelectionViewp
     val density = LocalDensity.current
     var menu by remember { mutableStateOf(IntSize.Zero) }
     val gap = with(density) { PopupGap.toPx() }
-    val where = PdfSelection(tapped.page, tapped.rects, "")
+    val where = PdfSelection.single(tapped.page, tapped.rects, "")
     val editor = AnnotationEditor(tapped.page, tapped.rect, tapped)
     Box(Modifier.fillMaxSize()) {
         Surface(

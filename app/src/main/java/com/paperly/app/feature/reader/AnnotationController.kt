@@ -113,30 +113,34 @@ class AnnotationController(
     }
 
     /**
-     * Saves selected text lines as one annotation in the chosen style (no dialog); a Note returns an editor instead.
-     * Independent of the annotate-mode pending parts. [onSaved] gets the new annotation's id once it is stored, so the
-     * selection can stay and restyle that same mark ([restyleMark]) instead of adding a second one.
+     * Saves selected text as marks in the chosen style (no dialog): one annotation per page part, since an annotation
+     * lives on one page. A Note returns an editor for the first part instead. Independent of the annotate-mode
+     * pending parts. [onSaved] gets the new annotations' ids (same order as [parts]) once all are stored, so the
+     * selection can stay and restyle those same marks ([restyleMark]) instead of adding new ones.
      */
     fun annotateSelection(
-        page: Int,
-        rects: List<MatchRect>,
+        parts: List<SelectionPart>,
         type: AnnotationType? = null,
-        onSaved: (String) -> Unit = {},
+        onSaved: (List<String>) -> Unit = {},
     ): AnnotationEditor? {
-        val parts = rects.take(MAX_PARTS)
+        val pieces = parts.map { it.copy(rects = it.rects.take(MAX_PARTS)) }.filter { it.rects.isNotEmpty() }
         val chosen = type?.let { style.value.copy(type = it) } ?: style.value
         return when {
-            parts.isEmpty() -> null
-            chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
+            pieces.isEmpty() -> null
+            chosen.type == AnnotationType.NOTE -> pieces.first().let {
+                AnnotationEditor(it.page, it.rects.first(), null, it.rects)
+            }
             else -> {
                 val content = AnnotationContent(chosen.type, chosen.color, null, chosen.stroke)
                 scope.launch {
                     val known = items.value.mapTo(HashSet()) { it.id }
-                    repository.add(documentId, page, parts.first(), content, parts)
+                    pieces.forEach { repository.add(documentId, it.page, it.rects.first(), content, it.rects) }
+                    fun fresh(list: List<Annotation>, page: Int) =
+                        list.firstOrNull { it.id !in known && it.page == page }
                     val saved = withTimeoutOrNull(SAVED_WAIT_MS) {
-                        items.first { list -> list.any { it.id !in known && it.page == page } }
+                        items.first { list -> pieces.all { fresh(list, it.page) != null } }
                     }
-                    saved?.firstOrNull { it.id !in known && it.page == page }?.let { onSaved(it.id) }
+                    saved?.let { list -> onSaved(pieces.mapNotNull { fresh(list, it.page)?.id }) }
                 }
                 null
             }

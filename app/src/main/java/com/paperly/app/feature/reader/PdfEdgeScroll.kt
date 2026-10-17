@@ -27,33 +27,31 @@ internal fun edgeSpeed(y: Float, height: Float): Float {
 }
 
 /**
- * Where the finger of a running selection drag is ([page], [localY] in that page's own px), so the page list can
- * scroll while the finger waits near the top or bottom edge. [onShift] lets the drag re-pick its end point after
- * every scroll step, because the page moves under a finger that does not.
+ * Where the finger of a running selection drag is ([y], measured from the viewport top, so it does not depend on
+ * which page the drag started on), so the page list can scroll while the finger waits near the top or bottom edge.
+ * [onShift] lets the drag re-pick its end point after every scroll step, because the page moves under a finger that
+ * does not.
  */
 @Stable
 internal class EdgeScroll {
     var active by mutableStateOf(false)
         private set
-    var page = -1
-        private set
-    var localY = 0f
+    var y = 0f
         private set
     var onShift: ((Float) -> Unit)? = null
 
-    /** [y] null = the finger is up. */
-    fun track(page: Int, y: Float?) {
+    /** [y] = finger height in viewport layout px; null = the finger is up. */
+    fun track(y: Float?) {
         if (y == null) {
             active = false
         } else {
-            this.page = page
-            localY = y
+            this.y = y
             active = true
         }
     }
 
+    /** The list scrolled by [dy]: the finger stayed, the pages moved under it. */
     fun shifted(dy: Float) {
-        localY += dy
         onShift?.invoke(dy)
     }
 }
@@ -67,9 +65,8 @@ internal fun EdgeScrollEffect(edge: EdgeScroll, listState: LazyListState, zoomOf
     LaunchedEffect(edge.active) {
         while (edge.active) {
             withFrameNanos { }
-            val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == edge.page }
             val zoom = zoomOf()
-            val speed = if (item == null) 0f else edgeSpeed((item.offset + edge.localY) * zoom, heightPx)
+            val speed = edgeSpeed(edge.y * zoom, heightPx)
             if (speed != 0f) {
                 val moved = listState.dispatchRawDelta(speed * step / zoom)
                 if (moved != 0f) edge.shifted(moved)

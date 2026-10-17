@@ -72,3 +72,26 @@ internal fun pinEnds(rects: List<MatchRect>, pin: SelectionPin?): List<MatchRect
     }
     return out
 }
+
+/** [isForward] across pages: a lower page number is always earlier. */
+internal fun isForwardAcross(from: PagePoint, to: PagePoint, lineHeight: Float): Boolean =
+    if (from.page != to.page) from.page < to.page else isForward(from.point, to.point, lineHeight)
+
+private fun MatchRect.touches(y: Float) = y in (top - NEAR_Y)..(bottom + NEAR_Y)
+
+/**
+ * First page of a multi-page selection: the first line starts at the start touch ([x],[y]) — only when that touch is
+ * on the line, otherwise the engine's own snap stays.
+ */
+internal fun trimStart(rects: List<MatchRect>, at: Offset): List<MatchRect> {
+    val first = rects.firstOrNull()?.takeIf { it.touches(at.y) } ?: return rects
+    val left = maxOf(first.left, at.x - NEAR_X)
+    return if (left < first.right) listOf(first.copy(left = left)) + rects.drop(1) else rects
+}
+
+/** Last page of a multi-page selection: the last line ends at the end touch (same on-the-line rule as [trimStart]). */
+internal fun trimEnd(rects: List<MatchRect>, at: Offset): List<MatchRect> {
+    val last = rects.lastOrNull()?.takeIf { it.touches(at.y) } ?: return rects
+    val right = minOf(last.right, at.x + NEAR_X)
+    return if (right > last.left) rects.dropLast(1) + last.copy(right = right) else rects
+}

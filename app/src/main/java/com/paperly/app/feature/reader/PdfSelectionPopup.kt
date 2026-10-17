@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 
@@ -88,17 +89,19 @@ internal fun PdfSelectionPopup(
     var menu by remember { mutableStateOf(IntSize.Zero) }
     val gap = with(density) { MenuGap.toPx() }
     val clearance = with(density) { HandleClearance.toPx() }
-    // the mark just placed on exactly this selection (still stored): colour/type changes restyle it, not add another
-    val mark = items.firstOrNull { it.id == picked.markId }
+    // the marks just placed on exactly this selection (one per page, still stored): colour/type changes restyle
+    // them all, not add more
+    val marks = items.filter { it.id in picked.markIds }
+    val mark = marks.firstOrNull()
+    fun restyleAll(change: (AnnotationContent) -> AnnotationContent) =
+        marks.forEach { viewModel.annotations.restyleMark(it.id, change) }
     fun annotateAs(type: AnnotationType) {
         if (mark != null && type != AnnotationType.NOTE) {
-            viewModel.annotations.restyleMark(mark.id) {
-                it.copy(type = type, color = style.color, stroke = style.stroke)
-            }
+            restyleAll { it.copy(type = type, color = style.color, stroke = style.stroke) }
             return
         }
-        val editor = viewModel.annotations.annotateSelection(picked.page, picked.rects, type) { id ->
-            viewModel.textSelect.linkMark(picked, id) // the selection stays, so colour and type can still be changed
+        val editor = viewModel.annotations.annotateSelection(picked.parts, type) { ids ->
+            viewModel.textSelect.linkMark(picked, ids) // the selection stays, so colour and type can still be changed
         }
         if (editor != null) {
             onEditor(editor)
@@ -108,11 +111,11 @@ internal fun PdfSelectionPopup(
     val actions = SelectionActions(
         onColor = { color ->
             viewModel.annotations.setStyle(style.copy(color = color))
-            mark?.let { viewModel.annotations.restyleMark(it.id) { c -> c.copy(color = color) } }
+            restyleAll { c -> c.copy(color = color) }
         },
         onStroke = { stroke ->
             viewModel.annotations.setStyle(style.copy(stroke = stroke))
-            mark?.let { viewModel.annotations.restyleMark(it.id) { c -> c.copy(stroke = stroke) } }
+            restyleAll { c -> c.copy(stroke = stroke) }
         },
         onMark = ::annotateAs,
         onCopy = {
@@ -168,8 +171,9 @@ private fun SelectionBar(
 }
 
 /**
- * Top-left of the menu in viewport px: centred on the selection, above its first line, or below the last line when
- * the top would leave the viewport. A page scrolled out of view parks the menu at the top edge.
+ * Top-left of the menu in viewport px: centred on the selection, above its first line (first part), or below the last
+ * line (last part) when the top would leave the viewport. A selection scrolled out of view parks the menu at the top
+ * edge.
  */
 internal fun popupOrigin(
     sel: PdfSelection,
@@ -179,21 +183,37 @@ internal fun popupOrigin(
     clearance: Float,
 ): IntOffset {
     val zoom = port.zoom.zoom
-    val item = port.listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == sel.page }
-    val first = sel.rects.firstOrNull()
-    val last = sel.rects.lastOrNull()
+    val visible = port.listState.layoutInfo.visibleItemsInfo
+    val firstPart = sel.parts.firstOrNull()
+    val lastPart = sel.parts.lastOrNull()
+    val first = firstPart?.rects?.firstOrNull()
+    val last = lastPart?.rects?.lastOrNull()
     val maxY = (port.heightPx - menu.height).coerceAtLeast(0f)
     val maxX = (port.viewportPx - menu.width).coerceAtLeast(0f)
-    if (item == null || first == null || last == null) return IntOffset((maxX * HALF).toInt(), 0)
-    val above = (item.offset + first.top * item.size) * zoom - menu.height - gap
-    val below = (item.offset + last.bottom * item.size) * zoom + clearance
-    val left = sel.rects.minOf { it.left }
-    val right = sel.rects.maxOf { it.right }
+    val firstItem = visible.firstOrNull { it.index == firstPart?.page }
+    val lastItem = visible.firstOrNull { it.index == lastPart?.page }
+    val above = if (firstItem != null && first != null) {
+        (firstItem.offset + first.top * firstItem.size) * zoom - menu.height - gap
+    } else {
+        null
+    }
+    val below = if (lastItem != null && last != null) {
+        (lastItem.offset + last.bottom * lastItem.size) * zoom + clearance
+    } else {
+        null
+    }
+    if (above == null && below == null) return IntOffset((maxX * HALF).toInt(), 0)
+    val rects = sel.parts.flatMap { it.rects }
+    val left = rects.minOf { it.left }
+    val right = rects.maxOf { it.right }
     val centre = (left + right) * HALF * port.basePx * zoom + port.zoom.offsetX(port.viewportPx, port.basePx)
     val x = (centre - menu.width * HALF).coerceIn(0f, maxX)
-    val y = (if (above >= 0f) above else below).coerceIn(0f, maxY)
-    return IntOffset(x.toInt(), y.toInt())
+    return IntOffset(x.toInt(), popupY(above, below, maxY).toInt())
 }
+
+/** Above the first line when it fits on screen, else below the last line; whichever end is off screen is null. */
+internal fun popupY(above: Float?, below: Float?, maxY: Float): Float =
+    (if (above != null && (above >= 0f || below == null)) above else below ?: 0f).coerceIn(0f, maxY)
 
 private fun copyText(context: Context, text: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return

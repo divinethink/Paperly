@@ -231,6 +231,7 @@ private fun PdfPages(
         val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
         val gestureLock = remember { GestureLock() }
         val edgeScroll = remember { EdgeScroll() }
+        val pageLocator = remember(listState) { PageLocator(listState) }
         val gesture = Modifier.fillMaxSize().pinchZoom(
             panEnabled = !annotate,
             lock = gestureLock,
@@ -244,6 +245,7 @@ private fun PdfPages(
             LocalPageZoom provides zoomProvider,
             LocalGestureLock provides gestureLock,
             LocalEdgeScroll provides edgeScroll,
+            LocalPageLocator provides pageLocator,
         ) {
             Box(gesture) {
                 // Layout height shrinks by the zoom so the scaled list exactly fills the viewport.
@@ -296,10 +298,12 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
     val lock = LocalGestureLock.current
     val edgeScroll = LocalEdgeScroll.current
+    val locator = LocalPageLocator.current
     val select = spec.hooks.select?.let { hooks ->
-        SelectEdit(index, hooks, lock, edgeScroll) { touch ->
+        SelectEdit(index, hooks, lock, edgeScroll, locator) { touch ->
             finger = touch
-            edgeScroll.track(index, touch?.y) // near the top/bottom edge the page scrolls on
+            // near the top/bottom edge the page scrolls on (the finger may be over another page by now)
+            edgeScroll.track(locator?.viewportY(index, touch?.y ?: 0f)?.takeIf { touch != null })
             hooks.onDragging(touch != null) // the mark panel hides while a finger is down
         }
     }
@@ -316,11 +320,17 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                 )
             }
             drawAnnotations(spec.annotations, zoomOf())
-            spec.hooks.select?.selection?.takeIf { it.page == index }?.let { drawSelection(it.rects, zoomOf()) }
+            spec.hooks.select?.selection?.let { sel ->
+                sel.rectsOn(index).takeIf { it.isNotEmpty() }
+                    ?.let { drawSelection(it, zoomOf(), sel.startsOn(index), sel.endsOn(index)) }
+            }
             drawPending(edit.rects, zoomOf())
             draft?.let { drawDraft(it) }
             val touch = finger
-            if (touch != null && picture != null) drawLoupe(picture, touch, zoomOf(), spec.filter)
+            // the loupe magnifies this page only: not while the finger is over a neighbouring page
+            if (touch != null && picture != null && touch.y in 0f..size.height) {
+                drawLoupe(picture, touch, zoomOf(), spec.filter)
+            }
         },
         contentAlignment = Alignment.Center,
     ) {
