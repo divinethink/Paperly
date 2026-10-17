@@ -27,6 +27,7 @@ import com.paperly.app.R
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 
 private val PopupWidth = 300.dp
@@ -77,7 +78,7 @@ internal fun PdfAnnotationPopup(viewModel: ReaderViewModel, port: SelectionViewp
     }
 }
 
-/** Colour swatches and one-tap type icons (not for notes), then Edit / Delete / Cancel. */
+/** Colour swatches, one-tap type icons and thickness (not for notes), then Edit / Delete / Cancel. */
 @Composable
 private fun AnnotationMenu(
     tapped: Annotation,
@@ -91,14 +92,20 @@ private fun AnnotationMenu(
             Row(Modifier.fillMaxWidth()) {
                 AnnotationColor.entries.forEach { color ->
                     ColorSwatch(color, color == current, Modifier.weight(1f)) {
-                        controller.save(editor, AnnotationContent(tapped.type, color, null))
+                        controller.save(editor, AnnotationContent(tapped.type, color, null, tapped.stroke))
                         popup.onTap(null)
                     }
                 }
             }
             MarkIconRow(tapped.type, current, Modifier.fillMaxWidth()) { type ->
-                controller.save(editor, AnnotationContent(type, tapped.color, null))
+                controller.save(editor, AnnotationContent(type, tapped.color, null, tapped.stroke))
                 popup.onTap(null)
+            }
+            if (AnnotationStroke.appliesTo(tapped.type)) {
+                StrokeRow(tapped.stroke ?: AnnotationStroke.MEDIUM, current, Modifier.fillMaxWidth()) { stroke ->
+                    controller.save(editor, AnnotationContent(tapped.type, tapped.color, null, stroke))
+                    popup.onTap(null)
+                }
             }
         }
         Row {

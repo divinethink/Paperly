@@ -265,6 +265,31 @@ class PaperlyMigrationTest {
     }
 
     @Test
+    fun v11StrokeColumnStoresThicknessAndOldRowsReadNull() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.annotationDao()
+            dao.insert(AnnotationEntity("old", "d1", "1", "underline", null, 0.1f, 0.2f, 0.5f, 0.3f, null, 1L, 1L))
+            dao.insert(
+                AnnotationEntity("new", "d1", "1", "underline", null, 0.1f, 0.2f, 0.5f, 0.3f, null, 2L, 2L)
+                    .copy(stroke = "thick"),
+            )
+            assertEquals(1, dao.setStroke("old", "thin"))
+            val rows = dao.observeForDocument("d1").first().associateBy { it.annotationId }
+            assertEquals("thin", rows.getValue("old").stroke)
+            assertEquals("thick", rows.getValue("new").stroke)
+            dao.setStroke("old", null)
+            assertEquals(null, dao.observeForDocument("d1").first().first { it.annotationId == "old" }.stroke)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
     fun v10ScanOcrTableWorks() = runBlocking {
         createV1Database()
         val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)

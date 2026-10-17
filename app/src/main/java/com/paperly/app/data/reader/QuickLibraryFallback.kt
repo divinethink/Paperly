@@ -33,7 +33,7 @@ class QuickLibraryFallback @Inject constructor(
         } ?: return false
         items.forEach { a ->
             val rect = a.rects.firstOrNull() ?: return@forEach
-            annotations.add(id, a.page, rect, AnnotationContent(a.type, a.color, a.noteText), a.rects)
+            annotations.add(id, a.page, rect, AnnotationContent(a.type, a.color, a.noteText, a.stroke), a.rects)
         }
         fileSync.schedule(id)
         return true

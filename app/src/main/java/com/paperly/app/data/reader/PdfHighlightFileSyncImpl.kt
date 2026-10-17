@@ -45,7 +45,7 @@ class PdfHighlightFileSyncImpl @Inject constructor(
         if (!settings.writeHighlights.first()) return null
         val file = files.writableFile(documentId) ?: return null
         val items = annotations.observe(documentId).first()
-            .map { PdfAnnotationItem(it.id, it.page, it.type, it.color, it.rects, it.noteText) }
+            .map { PdfAnnotationItem(it.id, it.page, it.type, it.color, it.rects, it.noteText, it.stroke) }
         val result = writer.write(file, items) { openCheck.opens(it) }
         if (result is PdfWriteResult.Written) files.replaced(documentId, result.checksum, result.sizeBytes)
         return result

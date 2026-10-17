@@ -305,7 +305,8 @@ class ReaderViewModel @Inject constructor(
         savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent
     }
 
-    private fun toFileItem(a: Annotation) = PdfAnnotationItem(a.id, a.page, a.type, a.color, a.rects, a.noteText)
+    private fun toFileItem(a: Annotation) =
+        PdfAnnotationItem(a.id, a.page, a.type, a.color, a.rects, a.noteText, a.stroke)
 
     /** First emission = what was already there; any later difference means a highlight was added/edited/removed. */
     private fun observeAnnotationChanges() {

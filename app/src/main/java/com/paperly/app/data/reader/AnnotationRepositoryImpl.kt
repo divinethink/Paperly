@@ -6,6 +6,7 @@ import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationRepository
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 import dagger.Binds
@@ -52,12 +53,14 @@ class AnnotationRepositoryImpl @Inject constructor(
                 createdAt = now,
                 updatedAt = now,
                 rects = AnnotationRects.encode(parts),
+                stroke = content.storedStroke(),
             ),
         )
     }
 
     override suspend fun update(id: String, content: AnnotationContent) {
         dao.update(id, content.type.key, content.storedColor(), content.storedNote(), System.currentTimeMillis())
+        dao.setStroke(id, content.storedStroke())
     }
 
     override suspend fun delete(id: String) {
@@ -69,6 +72,8 @@ class AnnotationRepositoryImpl @Inject constructor(
 
     private fun AnnotationContent.storedColor(): String? = color?.key?.takeIf { type != AnnotationType.NOTE }
 
+    private fun AnnotationContent.storedStroke(): String? = stroke?.key?.takeIf { AnnotationStroke.appliesTo(type) }
+
     private fun AnnotationContent.storedNote(): String? = noteText?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun AnnotationEntity.toDomain(): Annotation? {
@@ -76,7 +81,16 @@ class AnnotationRepositoryImpl @Inject constructor(
         val page = locator.toIntOrNull()?.takeIf { it >= 0 } ?: return null
         val rect = MatchRect(rectLeft, rectTop, rectRight, rectBottom)
         val parts = AnnotationRects.decode(rects).ifEmpty { listOf(rect) }
-        return Annotation(annotationId, page, kind, rect, noteText, AnnotationColor.fromKey(color), parts)
+        return Annotation(
+            annotationId,
+            page,
+            kind,
+            rect,
+            noteText,
+            AnnotationColor.fromKey(color),
+            parts,
+            AnnotationStroke.fromKey(stroke),
+        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.paperly.app.data.backup
 import com.paperly.app.core.file.SAFE_DOCUMENT_ID
 import com.paperly.app.data.reader.AnnotationRects
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.scanner.MAX_PAGE_NOTE
 import com.paperly.app.domain.scanner.MAX_PAGE_TITLE
@@ -106,6 +107,7 @@ object BackupExtrasCodec {
         put("noteText", a.noteText ?: JSONObject.NULL)
         put("createdAt", a.createdAt)
         put("updatedAt", a.updatedAt)
+        a.stroke?.let { put("stroke", it) }
         a.rects?.let { raw -> runCatching { JSONArray(raw) }.getOrNull()?.let { put("rects", it) } }
     }
 
@@ -155,6 +157,7 @@ object BackupExtrasCodec {
                 createdAt = created,
                 updatedAt = o.optLong("updatedAt", created),
                 rects = AnnotationRects.normalize(o.optJSONArray("rects")?.toString()),
+                stroke = AnnotationStroke.fromKey(o.optString("stroke"))?.key,
             )
         } else {
             null

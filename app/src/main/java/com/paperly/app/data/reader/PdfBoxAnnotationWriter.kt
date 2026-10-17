@@ -2,6 +2,7 @@ package com.paperly.app.data.reader
 
 import android.content.Context
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.PdfAnnotationColors
 import com.paperly.app.domain.reader.PdfAnnotationGeometry
@@ -144,6 +145,11 @@ class PdfBoxAnnotationWriter @Inject constructor(
         val color = item.color ?: AnnotationColor.defaultFor(item.type)
         annotation.setColor(PDColor(PdfAnnotationColors.rgb(color), PDDeviceRGB.INSTANCE))
         annotation.setAnnotationName(item.id)
+        item.stroke?.takeIf { AnnotationStroke.appliesTo(item.type) }?.let { stroke ->
+            // /BS /W = line width (pt); viewers that draw their own line may ignore it
+            val border = COSDictionary().apply { setFloat(COSName.W, stroke.dp) }
+            annotation.getCOSObject().setItem(COSName.BS, border)
+        }
         annotation.setPrinted(true)
         item.noteText?.takeIf { it.isNotBlank() }?.let { annotation.setContents(it) }
         try {

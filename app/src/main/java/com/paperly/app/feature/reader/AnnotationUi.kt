@@ -34,6 +34,7 @@ import com.paperly.app.R
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 
@@ -42,10 +43,10 @@ private val NoteStroke = Color(0xFF1E88E5)
 private val DraftFill = Color(0x3300796B)
 private val LineWidth = 1.5.dp // on-screen thickness; drawAnnotations divides by the zoom so it stays constant
 private const val HIGHLIGHT_ALPHA = 0.4f
-private const val UNDERLINE_AT = 0.88f // fraction of the line box height; tune here if it looks high/low
+private const val UNDERLINE_AT = 0.96f // near the line-box bottom, below Bengali vowel signs; tune if high/low
 private const val STRIKE_AT = 0.5f
 private const val SQUIGGLE_STEP = 2.5f // half-wave length, in line widths
-private const val SQUIGGLE_AMP = 1.2f // wave height either side of the line, in line widths
+private const val SQUIGGLE_AMP = 0.9f // wave height either side of the line, in line widths
 private const val MIN_SIDE = 0.01f // smaller drags (fraction of the page) are treated as accidental
 
 /** Current page-list zoom, read lazily in the draw phase so pinching only redraws (never recomposes) the pages. */
@@ -132,8 +133,9 @@ fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
     val lineWidth = LineWidth.toPx() / maxOf(zoom, MIN_ZOOM)
     items.forEach { a ->
         val base = (a.color ?: AnnotationColor.defaultFor(a.type)).argb()
+        val width = lineWidth * (a.stroke ?: AnnotationStroke.MEDIUM).dp / AnnotationStroke.MEDIUM.dp
         // one quad per line (like Xodo/Apryse TextMarkup): never the bounding box of all parts
-        a.rects.forEach { drawPart(a.type, it, base, lineWidth) }
+        a.rects.forEach { drawPart(a.type, it, base, width) }
     }
 }
 
@@ -237,7 +239,7 @@ internal fun AnnotationEditorDialog(
             TextButton(
                 enabled = !isNote || note.isNotBlank(),
                 onClick = {
-                    onSave(AnnotationContent(type, color.takeIf { !isNote }, note.takeIf { isNote }))
+                    onSave(AnnotationContent(type, color.takeIf { !isNote }, note.takeIf { isNote }, existing?.stroke))
                     onClose()
                 },
             ) { Text(stringResource(R.string.action_save)) }

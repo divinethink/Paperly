@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotateStyleStore
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import dagger.Binds
 import dagger.Module
@@ -33,6 +34,7 @@ class AnnotateStyleStoreImpl @Inject constructor(
             AnnotateStyle(
                 type = it[TYPE_KEY]?.let(AnnotationType::fromKey) ?: defaults.type,
                 color = AnnotationColor.fromKey(it[COLOR_KEY]) ?: defaults.color,
+                stroke = AnnotationStroke.fromKey(it[STROKE_KEY]) ?: defaults.stroke,
             )
         }
 
@@ -40,12 +42,14 @@ class AnnotateStyleStoreImpl @Inject constructor(
         store.edit {
             it[TYPE_KEY] = style.type.key
             it[COLOR_KEY] = style.color.key
+            it[STROKE_KEY] = style.stroke.key
         }
     }
 
     private companion object {
         val TYPE_KEY = stringPreferencesKey("annotate_type")
         val COLOR_KEY = stringPreferencesKey("annotate_color")
+        val STROKE_KEY = stringPreferencesKey("annotate_stroke")
     }
 }
 

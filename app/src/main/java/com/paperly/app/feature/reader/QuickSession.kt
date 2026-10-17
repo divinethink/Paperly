@@ -34,14 +34,32 @@ internal class QuickAnnotationRepository : AnnotationRepository {
             parts.maxOf { it.right },
             parts.maxOf { it.bottom },
         )
-        val item = Annotation("quick-${seq++}", page, content.type, box, content.noteText, content.color, parts)
+        val item = Annotation(
+            "quick-${seq++}",
+            page,
+            content.type,
+            box,
+            content.noteText,
+            content.color,
+            parts,
+            content.stroke,
+        )
         state.update { it + item }
     }
 
     override suspend fun update(id: String, content: AnnotationContent) {
         state.update { list ->
             list.map { a ->
-                if (a.id != id) a else a.copy(type = content.type, color = content.color, noteText = content.noteText)
+                if (a.id != id) {
+                    a
+                } else {
+                    a.copy(
+                        type = content.type,
+                        color = content.color,
+                        noteText = content.noteText,
+                        stroke = content.stroke,
+                    )
+                }
             }
         }
     }
@@ -78,7 +96,7 @@ internal class QuickSession {
         fresh: Boolean,
     ) {
         annotations.snapshot().forEach { a ->
-            val content = AnnotationContent(a.type, a.color, a.noteText)
+            val content = AnnotationContent(a.type, a.color, a.noteText, a.stroke)
             annotationRepository.add(documentId, a.page, a.rect, content, a.rects)
         }
         if (!fresh) return

@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
 
 private val SelectionFill = Color(0x5542A5F5)
 private val SelectHandleColor = Color(0xFF1E88E5)
-private val SelectHandleRadius = 8.dp
+private val SelectHandleRadius = 12.dp // big drop-shaped handle, easy to grab (Xodo-like)
+private val SelectHandleReach = 36.dp // touch reach around a handle
 private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, so the end characters stay selected
 private const val HALF = 0.5f
 
@@ -201,7 +202,7 @@ private fun AwaitPointerEventScope.handleHit(at: Offset, rects: List<MatchRect>,
     val zoom = maxOf(zoomNow, MIN_ZOOM)
     val radius = SelectHandleRadius.toPx() / zoom
     val (startAt, endAt) = handleCenters(rects, size.width.toFloat(), size.height.toFloat(), radius)
-    val reach = HandleReach.toPx() / zoom
+    val reach = SelectHandleReach.toPx() / zoom
     return when {
         (at - startAt).getDistance() <= reach -> true
         (at - endAt).getDistance() <= reach -> false
@@ -244,6 +245,10 @@ internal fun DrawScope.drawSelection(rects: List<MatchRect>, zoom: Float) {
     if (rects.isEmpty()) return
     val radius = SelectHandleRadius.toPx() / maxOf(zoom, MIN_ZOOM)
     val (startAt, endAt) = handleCenters(rects, size.width, size.height, radius)
+    // drop shape: a circle whose corner nearest the text is square (start: top-right, end: top-left)
+    val corner = Size(radius, radius)
     drawCircle(SelectHandleColor, radius, startAt)
+    drawRect(SelectHandleColor, Offset(startAt.x, startAt.y - radius), corner)
     drawCircle(SelectHandleColor, radius, endAt)
+    drawRect(SelectHandleColor, Offset(endAt.x - radius, endAt.y - radius), corner)
 }

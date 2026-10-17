@@ -40,7 +40,8 @@ data class AnnotationEntity(
     val createdAt: Long,
     val updatedAt: Long,
     /** v5: JSON `[[l,t,r,b],…]` page fractions (multi-part); null = single part (the four rect columns). */
-    val rects: String? = null,
+    /** v11: line thickness key (`thin`/`medium`/`thick`); null = medium (all rows made before v11). */
+    val stroke: String? = null,
 )
 
 @Dao
@@ -57,6 +58,9 @@ interface AnnotationDao {
             "WHERE annotationId = :id",
     )
     suspend fun update(id: String, type: String, color: String?, note: String?, now: Long): Int
+
+    @Query("UPDATE annotations SET stroke = :stroke WHERE annotationId = :id")
+    suspend fun setStroke(id: String, stroke: String?): Int
 
     @Query("DELETE FROM annotations WHERE annotationId = :id")
     suspend fun delete(id: String): Int

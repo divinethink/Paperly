@@ -37,6 +37,7 @@ data class BackupAnnotation(
     val createdAt: Long,
     val updatedAt: Long,
     val rects: String? = null,
+    val stroke: String? = null,
 )
 
 /** P4-B per-page title/note of a scanned document (a row exists only for edited pages). */
@@ -114,6 +115,7 @@ private fun AnnotationEntity.toBackup() = BackupAnnotation(
     createdAt = createdAt,
     updatedAt = updatedAt,
     rects = rects,
+    stroke = stroke,
 )
 
 private fun BackupAnnotation.toEntity() = AnnotationEntity(
@@ -130,4 +132,5 @@ private fun BackupAnnotation.toEntity() = AnnotationEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     rects = rects,
+    stroke = stroke,
 )

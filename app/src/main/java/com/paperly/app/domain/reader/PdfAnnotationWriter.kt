@@ -10,6 +10,7 @@ data class PdfAnnotationItem(
     val color: AnnotationColor?,
     val rects: List<MatchRect>,
     val noteText: String?,
+    val stroke: AnnotationStroke? = null,
 )
 
 enum class PdfSkipReason { NOT_FOUND, TOO_LARGE, ENCRYPTED, OUT_OF_MEMORY }

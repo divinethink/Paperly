@@ -128,6 +128,13 @@ object PaperlyMigrations {
         }
     }
 
+    /** v10 → v11: add nullable `annotations.stroke` (line thickness). Old rows keep NULL = medium. Additive only. */
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `annotations` ADD COLUMN `stroke` TEXT")
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -139,5 +146,6 @@ object PaperlyMigrations {
         MIGRATION_7_8,
         MIGRATION_8_9,
         MIGRATION_9_10,
+        MIGRATION_10_11,
     )
 }

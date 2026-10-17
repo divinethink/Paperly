@@ -354,6 +354,9 @@
     <string name="reader_annotation_underline">Underline</string>
     <string name="reader_annotation_squiggly">Squiggly</string>
     <string name="reader_annotation_strikethrough">Strikethrough</string>
+    <string name="reader_annotation_stroke_thin">Thin</string>
+    <string name="reader_annotation_stroke_medium">Medium</string>
+    <string name="reader_annotation_stroke_thick">Thick</string>
     <string name="reader_annotation_note">Note</string>
     <string name="reader_annotation_note_hint">Note text</string>
     <string name="reader_annotation_delete">Delete</string>

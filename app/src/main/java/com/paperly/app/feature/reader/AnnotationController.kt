@@ -101,7 +101,7 @@ class AnnotationController(
             parts == null -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(parts.page, parts.rects.first(), null, parts.rects)
             else -> {
-                val content = AnnotationContent(chosen.type, chosen.color, null)
+                val content = AnnotationContent(chosen.type, chosen.color, null, chosen.stroke)
                 scope.launch { repository.add(documentId, parts.page, parts.rects.first(), content, parts.rects) }
                 pendingState.value = null
                 null
@@ -120,7 +120,7 @@ class AnnotationController(
             parts.isEmpty() -> null
             chosen.type == AnnotationType.NOTE -> AnnotationEditor(page, parts.first(), null, parts)
             else -> {
-                val content = AnnotationContent(chosen.type, chosen.color, null)
+                val content = AnnotationContent(chosen.type, chosen.color, null, chosen.stroke)
                 scope.launch { repository.add(documentId, page, parts.first(), content, parts) }
                 null
             }

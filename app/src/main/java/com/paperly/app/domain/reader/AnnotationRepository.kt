@@ -16,6 +16,30 @@ enum class AnnotationType(val key: String) {
     }
 }
 
+private const val THIN_DP = 0.8f
+private const val MEDIUM_DP = 1.5f
+private const val THICK_DP = 2.5f
+
+/**
+ * Line thickness of an underline / squiggly / strikethrough (stored as a string key in `annotations.stroke`).
+ * [dp] is the on-screen thickness; null in the database reads as [MEDIUM], the look before this existed.
+ */
+enum class AnnotationStroke(val key: String, val dp: Float) {
+    THIN("thin", THIN_DP),
+    MEDIUM("medium", MEDIUM_DP),
+    THICK("thick", THICK_DP),
+    ;
+
+    companion object {
+        fun fromKey(key: String?): AnnotationStroke? = entries.firstOrNull { it.key == key }
+
+        /** Only line-type marks have a thickness; highlights and notes ignore it. */
+        fun appliesTo(type: AnnotationType): Boolean =
+            type == AnnotationType.UNDERLINE || type == AnnotationType.SQUIGGLY ||
+                type == AnnotationType.STRIKETHROUGH
+    }
+}
+
 /** Runtime-validated palette key (stored in the `color` column); an unknown key reads as null = the type's default. */
 enum class AnnotationColor(val key: String) {
     AMBER("amber"),
@@ -35,7 +59,12 @@ enum class AnnotationColor(val key: String) {
 }
 
 /** What the user chooses for one annotation. [color] null = default for [type]; ignored for notes. */
-data class AnnotationContent(val type: AnnotationType, val color: AnnotationColor?, val noteText: String?)
+data class AnnotationContent(
+    val type: AnnotationType,
+    val color: AnnotationColor?,
+    val noteText: String?,
+    val stroke: AnnotationStroke? = null,
+)
 
 /** [page] is a zero-based page index; [rect] is in page fractions (0..1), origin top-left. */
 data class Annotation(
@@ -47,6 +76,7 @@ data class Annotation(
     val color: AnnotationColor? = null,
     /** All parts (page fractions); [rect] is their bounding box. Single-part = `listOf(rect)`. */
     val rects: List<MatchRect> = listOf(rect),
+    val stroke: AnnotationStroke? = null,
 )
 
 interface AnnotationRepository {

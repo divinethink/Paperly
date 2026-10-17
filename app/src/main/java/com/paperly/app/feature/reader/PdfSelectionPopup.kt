@@ -5,8 +5,10 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
@@ -30,13 +32,16 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 
 private val MenuGap = 8.dp
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
 private val MenuElevation = 6.dp
 private val SwatchWidth = 44.dp
+private val BarPadding = PaddingValues(horizontal = 8.dp)
 private const val HALF = 0.5f
 
 /** What the popup needs to turn page fractions into screen pixels: list scroll, zoom, page width, viewport size. */
@@ -51,14 +56,15 @@ internal class SelectionViewport(
 /** What the bar can do; bundled so the bar composable stays within the detekt parameter limit. */
 private class SelectionActions(
     val onColor: (AnnotationColor) -> Unit,
+    val onStroke: (AnnotationStroke) -> Unit,
     val onMark: (AnnotationType) -> Unit,
     val onCopy: () -> Unit,
 )
 
 /**
- * Floating bar right above the selected text (below it when there is no room), inside the page area: colour row,
- * then Highlight / Underline / Squiggly / Strikethrough one-tap icons, Note and Copy. A mark saves with the colour
- * shown; hidden in annotate mode and Reflow.
+ * Floating one-row bar right above the selected text (below it when there is no room), inside the page area:
+ * colour dot, Highlight / Underline / Squiggly / Strikethrough one-tap icons, Note, Copy. The dot opens a colour and
+ * thickness panel; a mark saves with what is shown. Hidden in annotate mode and Reflow.
  */
 @Composable
 internal fun PdfSelectionPopup(
@@ -84,6 +90,7 @@ internal fun PdfSelectionPopup(
     }
     val actions = SelectionActions(
         onColor = { viewModel.annotations.setStyle(style.copy(color = it)) },
+        onStroke = { viewModel.annotations.setStyle(style.copy(stroke = it)) },
         onMark = ::annotateAs,
         onCopy = {
             copyText(context, picked.text)
@@ -100,27 +107,34 @@ internal fun PdfSelectionPopup(
             shadowElevation = MenuElevation,
         ) {
             // Bengali extraction drops vowel signs: never offer a copy of broken text
-            SelectionBar(style.color, canCopy = !search.partialMatch, actions)
+            SelectionBar(style, canCopy = !search.partialMatch, actions)
         }
     }
 }
 
 @Composable
-private fun SelectionBar(color: AnnotationColor, canCopy: Boolean, actions: SelectionActions) {
+private fun SelectionBar(style: AnnotateStyle, canCopy: Boolean, actions: SelectionActions) {
+    var panel by remember { mutableStateOf(false) } // colour + thickness, opened by the colour dot
     Column {
-        Row {
-            AnnotationColor.entries.forEach { option ->
-                ColorSwatch(option, option == color, Modifier.width(SwatchWidth)) { actions.onColor(option) }
-            }
-        }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            MarkIconRow(selected = null, color = color, onPick = actions.onMark)
-            TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }) {
+            ColorDot(style.color, panel) { panel = !panel }
+            MarkIconRow(selected = null, color = style.color, onPick = actions.onMark)
+            TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }, contentPadding = BarPadding) {
                 Text(stringResource(R.string.reader_annotation_note))
             }
             if (canCopy) {
-                TextButton(onClick = actions.onCopy) { Text(stringResource(R.string.reader_select_copy)) }
+                TextButton(onClick = actions.onCopy, contentPadding = BarPadding) {
+                    Text(stringResource(R.string.reader_select_copy))
+                }
             }
+        }
+        if (panel) {
+            Row {
+                AnnotationColor.entries.forEach { option ->
+                    ColorSwatch(option, option == style.color, Modifier.width(SwatchWidth)) { actions.onColor(option) }
+                }
+            }
+            StrokeRow(style.stroke, style.color, Modifier.fillMaxWidth(), actions.onStroke)
         }
     }
 }
