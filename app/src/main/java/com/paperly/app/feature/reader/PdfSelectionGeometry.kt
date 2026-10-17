@@ -45,7 +45,7 @@ internal fun isNear(rects: List<MatchRect>, p: Offset): Boolean = rects.any {
 }
 
 /** The fixed end of a handle drag: its line rect, kept as it was grabbed. Null = that end is the one being moved. */
-internal data class SelectionPin(val first: MatchRect? = null, val last: MatchRect? = null)
+data class SelectionPin(val first: MatchRect? = null, val last: MatchRect? = null)
 
 /** True when [to] lies after [from] in reading order (same line: further right; else further down). */
 internal fun isForward(from: Offset, to: Offset, lineHeight: Float): Boolean =
