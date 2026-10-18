@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.StateFlow
 
 private const val PERCENT = 100
-private const val LabelTracking = 0.06f
+private const val LABEL_TRACKING = 0.06f
 private val SortButtonSize = 48.dp
 private val ContinueCoverWidth = 44.dp
 private val ContinueCoverHeight = 60.dp
@@ -130,7 +130,7 @@ private fun ContinueDetails(current: ContinueInfo) {
     Column(Modifier.padding(top = 2.dp)) {
         Text(
             stringResource(R.string.continue_reading_label).uppercase(),
-            style = MaterialTheme.typography.labelMedium.copy(letterSpacing = LabelTracking.em),
+            style = MaterialTheme.typography.labelMedium.copy(letterSpacing = LABEL_TRACKING.em),
             color = MaterialTheme.colorScheme.primary,
         )
         Text(

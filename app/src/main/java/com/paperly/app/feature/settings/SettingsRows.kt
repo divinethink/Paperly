@@ -44,7 +44,7 @@ import com.paperly.app.core.ui.icons.ChevronGlyph
 
 private const val DANGER_BORDER_ALPHA = 0.5f
 private const val CHEVRON_DOWN = 90f
-private const val LabelTracking = 0.06f
+private const val LABEL_TRACKING = 0.06f
 private val RowMinHeight = 56.dp
 
 /** Small caps label above a group of cards (Reading / Data / Privacy / Danger zone). */
@@ -52,7 +52,7 @@ private val RowMinHeight = 56.dp
 internal fun GroupLabel(@StringRes label: Int, danger: Boolean = false) {
     Text(
         stringResource(label).uppercase(),
-        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = LabelTracking.em),
+        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = LABEL_TRACKING.em),
         color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp).semantics { heading() },
     )
