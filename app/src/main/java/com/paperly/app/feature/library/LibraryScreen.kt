@@ -318,10 +318,6 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
 
 private const val COVER_HEIGHT = 176
 
-@StringRes
-private fun favoriteLabel(isFavorite: Boolean): Int =
-    if (isFavorite) R.string.doc_favorite_remove else R.string.doc_favorite_add
-
 @Composable
 private fun DocumentMenu(
     expanded: Boolean,

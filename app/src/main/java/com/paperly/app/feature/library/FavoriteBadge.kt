@@ -1,5 +1,6 @@
 package com.paperly.app.feature.library
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -33,3 +34,7 @@ internal fun FavoriteBadge(modifier: Modifier = Modifier) {
 
 private const val BADGE_ALPHA = 0.4f
 private val StarGold = Color(0xFFF5C24A)
+
+@StringRes
+internal fun favoriteLabel(isFavorite: Boolean): Int =
+    if (isFavorite) R.string.doc_favorite_remove else R.string.doc_favorite_add
