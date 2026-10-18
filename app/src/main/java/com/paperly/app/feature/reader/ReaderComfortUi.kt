@@ -80,6 +80,25 @@ internal fun ReaderComfortEffect(comfort: ReaderComfort) {
     }
 }
 
+/** PDF full-page mode: hides / shows the system bars with the reader bars; always restored on leaving. */
+@Composable
+internal fun ReaderSystemBars(hidden: Boolean) {
+    val window = (LocalContext.current as FragmentActivity).window
+    val view = LocalView.current
+    DisposableEffect(window, view) {
+        onDispose { WindowCompat.getInsetsController(window, view).show(WindowInsetsCompat.Type.systemBars()) }
+    }
+    SideEffect {
+        val controller = WindowCompat.getInsetsController(window, view)
+        if (hidden) {
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+}
+
 /** Warm tint over the whole reader; a plain Box, so touches pass through to the page. */
 @Composable
 internal fun BlueLightOverlay(intensity: Float) {

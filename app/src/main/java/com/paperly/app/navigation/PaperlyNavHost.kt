@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +22,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -110,6 +112,8 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     }
 
     Scaffold(
+        // The Reader lays itself out edge-to-edge (page area never resizes when the bars hide).
+        contentWindowInsets = if (currentRoute == Routes.READER) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         bottomBar = {
             if (showNav && !useRail) {
                 NavigationBar {

@@ -4,6 +4,12 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -62,6 +68,8 @@ import kotlin.math.ceil
 
 private const val RENDER_WIDTH_FACTOR = 1.5f
 private const val MAX_RENDER_WIDTH_PX = 2048
+private const val BAR_ALPHA = 0.94f
+internal val TOP_BAR_HEIGHT = 56.dp
 
 /** Full-screen Reader (not in bottom-nav). P2-D: scrolling PDF pages, zoom, fit modes, themes; EPUB P3. */
 @Composable
@@ -92,6 +100,7 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     }
 }
 
+private val PageDividerColor = Color(0x80808080) // thin grey line closing each page
 private val HighlightColor = Color(0x66FFEB3B) // translucent yellow, readable on every reader theme
 
 private data class PageSpec(
@@ -130,32 +139,41 @@ private fun ReaderContent(
     // One tap on a page hides / shows the bars (full page); they stay while searching, annotating or without pages.
     var barsVisible by rememberSaveable { mutableStateOf(true) }
     val showBars = barsVisible || search.open || annotate || state.pageCount <= 0
-    Column(Modifier.fillMaxSize()) {
-        if (showBars) ReaderTopBar(viewModel, listState, FitToggle(fitHeight) { fitHeight = !fitHeight }, onBack)
-        if (search.open) SearchBar(viewModel.search, search)
-        PdfAnnotateBars(viewModel.annotations, annotate) { editor = it }
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            val doc = state.document
-            when {
-                state.loading -> CircularProgressIndicator()
-                doc == null -> Text(stringResource(R.string.reader_missing))
-                state.pageCount > 0 -> {
-                    val highlights = if (search.open && search.submitted) search.rects else emptyMap()
-                    val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
-                        .withSelect(viewModel, enabled = !annotate) { barsVisible = !barsVisible }
-                    val look = PageLook(fitHeight, pageFilter, highlights, hooks, showBars) { editor = it }
-                    PdfOrReflow(viewModel, state, listState, look)
-                    PdfSelectionMenu(viewModel) { editor = it }
-                }
-                else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        doc.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontFamily = ReadingFontFamily,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(documentMeta(context, doc), style = MaterialTheme.typography.bodyMedium)
-                    Text(stringResource(errorText(state.error)), style = MaterialTheme.typography.bodyMedium)
+    ReaderSystemBars(hidden = !showBars)
+    // Pages fill the whole screen and never move; the bars float over them (like Xodo).
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val doc = state.document
+        when {
+            state.loading -> CircularProgressIndicator()
+            doc == null -> Text(stringResource(R.string.reader_missing))
+            state.pageCount > 0 -> {
+                val highlights = if (search.open && search.submitted) search.rects else emptyMap()
+                val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
+                    .withSelect(viewModel, enabled = !annotate) { barsVisible = !barsVisible }
+                val look = PageLook(fitHeight, pageFilter, highlights, hooks, showBars) { editor = it }
+                PdfOrReflow(viewModel, state, listState, look)
+                PdfSelectionMenu(viewModel) { editor = it }
+            }
+            else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    doc.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontFamily = ReadingFontFamily,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Text(documentMeta(context, doc), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(errorText(state.error)), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        if (showBars) {
+            Surface(
+                Modifier.align(Alignment.TopStart).fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = BAR_ALPHA),
+            ) {
+                Column(Modifier.windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)) {
+                    ReaderTopBar(viewModel, listState, FitToggle(fitHeight) { fitHeight = !fitHeight }, onBack)
+                    if (search.open) SearchBar(viewModel.search, search)
+                    PdfAnnotateBars(viewModel.annotations, annotate) { editor = it }
                 }
             }
         }
@@ -184,10 +202,18 @@ private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listSt
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     if (reflow) {
-        ReflowPages(viewModel.search, state.pageCount, if (search.needsOcr) viewModel.reflowOcr else null)
+        val edge = PaddingValues(
+            top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() + TOP_BAR_HEIGHT,
+            bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding(),
+        )
+        Box(Modifier.fillMaxSize().padding(edge)) {
+            ReflowPages(viewModel.search, state.pageCount, if (search.needsOcr) viewModel.reflowOcr else null)
+        }
     } else {
         PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
         PdfPaceOverlay(listState, state.pageCount, look.showPace)
+        PdfPageBadge(listState, state.pageCount, look.showPace, enabled = !search.open && !look.hooks.annotate)
+        PdfScrollHandle(listState, state.pageCount, enabled = !search.open && !look.hooks.annotate)
     }
 }
 
@@ -210,6 +236,11 @@ private fun PdfPages(
         val zoom = zoomState.zoom
         // Render resolution follows the zoom step (1.5x, 2x, 3x, 4x of the page width) so zoomed text stays sharp.
         val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
+        // Fixed (visibility-independent) room so page 1 starts below the bar and the last page clears the nav bar.
+        val edgePadding = PaddingValues(
+            top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() + TOP_BAR_HEIGHT,
+            bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding(),
+        )
         val gestureLock = remember { GestureLock() }
         val edgeScroll = remember { EdgeScroll() }
         val gesture = Modifier.fillMaxSize().pinchZoom(
@@ -237,6 +268,7 @@ private fun PdfPages(
                         transformOrigin = TransformOrigin(0f, 0f)
                     },
                     state = listState,
+                    contentPadding = edgePadding,
                     userScrollEnabled = !annotate,
                 ) {
                     items(count = pageCount, key = { it }) { index ->
@@ -274,6 +306,11 @@ private fun pageSelectEdit(index: Int, hooks: SelectHooks?, onFinger: (Offset?) 
             it.onDragging(touch != null) // the mark panel hides while a finger is down
         }
     }
+}
+
+private fun DrawScope.drawPageDivider() {
+    val h = 1.5.dp.toPx()
+    drawRect(PageDividerColor, Offset(0f, size.height - h), Size(size.width, h))
 }
 
 /** Highlights, marks, selection (round handles only if [handles]) and the pending mark of page [index]. */
@@ -321,6 +358,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     Box(
         Modifier.fillMaxWidth().aspectRatio(ratio).then(gestures).drawWithContent {
             drawContent()
+            drawPageDivider()
             // page overlays; the loupe replays the same drawing so marks/selection show inside it too
             val overlay: DrawScope.(Boolean) -> Unit = { handles ->
                 drawPageOverlay(spec, index, edit.rects, zoomOf(), handles)
