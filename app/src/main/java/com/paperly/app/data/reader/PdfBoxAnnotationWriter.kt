@@ -37,8 +37,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -222,9 +220,10 @@ private fun sameSpot(dict: COSDictionary, bounds: PdfQuad): Boolean {
     val array = dict.getDictionaryObject(COSName.RECT) as? COSArray ?: return false
     val v = (0 until array.size()).mapNotNull { (array.getObject(it) as? COSNumber)?.floatValue() }
     if (v.size != RECT_VALUES) return false
-    val (x1, y1, x2, y2) = v
-    return abs(min(x1, x2) - bounds.minX) < SAME_SPOT && abs(min(y1, y2) - bounds.minY) < SAME_SPOT &&
-        abs(max(x1, x2) - bounds.maxX) < SAME_SPOT && abs(max(y1, y2) - bounds.maxY) < SAME_SPOT
+    val xs = v.filterIndexed { i, _ -> i % 2 == 0 }
+    val ys = v.filterIndexed { i, _ -> i % 2 == 1 }
+    return abs(xs.min() - bounds.minX) < SAME_SPOT && abs(ys.min() - bounds.minY) < SAME_SPOT &&
+        abs(xs.max() - bounds.maxX) < SAME_SPOT && abs(ys.max() - bounds.maxY) < SAME_SPOT
 }
 
 private fun subtypeOf(type: AnnotationType): String = when (type) {

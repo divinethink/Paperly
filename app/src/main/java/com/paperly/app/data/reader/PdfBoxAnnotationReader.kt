@@ -24,8 +24,6 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -131,8 +129,9 @@ private fun typeOf(subtype: String?): AnnotationType? = when (subtype) {
 
 private fun rectQuad(values: List<Float>): PdfQuad? =
     if (values.size == RECT_VALUES) {
-        val (x1, y1, x2, y2) = values
-        PdfQuad(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+        val xs = values.filterIndexed { i, _ -> i % 2 == 0 }
+        val ys = values.filterIndexed { i, _ -> i % 2 == 1 }
+        PdfQuad(xs.min(), ys.min(), xs.max(), ys.max())
     } else {
         null
     }
