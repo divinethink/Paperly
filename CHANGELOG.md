@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-18 (EPUB: pinch = text size; PDF-style mark popup; tap-a-mark popup; no schema change)
+
+- Two-finger pinch on EPUB text changes the font size like PDF zoom (`EpubPinchZoom.kt`: `PinchLayout` around the navigator, steps of 0.05 inside 0.7-2.5x, applied live with a "120%" badge, saved to the same global setting when the fingers lift). One-finger scroll/page-turn/long-press are untouched.
+- Selecting text now shows a floating Compose bar like the PDF reader's (`EpubSelectionPopup.kt`): colour dot (six colours), Highlight, Underline, Note, Copy; a mark saves at once with the shown colour. The system selection menu is empty (`EpubSelectionMenu` only reports selected/not), the handles still work.
+- Tapping a saved mark opens a popup next to it (`EpubAnnotationPopup.kt`): colours, Highlight/Underline, Edit (the old dialog), Delete, Cancel. A tap elsewhere or a page move closes it.
+- `MarkIconRow` got an optional `types` list (EPUB shows only the two types Readium can draw).
+- Not done: strikethrough, squiggly and line thickness in EPUB (Readium has no such decoration; needs custom decoration templates).
+- Needs on-device check: pinch feel and that it does not turn the page, the bar position (Readium selection rect), selection survives a tap on the bar. Tests: `EpubPinchZoomTest`, `EpubPopupOriginTest`.
+
 ## 2026-10-17d (faster CI: R8 check runs in parallel; bigger Gradle/Kotlin heap; no code change)
 
 - `build.yml`: the release/R8 build moved from the end of `build` into its own job `release-check`; both jobs run at the same time. Same checks, shorter wait. `build` keeps its name.

@@ -67,10 +67,11 @@ internal fun MarkIconRow(
     selected: AnnotationType?,
     color: AnnotationColor,
     modifier: Modifier = Modifier,
+    types: List<AnnotationType> = MARK_TYPES,
     onPick: (AnnotationType) -> Unit,
 ) {
     Row(modifier, horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        MARK_TYPES.forEach { type -> MarkIcon(type, color.argb(), type == selected) { onPick(type) } }
+        types.forEach { type -> MarkIcon(type, color.argb(), type == selected) { onPick(type) } }
     }
 }
 

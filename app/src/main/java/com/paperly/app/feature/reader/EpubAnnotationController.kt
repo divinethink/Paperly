@@ -25,6 +25,9 @@ private val PDF_ONLY_TYPES = setOf(AnnotationType.STRIKETHROUGH, AnnotationType.
 /** [locatorJson] = the new selection (existing == null), or [existing] being edited. */
 data class EpubAnnotationEditor(val locatorJson: String?, val existing: EpubAnnotation?)
 
+/** A tapped mark; [anchor] = where it is on screen (the popup sits next to it). */
+data class EpubTap(val id: String, val anchor: EpubAnchor)
+
 /** Injected into the ViewModel (keeps its constructor small); builds the per-document controller. */
 class EpubAnnotationControllerFactory @Inject constructor(
     private val repository: EpubAnnotationRepository,
@@ -49,6 +52,9 @@ class EpubAnnotationController(
     private val _editor = MutableStateFlow<EpubAnnotationEditor?>(null)
     val editor: StateFlow<EpubAnnotationEditor?> = _editor.asStateFlow()
 
+    private val _tapped = MutableStateFlow<EpubTap?>(null)
+    val tapped: StateFlow<EpubTap?> = _tapped.asStateFlow()
+
     private val _mode = MutableStateFlow(false)
     val mode: StateFlow<Boolean> = _mode.asStateFlow()
 
@@ -65,15 +71,26 @@ class EpubAnnotationController(
         scope.launch { styleStore.save(style) }
     }
 
-    /** Menu "Annotate": save with the chosen style at once, never asking for a color (Note still asks for text). */
-    fun onSelection(locatorJson: String) {
-        val chosen = style.value
-        if (chosen.type == AnnotationType.NOTE) {
+    /** Selection bar: save [type] with the chosen colour at once (Note still asks for its text). */
+    fun markSelection(locatorJson: String, type: AnnotationType) {
+        if (type == AnnotationType.NOTE) {
             startNew(locatorJson)
         } else {
-            val content = AnnotationContent(chosen.type, chosen.color, null)
+            val content = AnnotationContent(type, style.value.color, null)
             scope.launch { repository.add(documentId, locatorJson, content) }
         }
+    }
+
+    /** A mark was tapped: popup next to it, or (no position known) the full edit dialog. */
+    fun onTapped(id: String, anchor: EpubAnchor?) {
+        if (anchor == null) startEdit(id) else _tapped.value = EpubTap(id, anchor)
+    }
+
+    /** Closes the tap popup; true when one was open. */
+    fun dismissTap(): Boolean {
+        val wasOpen = _tapped.value != null
+        _tapped.value = null
+        return wasOpen
     }
 
     fun startNew(locatorJson: String) {

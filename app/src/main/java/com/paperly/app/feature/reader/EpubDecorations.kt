@@ -31,7 +31,7 @@ internal fun EpubAnnotation.toDecoration(): Decoration? {
     return Decoration(id = id, locator = locator, style = style)
 }
 
-/** Draws saved annotations in the book and opens the edit dialog when one is tapped. */
+/** Draws saved annotations in the book and opens the tap popup when one is tapped. */
 @OptIn(ExperimentalReadiumApi::class)
 @Composable
 internal fun EpubDecorationEffect(annotations: EpubAnnotationController) {
@@ -45,7 +45,10 @@ internal fun EpubDecorationEffect(annotations: EpubAnnotationController) {
         val navigator = EpubFragmentHost.awaitNavigator(activity)
         val listener = object : DecorableNavigator.Listener {
             override fun onDecorationActivated(event: DecorableNavigator.OnActivatedEvent): Boolean {
-                annotations.startEdit(event.decoration.id)
+                val anchor = event.rect?.let {
+                    EpubAnchor(it.left.toFloat(), it.top.toFloat(), it.right.toFloat(), it.bottom.toFloat())
+                }
+                annotations.onTapped(event.decoration.id, anchor)
                 return true
             }
         }
