@@ -52,24 +52,25 @@ class CoverRepositoryImpl @Inject constructor(
         src?.let { authorOf(documentId, it) }?.ifEmpty { null }
     }
 
-    /** Cache key = id + source mtime (like covers); stale versions are dropped. Failure => "" (no author). */
+    /** Cache key = id + source mtime (like covers). Any failure => "" (no author). */
     private fun authorOf(id: String, src: File): String {
         val key = "$id-${src.lastModified()}"
-        return authors.get(key) ?: run {
-            val disk = File(authorDir, "$key.txt")
-            val text = try {
-                if (disk.isFile) {
-                    disk.readText()
-                } else {
-                    val read = ZipFile(src).use { EpubCoverParser.author(it) }.orEmpty()
-                    authorDir.listFiles { x -> x.name.startsWith("$id-") }?.forEach { it.delete() }
-                    read.also { disk.writeText(it) }
-                }
-            } catch (_: Exception) {
-                ""
-            }
-            text.also { authors.put(key, it) }
+        val text = authors.get(key) ?: try {
+            readAuthor(id, key, src)
+        } catch (_: Exception) {
+            ""
         }
+        return text.also { authors.put(key, it) }
+    }
+
+    /** Disk cache first, else the book's metadata (then cached; stale versions dropped). May throw. */
+    private fun readAuthor(id: String, key: String, src: File): String {
+        val disk = File(authorDir, "$key.txt")
+        if (disk.isFile) return disk.readText()
+        val read = ZipFile(src).use { EpubCoverParser.author(it) }.orEmpty()
+        authorDir.listFiles { x -> x.name.startsWith("$id-") }?.forEach { it.delete() }
+        disk.writeText(read)
+        return read
     }
 
     private fun render(src: File, type: String): Bitmap? = try {
