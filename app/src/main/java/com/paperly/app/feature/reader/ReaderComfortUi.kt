@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -44,8 +46,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.MIN_BRIGHTNESS
 import com.paperly.app.domain.reader.ReaderComfort
+import kotlin.math.roundToInt
 
 private const val DEFAULT_BRIGHTNESS = 0.6f
+private const val PERCENT = 100
+private const val SWITCH_ROW_MIN_HEIGHT = 56
 private const val NO_BRIGHTNESS_OVERRIDE = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
 private const val BLUE_LIGHT_MAX_ALPHA = 0.4f
 private val BlueLightTint = Color(0xFFFF8C00)
@@ -86,36 +91,58 @@ internal fun BlueLightOverlay(intensity: Float) {
 @Composable
 internal fun ColumnScope.ComfortRows(comfort: ReaderComfort, onChange: (ReaderComfort) -> Unit) {
     val brightness = comfort.brightness
-    SwitchRow(R.string.reader_brightness_auto, brightness == null) {
-        onChange(comfort.copy(brightness = if (it) null else DEFAULT_BRIGHTNESS))
+    SettingsCard(Modifier.padding(top = 16.dp)) {
+        SwitchRow(R.string.reader_brightness_auto, brightness == null) {
+            onChange(comfort.copy(brightness = if (it) null else DEFAULT_BRIGHTNESS))
+        }
+        if (brightness != null) {
+            SliderRow(R.string.reader_brightness, brightness, MIN_BRIGHTNESS, percentText(brightness)) {
+                onChange(comfort.copy(brightness = it))
+            }
+        }
+        SliderRow(R.string.reader_blue_light, comfort.blueLight, 0f, blueLightText(comfort.blueLight)) {
+            onChange(comfort.copy(blueLight = it))
+        }
     }
-    if (brightness != null) {
-        SliderRow(R.string.reader_brightness, brightness, MIN_BRIGHTNESS) { onChange(comfort.copy(brightness = it)) }
+    SettingsCard(Modifier.padding(top = 8.dp, bottom = 16.dp)) {
+        SwitchRow(R.string.reader_keep_awake, comfort.keepAwake) { onChange(comfort.copy(keepAwake = it)) }
+        SwitchRow(R.string.reader_hide_bars, comfort.hideBars) { onChange(comfort.copy(hideBars = it)) }
     }
-    SliderRow(R.string.reader_blue_light, comfort.blueLight, 0f) { onChange(comfort.copy(blueLight = it)) }
-    SwitchRow(R.string.reader_keep_awake, comfort.keepAwake) { onChange(comfort.copy(keepAwake = it)) }
-    SwitchRow(R.string.reader_hide_bars, comfort.hideBars) { onChange(comfort.copy(hideBars = it)) }
 }
 
 @Composable
-private fun SliderRow(label: Int, value: Float, min: Float, onValue: (Float) -> Unit) {
+private fun percentText(value: Float): String =
+    stringResource(R.string.reader_value_percent, (value * PERCENT).roundToInt())
+
+@Composable
+private fun blueLightText(value: Float): String =
+    if (value <= 0f) stringResource(R.string.reader_blue_light_off) else percentText(value)
+
+@Composable
+private fun SliderRow(label: Int, value: Float, min: Float, valueText: String, onValue: (Float) -> Unit) {
     val name = stringResource(label)
-    Text(name)
-    Slider(
-        value = value,
-        onValueChange = onValue,
-        valueRange = min..1f,
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = name },
-    )
+    Column(Modifier.padding(vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text(valueText, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        }
+        Slider(
+            value = value,
+            onValueChange = onValue,
+            valueRange = min..1f,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = name },
+        )
+    }
 }
 
 @Composable
 private fun SwitchRow(label: Int, checked: Boolean, onChecked: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().toggleable(checked, role = Role.Switch, onValueChange = onChecked),
+        Modifier.fillMaxWidth().heightIn(min = SWITCH_ROW_MIN_HEIGHT.dp)
+            .toggleable(checked, role = Role.Switch, onValueChange = onChecked),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(label), Modifier.weight(1f))
+        Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = null)
     }
 }

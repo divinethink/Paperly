@@ -326,7 +326,7 @@
     <string name="epub_font_serif">Serif</string>
     <string name="epub_font_sans">Sans</string>
     <string name="epub_font_hind_siliguri" translatable="false">Hind Siliguri</string>
-    <string name="epub_font_noto_serif_bengali" translatable="false">Noto Serif Bengali</string>
+    <string name="epub_font_noto_serif_bengali" translatable="false">Noto Serif</string>
     <string name="epub_font_inter" translatable="false">Inter</string>
     <string name="epub_font_size">Text size</string>
     <string name="epub_line_spacing">Line spacing</string>
@@ -397,6 +397,8 @@
     <string name="reader_brightness_auto">Use system brightness</string>
     <string name="reader_brightness">Brightness</string>
     <string name="reader_blue_light">Blue-light filter</string>
+    <string name="reader_blue_light_off">Off</string>
+    <string name="reader_value_percent">%1$d%%</string>
     <string name="reader_keep_awake">Keep screen on</string>
     <string name="reader_hide_bars">Hide status and navigation bars</string>
     <string name="settings_dynamic_color">System colours</string>
