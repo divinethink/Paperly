@@ -26,6 +26,7 @@ import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderPreferences
 import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.reader.ReaderTheme
+import com.paperly.app.domain.reader.isFileMark
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
@@ -150,6 +151,10 @@ class ReaderViewModel @Inject constructor(
                 failed(document, ReaderError.UNSUPPORTED)
             }
             if (_uiState.value.pageCount > 0) search.probe() // after state is set: probe reads pageCount
+            // Quick view has no database row: marks already in the file are read back so they show again.
+            if (isQuick && _uiState.value.pageCount > 0) {
+                quick.annotations.preload(quickWriteBack.existingMarks(documentId))
+            }
         }
     }
 
@@ -250,16 +255,40 @@ class ReaderViewModel @Inject constructor(
 
     /** Quick view: true while at least one mark exists (the "with marks" menu items then appear). */
     val hasQuickMarks: StateFlow<Boolean> = quick.annotations.observe(documentId)
-        .map { it.isNotEmpty() }
+        .map { list -> list.any { !isFileMark(it.id) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     /** Quick view: a copy of the PDF with the marks in it (Save with marks / Share / Print); null = failed. */
     suspend fun markedCopy(): File? = quickWriteBack.markedCopy(documentId, quickItems())
 
     /** Quick view: writes the marks into the original file now (the caller asked and confirmed). */
-    fun replaceOriginal() {
+    fun replaceOriginal() = replaceNow { message, _ -> _notice.value = message }
+
+    /** What "Replace" already wrote into the original in this session; leaving then has nothing left to ask. */
+    private var writtenItems: List<PdfAnnotationItem>? = null
+
+    /** False after the user chose "Make a copy" / "Discard marks": closing must not write into the original. */
+    private var writeOnClose = true
+
+    /** Quick view: marks made here that are in neither the original file nor the Library, so leaving must ask. */
+    fun needsExitChoice(): Boolean {
+        val items = quickItems()
+        return isQuick && !_saved.value && items.isNotEmpty() && items != writtenItems
+    }
+
+    /** Quick view exit choice "Make a copy" / "Discard marks": the original stays exactly as it was opened. */
+    fun leaveWithoutWriting() {
+        writeOnClose = false
+    }
+
+    /** Quick view exit choice "Replace original": [onResult] gets the message and whether it worked. */
+    fun replaceNow(onResult: (message: Int, ok: Boolean) -> Unit) {
         viewModelScope.launch {
-            _notice.value = quickWriteBack.replaceNow(documentId, quickItems())
+            val items = quickItems()
+            val message = quickWriteBack.replaceNow(documentId, items)
+            val ok = message == R.string.quick_replace_ok
+            if (ok) writtenItems = items
+            onResult(message, ok)
         }
     }
 
@@ -315,14 +344,14 @@ class ReaderViewModel @Inject constructor(
         cache.clear()
         // Quick view: engine closed -> highlights into the original (if allowed); the temp copy is deleted after.
         if (isQuick) {
-            quickWriteBack.finish(documentId, quickItems(), savedTargetId != null)
+            quickWriteBack.finish(documentId, if (writeOnClose) quickItems() else emptyList(), savedTargetId != null)
         }
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
         if (annotationsChanged) highlightFileSync.schedule(documentId)
         savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent
     }
 
-    private fun quickItems() = quick.annotations.snapshot().map(::toFileItem)
+    private fun quickItems() = quick.annotations.sessionSnapshot().map(::toFileItem)
 
     private fun toFileItem(a: Annotation) =
         PdfAnnotationItem(a.id, a.page, a.type, a.color, a.rects, a.noteText, a.stroke)

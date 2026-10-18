@@ -91,9 +91,10 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     LaunchedEffect(search.jump) { search.jump?.let { listState.animateScrollToItem(it.page) } }
     val palette = readerPalette(theme, isSystemInDarkTheme())
+    val leave = rememberQuickExit(viewModel, state.document, onBack)
     MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = palette.content)) {
         Surface(Modifier.fillMaxSize(), color = palette.background, contentColor = palette.content) {
-            ReaderContent(state, viewModel, listState, palette.pageFilter, onBack)
+            ReaderContent(state, viewModel, listState, palette.pageFilter, leave)
         }
     }
 }

@@ -63,6 +63,9 @@ class QuickPdfWriteBackImpl @Inject constructor(
         if (file != null && items.isNotEmpty() && step.markedCopy(token, file, out, items)) out else null
     }
 
+    override suspend fun existingMarks(token: String): List<PdfAnnotationItem> =
+        store.resolve(token)?.let { step.existingMarks(it) }.orEmpty()
+
     override suspend fun replaceNow(token: String, items: List<PdfAnnotationItem>): Int = lock.withLock {
         val source = store.source(token)
         val file = store.resolve(token)

@@ -36,6 +36,9 @@ interface QuickPdfWriteBack {
     /** A separate copy of the PDF with [items] written in (Save a copy / Share / Print); null = could not make it. */
     suspend fun markedCopy(token: String, items: List<PdfAnnotationItem>): File?
 
+    /** Marks already inside the quick-view PDF (shown when it is reopened); empty if none. Never changes the file. */
+    suspend fun existingMarks(token: String): List<PdfAnnotationItem>
+
     /** "Replace original with marks", right now. Returns the message (string resource) to show. */
     suspend fun replaceNow(token: String, items: List<PdfAnnotationItem>): Int
 }

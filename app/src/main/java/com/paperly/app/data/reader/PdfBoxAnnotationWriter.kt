@@ -16,6 +16,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.cos.COSArray
 import com.tom_roush.pdfbox.cos.COSDictionary
 import com.tom_roush.pdfbox.cos.COSName
+import com.tom_roush.pdfbox.cos.COSNumber
 import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
@@ -35,6 +36,9 @@ import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -117,16 +121,20 @@ class PdfBoxAnnotationWriter @Inject constructor(
             Staged(doc.numberOfPages, ids)
         }
 
-    /** True if added. Skips (false): bad page, no rects, degenerate page box, or our `/NM` already on the page. */
+    /**
+     * True if added. Skips (false): bad page, no rects, degenerate page box, our `/NM` already on the page, or the
+     * same kind of mark already on exactly that spot (e.g. read back from the file and saved to the Library).
+     */
     private fun addOne(doc: PDDocument, item: PdfAnnotationItem): Boolean {
         if (item.page !in 0 until doc.numberOfPages || item.rects.isEmpty()) return false
         val page = doc.getPage(item.page)
         val box = pageBox(page)
         val annots = annotsOf(page)
-        if (box.width <= 0f || box.height <= 0f || hasName(annots, item.id)) return false
+        if (box.width <= 0f || box.height <= 0f) return false
         val quads = item.rects.take(AnnotationRects.MAX_RECTS).map { PdfAnnotationGeometry.toQuad(it, box) }
-        annots.add(build(item, quads))
-        return true
+        val skip = hasName(annots, item.id) || hasSameMark(annots, item.type, PdfAnnotationGeometry.bounds(quads))
+        if (!skip) annots.add(build(item, quads))
+        return !skip
     }
 
     private fun build(item: PdfAnnotationItem, quads: List<PdfQuad>): PDAnnotation {
@@ -203,6 +211,22 @@ private fun annotsOf(page: PDPage): COSArray {
 private fun hasName(annots: COSArray, id: String): Boolean =
     (0 until annots.size()).any { (annots.getObject(it) as? COSDictionary)?.getString(COSName.NM) == id }
 
+/** Same subtype and the same `/Rect` (within [SAME_SPOT]): this mark is already in the file. Notes never match. */
+private fun hasSameMark(annots: COSArray, type: AnnotationType, bounds: PdfQuad): Boolean =
+    type != AnnotationType.NOTE && (0 until annots.size()).any { i ->
+        val dict = annots.getObject(i) as? COSDictionary
+        dict != null && dict.getNameAsString(COSName.SUBTYPE) == subtypeOf(type) && sameSpot(dict, bounds)
+    }
+
+private fun sameSpot(dict: COSDictionary, bounds: PdfQuad): Boolean {
+    val array = dict.getDictionaryObject(COSName.RECT) as? COSArray ?: return false
+    val v = (0 until array.size()).mapNotNull { (array.getObject(it) as? COSNumber)?.floatValue() }
+    if (v.size != RECT_VALUES) return false
+    val (x1, y1, x2, y2) = v
+    return abs(min(x1, x2) - bounds.minX) < SAME_SPOT && abs(min(y1, y2) - bounds.minY) < SAME_SPOT &&
+        abs(max(x1, x2) - bounds.maxX) < SAME_SPOT && abs(max(y1, y2) - bounds.maxY) < SAME_SPOT
+}
+
 private fun subtypeOf(type: AnnotationType): String = when (type) {
     AnnotationType.UNDERLINE -> PDAnnotationTextMarkup.SUB_TYPE_UNDERLINE
     AnnotationType.SQUIGGLY -> PDAnnotationTextMarkup.SUB_TYPE_SQUIGGLY
@@ -214,6 +238,8 @@ private fun rectOf(minX: Float, minY: Float, maxX: Float, maxY: Float) =
     PDRectangle(minX, minY, maxX - minX, maxY - minY)
 
 private const val BUFFER_SIZE = 64 * 1024
+private const val RECT_VALUES = 4
+private const val SAME_SPOT = 1f // points
 
 private fun sha256Hex(file: File): String {
     val digest = MessageDigest.getInstance("SHA-256")

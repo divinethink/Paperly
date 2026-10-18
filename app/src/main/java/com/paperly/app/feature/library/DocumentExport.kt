@@ -40,7 +40,11 @@ internal class DocumentExport(
 )
 
 @Composable
-internal fun rememberDocumentExport(doc: Document, marked: (suspend () -> File?)? = null): DocumentExport {
+internal fun rememberDocumentExport(
+    doc: Document,
+    marked: (suspend () -> File?)? = null,
+    onSaved: () -> Unit = {},
+): DocumentExport {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val viewModel: ExportViewModel = hiltViewModel()
@@ -50,7 +54,13 @@ internal fun rememberDocumentExport(doc: Document, marked: (suspend () -> File?)
     // [marked] = a quick-view PDF with marks: Save / Share / Print then use a copy that has them (null result = failed)
     suspend fun fileOf(): File? = if (marked != null) marked() else viewModel.file(doc.id)
     val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(mime)) { uri ->
-        if (uri != null) scope.launch { toast(context, saveTo(context, fileOf(), uri)) }
+        if (uri != null) {
+            scope.launch {
+                val message = saveTo(context, fileOf(), uri)
+                toast(context, message)
+                if (message == R.string.export_saved) onSaved()
+            }
+        }
     }
     var askFormat by remember { mutableStateOf(false) }
     if (askFormat) {

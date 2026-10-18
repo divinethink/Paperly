@@ -4,6 +4,7 @@ import android.net.Uri
 import com.paperly.app.core.file.QuickSource
 import com.paperly.app.core.file.QuickViewStore
 import com.paperly.app.domain.reader.PdfAnnotationItem
+import com.paperly.app.domain.reader.PdfAnnotationReader
 import com.paperly.app.domain.reader.PdfAnnotationWriter
 import com.paperly.app.domain.reader.PdfOpenCheck
 import com.paperly.app.domain.reader.PdfWriteResult
@@ -15,6 +16,7 @@ import javax.inject.Singleton
 @Singleton
 class QuickOriginalStep @Inject constructor(
     private val writer: PdfAnnotationWriter,
+    private val reader: PdfAnnotationReader,
     private val openCheck: PdfOpenCheck,
     private val original: OriginalFileWriter,
     private val store: QuickViewStore,
@@ -36,6 +38,9 @@ class QuickOriginalStep @Inject constructor(
             else -> OriginalWriteResult.FAILED
         }
     }
+
+    /** Marks already inside [file] (written earlier by us or by another app); empty when none or unreadable. */
+    suspend fun existingMarks(file: File): List<PdfAnnotationItem> = reader.read(file)
 
     /** The marks written into [target], a copy of [file] (which stays untouched). False = [target] is not usable. */
     suspend fun markedCopy(token: String, file: File, target: File, items: List<PdfAnnotationItem>): Boolean {

@@ -1,10 +1,12 @@
 package com.paperly.app.core.di
 
 import com.paperly.app.data.reader.EnginePdfOpenCheck
+import com.paperly.app.data.reader.PdfBoxAnnotationReader
 import com.paperly.app.data.reader.PdfBoxAnnotationWriter
 import com.paperly.app.data.reader.PdfHighlightFileSyncImpl
 import com.paperly.app.data.reader.PdfReaderEngine
 import com.paperly.app.data.reader.QuickPdfWriteBackImpl
+import com.paperly.app.domain.reader.PdfAnnotationReader
 import com.paperly.app.domain.reader.PdfAnnotationWriter
 import com.paperly.app.domain.reader.PdfHighlightFileSync
 import com.paperly.app.domain.reader.PdfOpenCheck
@@ -24,6 +26,9 @@ abstract class ReaderModule {
 
     @Binds
     abstract fun bindPdfAnnotationWriter(impl: PdfBoxAnnotationWriter): PdfAnnotationWriter
+
+    @Binds
+    abstract fun bindPdfAnnotationReader(impl: PdfBoxAnnotationReader): PdfAnnotationReader
 
     @Binds
     abstract fun bindPdfHighlightFileSync(impl: PdfHighlightFileSyncImpl): PdfHighlightFileSync

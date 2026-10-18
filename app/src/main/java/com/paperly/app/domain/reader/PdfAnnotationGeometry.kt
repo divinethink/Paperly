@@ -38,6 +38,13 @@ object PdfAnnotationGeometry {
         return PdfQuad(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
     }
 
+    /** Inverse of [toQuad]: PDF user space -> page fractions (origin top-left of the page as displayed). */
+    fun toRect(quad: PdfQuad, page: PdfPageBox): MatchRect {
+        val (u1, v1) = fraction(quad.minX, quad.minY, page)
+        val (u2, v2) = fraction(quad.maxX, quad.maxY, page)
+        return MatchRect(min(u1, u2), min(v1, v2), max(u1, u2), max(v1, v2))
+    }
+
     /** Bounding box of several parts (the annotation's `/Rect`). [quads] must not be empty. */
     fun bounds(quads: List<PdfQuad>): PdfQuad = PdfQuad(
         quads.minOf { it.minX },
@@ -45,6 +52,18 @@ object PdfAnnotationGeometry {
         quads.maxOf { it.maxX },
         quads.maxOf { it.maxY },
     )
+
+    /** Returns (u, v) = (fraction from the displayed left edge, fraction from the displayed top edge). */
+    private fun fraction(x: Float, y: Float, p: PdfPageBox): Pair<Float, Float> {
+        val a = ((x - p.left) / p.width).coerceIn(0f, ONE)
+        val b = ((y - p.bottom) / p.height).coerceIn(0f, ONE)
+        return when (normalizeRotation(p.rotation)) {
+            QUARTER -> Pair(b, a)
+            HALF -> Pair(ONE - a, b)
+            THREE_QUARTERS -> Pair(ONE - b, ONE - a)
+            else -> Pair(a, ONE - b)
+        }
+    }
 
     /** u = fraction from the displayed left edge, v = fraction from the displayed top edge. */
     private fun point(rawU: Float, rawV: Float, p: PdfPageBox): Pair<Float, Float> {
@@ -71,6 +90,12 @@ object PdfAnnotationColors {
     private const val GREEN_HEX = 0x388E3C
     private const val RED_HEX = 0xD32F2F
     private const val AMBER_HEX = 0xFFB300
+
+    /** The palette colour closest to an RGB (0..1) found in a file; any colour, also from other apps, maps to one. */
+    fun nearest(r: Float, g: Float, b: Float): AnnotationColor = AnnotationColor.entries.minBy { color ->
+        val c = rgb(color)
+        (c[0] - r) * (c[0] - r) + (c[1] - g) * (c[1] - g) + (c[2] - b) * (c[2] - b)
+    }
 
     fun rgb(color: AnnotationColor): FloatArray {
         val hex = when (color) {

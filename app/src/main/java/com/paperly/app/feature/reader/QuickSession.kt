@@ -3,7 +3,9 @@ package com.paperly.app.feature.reader
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationRepository
+import com.paperly.app.domain.reader.FILE_MARK_PREFIX
 import com.paperly.app.domain.reader.MatchRect
+import com.paperly.app.domain.reader.PdfAnnotationItem
 import com.paperly.app.domain.reader.ReaderStateRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +71,27 @@ internal class QuickAnnotationRepository : AnnotationRepository {
     }
 
     fun snapshot(): List<Annotation> = state.value
+
+    /** Marks already inside the PDF file, read at open: shown like any other, but never written into the file again. */
+    fun preload(items: List<PdfAnnotationItem>) {
+        val loaded = items.filter { it.rects.isNotEmpty() }.map { it.toAnnotation() }
+        if (loaded.isNotEmpty()) state.update { loaded + it }
+    }
+
+    /** Only the marks added in this session; the file's own marks are in the file already. */
+    fun sessionSnapshot(): List<Annotation> = state.value.filterNot { it.id.startsWith(FILE_MARK_PREFIX) }
 }
+
+private fun PdfAnnotationItem.toAnnotation() = Annotation(
+    id,
+    page,
+    type,
+    MatchRect(rects.minOf { it.left }, rects.minOf { it.top }, rects.maxOf { it.right }, rects.maxOf { it.bottom }),
+    noteText,
+    color,
+    rects,
+    stroke,
+)
 
 /** In-memory state of one quick-view PDF: highlights, bookmarks and the page being read. */
 internal class QuickSession {

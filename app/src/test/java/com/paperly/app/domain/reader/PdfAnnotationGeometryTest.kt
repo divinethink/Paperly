@@ -48,6 +48,27 @@ class PdfAnnotationGeometryTest {
     }
 
     @Test
+    fun toRectIsTheInverseOfToQuadForAllRotations() {
+        listOf(0, 90, 180, 270).forEach { rotation ->
+            val box = page(rotation, left = 10f, bottom = 20f)
+            val back = PdfAnnotationGeometry.toRect(PdfAnnotationGeometry.toQuad(rect, box), box)
+            assertEquals(rect.left, back.left, DELTA_FRACTION)
+            assertEquals(rect.top, back.top, DELTA_FRACTION)
+            assertEquals(rect.right, back.right, DELTA_FRACTION)
+            assertEquals(rect.bottom, back.bottom, DELTA_FRACTION)
+        }
+    }
+
+    @Test
+    fun nearestColorMapsEveryPaletteColorToItself() {
+        AnnotationColor.entries.forEach { color ->
+            val (r, g, b) = PdfAnnotationColors.rgb(color)
+            assertEquals(color, PdfAnnotationColors.nearest(r, g, b))
+        }
+        assertEquals(AnnotationColor.AMBER, PdfAnnotationColors.nearest(1f, 0.9f, 0.1f))
+    }
+
+    @Test
     fun quadPointsUseTopLeftTopRightBottomLeftBottomRight() {
         val q = PdfQuad(1f, 2f, 3f, 4f)
         assertArrayEquals(floatArrayOf(1f, 4f, 3f, 4f, 1f, 2f, 3f, 2f), q.quadPoints(), 0f)
@@ -70,5 +91,6 @@ class PdfAnnotationGeometryTest {
 
     private companion object {
         const val DELTA = 0.01f
+        const val DELTA_FRACTION = 0.0001f
     }
 }
