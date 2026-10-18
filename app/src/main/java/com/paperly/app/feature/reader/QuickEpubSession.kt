@@ -1,5 +1,6 @@
 package com.paperly.app.feature.reader
 
+import com.paperly.app.core.file.QuickMarks
 import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.EpubAnnotation
 import com.paperly.app.domain.reader.EpubAnnotationRepository
@@ -43,6 +44,17 @@ internal class QuickEpubSession {
     val annotations = QuickEpubAnnotationRepository()
     private val marks = MutableStateFlow<List<String>>(emptyList())
     val bookmarks: StateFlow<List<String>> = marks.asStateFlow()
+
+    /** Brings back what was remembered for this file (see `QuickMarksStore`); call before anything else is added. */
+    suspend fun restore(saved: QuickMarks) {
+        saved.annotations.forEach { a ->
+            annotations.add("", a.locatorJson, AnnotationContent(a.type, a.color, a.noteText))
+        }
+        marks.value = saved.bookmarks
+    }
+
+    /** Everything to remember now; [locator] = the reading position as Locator JSON. */
+    fun snapshot(locator: String?) = QuickMarks(annotations.snapshot(), marks.value, locator)
 
     /** [key] is a bookmark key (see `bookmarkKey`); toggling the same key removes it. */
     fun toggleBookmark(key: String) {

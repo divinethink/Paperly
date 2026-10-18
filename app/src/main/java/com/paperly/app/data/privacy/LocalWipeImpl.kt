@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.work.WorkManager
 import com.paperly.app.core.database.PaperlyDatabase
 import com.paperly.app.core.file.DOCUMENTS_DIR
+import com.paperly.app.core.file.QUICK_MARKS_DIR
 import com.paperly.app.data.scanner.SCANS_DIR
 import com.paperly.app.domain.privacy.LocalWipe
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,6 +38,7 @@ class LocalWipeImpl @Inject constructor(
             deleteContents(File(context.filesDir, DOCUMENTS_DIR))
             deleteContents(File(context.filesDir, "db-backups"))
             deleteContents(File(context.filesDir, SCANS_DIR))
+            deleteContents(File(context.filesDir, QUICK_MARKS_DIR))
             deleteContents(context.cacheDir)
             settings.edit { it.clear() }
             check(marker.delete() || !marker.exists()) { "cannot remove wipe marker" }

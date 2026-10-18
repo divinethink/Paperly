@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-18b (EPUB quick view remembers marks, bookmarks and position by file; no schema change)
+
+- A book opened with Open-With (not in the Library) keeps its highlights, underlines, notes, bookmarks and reading position: they are stored in the app's private folder `files/quick-marks/<SHA-256>.json` (`QuickMarksStore`), so opening the same file again brings them back (like Moon+ Reader). The EPUB file is never changed. At most 200 books are remembered (oldest dropped); written atomically (.part -> move), best-effort.
+- The "Keep this PDF in your Library?" prompt after the first EPUB highlight is gone (nothing is lost any more). "Save to Library" stays in the quick-view menu; it copies the marks into the Library and forgets the by-file copy.
+- "Delete all my data" also empties `files/quick-marks/`. Not in Backup / cloud sync (a local convenience).
+- Different file bytes (edited/re-downloaded copy) = different checksum = no marks. PDF quick view is unchanged (writes into the file).
+- Needs on-device check: mark in Open-With EPUB, close, open the same file again (file manager/WhatsApp). Test: `QuickMarksStoreTest`.
+
 ## 2026-10-18 (EPUB: pinch = text size; PDF-style mark popup; tap-a-mark popup; no schema change)
 
 - Two-finger pinch on EPUB text changes the font size like PDF zoom (`EpubPinchZoom.kt`: `PinchLayout` around the navigator, steps of 0.05 inside 0.7-2.5x, applied live with a "120%" badge, saved to the same global setting when the fingers lift). One-finger scroll/page-turn/long-press are untouched.

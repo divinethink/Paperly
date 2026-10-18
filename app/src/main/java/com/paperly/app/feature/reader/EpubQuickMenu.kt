@@ -19,15 +19,13 @@ import com.paperly.app.R
 import com.paperly.app.feature.library.rememberDocumentExport
 import com.paperly.app.feature.library.toast
 
-/** Quick-view EPUB: keep-in-Library prompt after the first highlight + menu (Save to Library / Share / Save a copy). */
+/** Quick-view EPUB: menu (Save to Library / Share / Save a copy). Marks are remembered by file, so no prompt. */
 @Composable
 internal fun EpubQuickMenu(viewModel: EpubReaderViewModel) {
-    val prompt by viewModel.keepPrompt.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val doc by viewModel.quickDocument.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    QuickKeepDialog(prompt, viewModel::saveToLibrary, viewModel::dismissKeepPrompt)
     LaunchedEffect(notice) {
         notice?.let {
             toast(context, it)

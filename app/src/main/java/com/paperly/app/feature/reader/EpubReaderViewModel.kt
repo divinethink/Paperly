@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -61,7 +60,7 @@ class EpubReaderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(EpubUiState())
     val uiState: StateFlow<EpubUiState> = _uiState.asStateFlow()
 
-    /** Quick view: a book opened from outside and not (yet) in the Library — highlights/bookmarks stay in memory. */
+    /** Quick view: a book opened from outside, not in the Library — marks are remembered by file checksum. */
     val isQuick: Boolean = QuickViewStore.isToken(documentId)
     private val quick = QuickEpubSession()
     val annotations = annotationFactory.create(viewModelScope, documentId, if (isQuick) quick.annotations else null)
@@ -70,15 +69,13 @@ class EpubReaderViewModel @Inject constructor(
 
     /** Quick view only: the in-memory document (for Share / Save a copy). */
     val quickDocument: StateFlow<Document?> = _quickDocument.asStateFlow()
-    private val _keepPrompt = MutableStateFlow(false)
-
-    /** Quick view: true once, after the first highlight, to ask whether to keep the book in the Library. */
-    val keepPrompt: StateFlow<Boolean> = _keepPrompt.asStateFlow()
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
     private val _notice = MutableStateFlow<Int?>(null)
     val notice: StateFlow<Int?> = _notice.asStateFlow()
     private val latest = MutableStateFlow<Locator?>(null)
+    private var quickChecksum: String? = null
+    private var persistJob: Job? = null
     private var searchJob: Job? = null
     private val _searchState = MutableStateFlow(EpubSearchState())
     val searchState: StateFlow<EpubSearchState> = _searchState.asStateFlow()
@@ -102,12 +99,6 @@ class EpubReaderViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { load() }
-        if (isQuick) {
-            viewModelScope.launch {
-                annotations.items.first { it.isNotEmpty() }
-                _keepPrompt.value = true // first highlight: offer to keep the book (with it) in the Library
-            }
-        }
         // Debounced like PDF progress: no write on every scroll tick.
         viewModelScope.launch { latest.filterNotNull().debounce(PROGRESS_DEBOUNCE_MS).collect { save(it) } }
     }
@@ -126,9 +117,28 @@ class EpubReaderViewModel @Inject constructor(
             isEpub = true,
             title = document.title,
             publication = publication,
-            initialLocator = if (isQuick) null else decodeLocator(readerState.getSavedLocator(documentId)),
+            initialLocator = if (isQuick) restoreQuick() else decodeLocator(readerState.getSavedLocator(documentId)),
             searchable = publication?.let(::canSearch) == true,
         )
+    }
+
+    /** Quick view: loads the marks remembered for this exact file, starts remembering changes; returns the position. */
+    private suspend fun restoreQuick(): Locator? {
+        val checksum = deps.quickStore.source(documentId)?.checksum ?: return null
+        val saved = deps.quickMarks.load(checksum)
+        if (saved != null) quick.restore(saved)
+        quickChecksum = checksum
+        // started only after the restore, so the first write can never replace remembered marks with an empty list
+        persistJob = viewModelScope.launch {
+            combine(annotations.items, quick.bookmarks, latest.debounce(PROGRESS_DEBOUNCE_MS)) { _, _, _ -> }
+                .collect { rememberQuick() }
+        }
+        return decodeLocator(saved?.locator)
+    }
+
+    private suspend fun rememberQuick() {
+        val checksum = quickChecksum ?: return
+        deps.quickMarks.save(checksum, quick.snapshot(latest.value?.let(::encodeLocator)))
     }
 
     fun onLocator(locator: Locator) {
@@ -137,7 +147,10 @@ class EpubReaderViewModel @Inject constructor(
 
     /** Immediate save (called on ON_PAUSE) so the last position survives app kill. */
     fun flushProgress() {
-        if (isQuick) return
+        if (isQuick) {
+            viewModelScope.launch { rememberQuick() }
+            return
+        }
         viewModelScope.launch {
             latest.value?.let { save(it) }
             readerState.flushSync(documentId)
@@ -179,17 +192,12 @@ class EpubReaderViewModel @Inject constructor(
         readerState.saveLocator(documentId, encodeLocator(locator), progressOf(locator))
     }
 
-    fun dismissKeepPrompt() {
-        _keepPrompt.value = false
-    }
-
     fun clearNotice() {
         _notice.value = null
     }
 
     /** Quick view -> Library: imports the book, copies highlights/bookmarks/position, then reopens the Library copy. */
     fun saveToLibrary() {
-        _keepPrompt.value = false
         val file = deps.quickStore.resolve(documentId) ?: return
         val title = _uiState.value.title.ifBlank { "Document" }
         viewModelScope.launch {
@@ -210,6 +218,9 @@ class EpubReaderViewModel @Inject constructor(
                 latest.value,
                 fresh = result is ImportResult.Success,
             )
+            persistJob?.cancel() // the marks now live in the Library; stop remembering them by file
+            quickChecksum?.let { deps.quickMarks.delete(it) }
+            quickChecksum = null
             _saved.value = true
             deps.redirects.post(target)
         }
