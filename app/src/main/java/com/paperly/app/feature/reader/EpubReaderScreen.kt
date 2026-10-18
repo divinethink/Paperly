@@ -8,12 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,18 +43,18 @@ fun ReaderRoute(
     onBack: () -> Unit,
     viewModel: EpubReaderViewModel = hiltViewModel(),
     comfortViewModel: ReaderComfortViewModel = hiltViewModel(),
+    settingsViewModel: EpubSettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val comfort by comfortViewModel.comfort.collectAsStateWithLifecycle()
+    val pageTheme by settingsViewModel.theme.collectAsStateWithLifecycle()
     ReadingTimeEffect()
     ReaderComfortEffect(comfort)
     Box(Modifier.fillMaxSize()) {
         when {
             state.loading -> Unit
             !state.isEpub -> ReaderScreen(onBack = onBack)
-            else -> Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
-                EpubReaderScreen(state, viewModel, onBack)
-            }
+            else -> EpubPageFrame(pageTheme) { EpubReaderScreen(state, viewModel, onBack) }
         }
         BlueLightOverlay(comfort.blueLight)
         OrientationToggle(Modifier.align(Alignment.BottomEnd))
@@ -87,23 +82,20 @@ private fun EpubReaderScreen(
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showContents by rememberSaveable { mutableStateOf(false) }
     var showSearch by rememberSaveable { mutableStateOf(false) }
-    var barsVisible by rememberSaveable { mutableStateOf(true) }
+    // Full page: the bars start hidden (shown at once when the book failed to open, so Back stays reachable).
+    var barsVisible by rememberSaveable { mutableStateOf(state.publication == null) }
+    EpubSystemBars(barsVisible)
     val leave = rememberEpubQuickExit(viewModel, onBack)
     FlushOnPause(viewModel::flushProgress)
     Box(Modifier.fillMaxSize()) {
         if (state.publication == null) {
             Text(stringResource(R.string.reader_epub_failed))
         } else {
-            // Fixed system-bar padding: toggling the overlay bars never resizes (re-flows) the book.
-            Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-                val hooks = EpubHostHooks(viewModel.annotations, selection, pinch::onPinch)
-                EpubNavigatorHost(state.publication, prefs, state.initialLocator, viewModel::onLocator, hooks)
-                EpubSelectionPopup(selection, viewModel.annotations)
-                EpubAnnotationPopup(viewModel.annotations)
-            }
+            EpubBookView(state, viewModel, prefs, selection, pinch)
             PopupDismissEffects(viewModel.annotations, position) { barsVisible = !barsVisible }
             PinchBadge(pinch, Modifier.align(Alignment.Center))
         }
+        EpubFullPageHints(barsVisible, bookmarked)
         val actions = EpubBarActions(
             onBack = leave,
             onContents = { showContents = true },
@@ -125,6 +117,24 @@ private fun EpubReaderScreen(
     }
     EpubAnnotationHost(editor, viewModel.annotations)
     if (showSearch) EpubSearchEntry(viewModel) { showSearch = false }
+}
+
+/** The Readium page view plus its mark popups; the frame around it already keeps the system-bar room. */
+@Composable
+private fun EpubBookView(
+    state: EpubUiState,
+    viewModel: EpubReaderViewModel,
+    prefs: EpubPreferences,
+    selection: EpubSelectionTracker,
+    pinch: EpubPinchState,
+) {
+    val publication = state.publication ?: return
+    Box(Modifier.fillMaxSize()) {
+        val hooks = EpubHostHooks(viewModel.annotations, selection, pinch::onPinch)
+        EpubNavigatorHost(publication, prefs, state.initialLocator, viewModel::onLocator, hooks)
+        EpubSelectionPopup(selection, viewModel.annotations)
+        EpubAnnotationPopup(viewModel.annotations)
+    }
 }
 
 /** A tap elsewhere or a page move closes the mark popup; a tap that only closed it does not also hide the bars. */

@@ -406,6 +406,8 @@
     <string name="reader_value_percent">%1$d%%</string>
     <string name="reader_keep_awake">Keep screen on</string>
     <string name="reader_hide_bars">Hide status and navigation bars</string>
+    <string name="epub_menu_tip">Tap anywhere on the page to show or hide the menu.</string>
+    <string name="epub_menu_tip_ok">Got it</string>
     <string name="settings_dynamic_color">System colours</string>
     <string name="settings_dynamic_color_hint">Off by default. Applies to the app screens; reading themes are unchanged.</string>
     <string name="settings_pdf_write">Save highlights in the PDF</string>

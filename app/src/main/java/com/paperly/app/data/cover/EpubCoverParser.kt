@@ -8,6 +8,11 @@ internal object EpubCoverParser {
     private val itemTag = Regex("""<item\b[^>]*>""")
     private val metaCover = Regex("""<meta\b[^>]*name\s*=\s*["']cover["'][^>]*content\s*=\s*["']([^"']+)["']""")
 
+    private val creatorTag =
+        Regex("""<(?:\w+:)?creator\b[^>]*>(.*?)</(?:\w+:)?creator>""", RegexOption.DOT_MATCHES_ALL)
+    private val anyTag = Regex("""<[^>]*>""")
+    private val spaces = Regex("""\s+""")
+
     private fun attr(tag: String, name: String) =
         Regex("""\b$name\s*=\s*["']([^"']*)["']""").find(tag)?.groupValues?.get(1)
 
@@ -18,6 +23,21 @@ internal object EpubCoverParser {
         val href = opf?.let { coverHref(it) }
         return if (opfPath != null && href != null) resolve(opfPath.substringBeforeLast('/', ""), href) else null
     }
+
+    /** dc:creator names from the OPF ("A, B"), or null. Display only; the file is never modified. */
+    fun author(zip: ZipFile): String? {
+        val opfPath = zip.read("META-INF/container.xml")?.let { rootfile.find(it)?.groupValues?.get(1) }
+        return opfPath?.let { zip.read(it) }?.let { authorFrom(it) }
+    }
+
+    internal fun authorFrom(opf: String): String? =
+        creatorTag.findAll(opf).map { clean(it.groupValues[1]) }.filter { it.isNotEmpty() }
+            .take(MAX_AUTHORS).joinToString(", ").take(MAX_AUTHOR_CHARS).ifEmpty { null }
+
+    private fun clean(raw: String): String =
+        anyTag.replace(raw.replace("<![CDATA[", "").replace("]]>", ""), " ")
+            .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'")
+            .replace("&amp;", "&").replace(spaces, " ").trim()
 
     private fun coverHref(opf: String): String? {
         val items = itemTag.findAll(opf).map { it.value }.toList()
@@ -45,4 +65,6 @@ internal object EpubCoverParser {
         }
 
     private const val MAX_XML = 2L * 1024 * 1024
+    private const val MAX_AUTHORS = 3
+    private const val MAX_AUTHOR_CHARS = 80
 }

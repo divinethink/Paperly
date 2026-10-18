@@ -9,6 +9,7 @@ import com.paperly.app.domain.reader.EpubTypography
 import com.paperly.app.domain.reader.ReaderTheme
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -22,6 +23,7 @@ internal fun EpubTypography.toReadium(theme: ReaderTheme, systemDark: Boolean) =
     pageMargins = margin.toDouble(),
     publisherStyles = false,
     scroll = scroll,
+    backgroundColor = ReadiumColor(epubPageColor(theme, systemDark)),
     theme = when (theme) {
         ReaderTheme.LIGHT -> Theme.LIGHT
         ReaderTheme.SEPIA, ReaderTheme.WARM -> Theme.SEPIA
@@ -29,6 +31,18 @@ internal fun EpubTypography.toReadium(theme: ReaderTheme, systemDark: Boolean) =
         ReaderTheme.AUTO -> if (systemDark) Theme.DARK else Theme.LIGHT
     },
 )
+
+private val LightPage = 0xFFFFFFFF.toInt()
+private val SepiaPage = 0xFFFAF4E8.toInt()
+private val DarkPage = 0xFF000000.toInt()
+
+/** Page colour, set on the book and on the frame around it so hidden system bars never leave a colour band. */
+internal fun epubPageColor(theme: ReaderTheme, systemDark: Boolean): Int = when (theme) {
+    ReaderTheme.LIGHT -> LightPage
+    ReaderTheme.SEPIA, ReaderTheme.WARM -> SepiaPage
+    ReaderTheme.DARK, ReaderTheme.AMOLED -> DarkPage
+    ReaderTheme.AUTO -> if (systemDark) DarkPage else LightPage
+}
 
 private const val FONT_DIR = "fonts"
 

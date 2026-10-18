@@ -10,4 +10,6 @@ import javax.inject.Inject
 @HiltViewModel
 class CoverViewModel @Inject constructor(private val covers: CoverRepository) : ViewModel() {
     suspend fun load(id: String, type: String): Bitmap? = covers.cover(id, type)
+
+    suspend fun author(id: String, type: String): String? = covers.author(id, type)
 }

@@ -298,6 +298,7 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                AuthorLine(doc, covers)
                 Text(
                     documentMeta(context, doc),
                     style = MaterialTheme.typography.bodyMedium,

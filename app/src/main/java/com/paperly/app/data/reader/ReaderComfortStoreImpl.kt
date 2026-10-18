@@ -33,6 +33,7 @@ class ReaderComfortStoreImpl @Inject constructor(
                 blueLight = it[BLUE_LIGHT_KEY] ?: 0f,
                 keepAwake = it[KEEP_AWAKE_KEY] ?: false,
                 hideBars = it[HIDE_BARS_KEY] ?: false,
+                menuTipSeen = it[MENU_TIP_KEY] ?: false,
             ).clamped()
         }
 
@@ -48,6 +49,7 @@ class ReaderComfortStoreImpl @Inject constructor(
             prefs[BLUE_LIGHT_KEY] = value.blueLight
             prefs[KEEP_AWAKE_KEY] = value.keepAwake
             prefs[HIDE_BARS_KEY] = value.hideBars
+            prefs[MENU_TIP_KEY] = value.menuTipSeen
         }
     }
 
@@ -56,6 +58,7 @@ class ReaderComfortStoreImpl @Inject constructor(
         val BLUE_LIGHT_KEY = floatPreferencesKey("reader_blue_light")
         val KEEP_AWAKE_KEY = booleanPreferencesKey("reader_keep_awake")
         val HIDE_BARS_KEY = booleanPreferencesKey("reader_hide_bars")
+        val MENU_TIP_KEY = booleanPreferencesKey("epub_menu_tip_seen")
     }
 }
 

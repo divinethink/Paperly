@@ -34,6 +34,8 @@ class CoverRepositoryImpl @Inject constructor(
     }
     private val gate = Semaphore(2) // bound concurrent decodes while scrolling
     private val dir by lazy { File(context.cacheDir, "covers").apply { mkdirs() } }
+    private val authors = LruCache<String, String>(AUTHOR_CACHE_ENTRIES) // "" = book has no author
+    private val authorDir by lazy { File(context.cacheDir, "authors").apply { mkdirs() } }
 
     override suspend fun cover(documentId: String, type: String): Bitmap? = withContext(Dispatchers.IO) {
         val src = files.resolve(documentId)?.takeIf { it.isFile } ?: return@withContext null
@@ -43,6 +45,31 @@ class CoverRepositoryImpl @Inject constructor(
         val cached = if (disk.isFile) BitmapFactory.decodeFile(disk.path) else null
         val bmp = cached ?: gate.withPermit { render(src, type) }?.also { save(it, disk, documentId) }
         bmp?.also { memory.put(key, it) }
+    }
+
+    override suspend fun author(documentId: String, type: String): String? = withContext(Dispatchers.IO) {
+        val src = files.resolve(documentId)?.takeIf { it.isFile && type == EPUB_TYPE }
+        src?.let { authorOf(documentId, it) }?.ifEmpty { null }
+    }
+
+    /** Cache key = id + source mtime (like covers); stale versions are dropped. Failure => "" (no author). */
+    private fun authorOf(id: String, src: File): String {
+        val key = "$id-${src.lastModified()}"
+        return authors.get(key) ?: run {
+            val disk = File(authorDir, "$key.txt")
+            val text = try {
+                if (disk.isFile) {
+                    disk.readText()
+                } else {
+                    val read = ZipFile(src).use { EpubCoverParser.author(it) }.orEmpty()
+                    authorDir.listFiles { x -> x.name.startsWith("$id-") }?.forEach { it.delete() }
+                    read.also { disk.writeText(it) }
+                }
+            } catch (_: Exception) {
+                ""
+            }
+            text.also { authors.put(key, it) }
+        }
     }
 
     private fun render(src: File, type: String): Bitmap? = try {
@@ -96,6 +123,8 @@ class CoverRepositoryImpl @Inject constructor(
     }
 
     private companion object {
+        const val EPUB_TYPE = "epub"
+        const val AUTHOR_CACHE_ENTRIES = 256
         const val WIDTH_PX = 360
         const val MAX_HEIGHT_PX = 720
         const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
