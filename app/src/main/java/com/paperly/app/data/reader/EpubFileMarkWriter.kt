@@ -93,9 +93,11 @@ class EpubFileMarkWriter @Inject constructor(
         val changed = LinkedHashMap<String, ByteArray>()
         var added = 0
         ZipFile(file).use { zip ->
-            for (entry in zip.entries()) {
+            val candidates = zip.entries().toList().filter {
+                isChapter(it.name) && (removeStale || byChapter[it.name].orEmpty().isNotEmpty())
+            }
+            for (entry in candidates) {
                 val wanted = byChapter[entry.name].orEmpty()
-                if (!isChapter(entry.name) || (wanted.isEmpty() && !removeStale)) continue
                 val text = utf8Chapter(zip.getInputStream(entry).use { it.readBytes() }) ?: continue
                 val updated = updatedChapter(text, wanted, if (removeStale) keep else null)
                 if (updated != text) {

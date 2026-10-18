@@ -16,6 +16,7 @@ private val INLINE = setOf(
 )
 private const val NO_RAW = -1
 private const val NBSP = '\u00A0'
+private const val HEX_RADIX = 16
 
 /** "p" for `<p>`, "/p" for `</p>`, null for comments and the like; the namespace prefix is dropped. */
 private fun tagOf(markup: String): String? {
@@ -91,7 +92,7 @@ private class TextIndexBuilder {
 }
 
 private fun decodeEntity(body: String): String = when {
-    body.startsWith("#x") || body.startsWith("#X") -> codePointText(body.drop(2).toIntOrNull(16))
+    body.startsWith("#x") || body.startsWith("#X") -> codePointText(body.drop(2).toIntOrNull(HEX_RADIX))
     body.startsWith("#") -> codePointText(body.drop(1).toIntOrNull())
     else -> when (body) {
         "amp" -> "&"
@@ -114,16 +115,21 @@ private fun TextIndexBuilder.addText(xhtml: String, token: XhtmlToken, index: In
         val entity = ENTITY.matchAt(xhtml, i)?.takeIf { it.range.last < token.end }
         val end = if (entity != null) entity.range.last + 1 else i + 1
         val text = if (entity != null) decodeEntity(entity.groupValues[1]) else xhtml[i].toString()
-        for (c in text) {
-            val space = c.isWhitespace() || c == NBSP
-            val last = sb.lastOrNull()
-            if (space && (last == null || last == ' ')) continue
-            val gap = pending && last != null && last != ' '
-            if (!space && gap) add(' ', NO_RAW, NO_RAW, index)
-            add(if (space) ' ' else c, i, end, index)
-        }
+        addChars(text, i, end, index, pending)
         pending = false
         i = end
+    }
+}
+
+/** Adds the characters of one source piece (a char or an entity at raw [start]..[end]); whitespace runs collapse. */
+private fun TextIndexBuilder.addChars(text: String, start: Int, end: Int, index: Int, pending: Boolean) {
+    for (c in text) {
+        val space = c.isWhitespace() || c == NBSP
+        val last = sb.lastOrNull()
+        if (space && (last == null || last == ' ')) continue
+        val gap = pending && last != null && last != ' '
+        if (!space && gap) add(' ', NO_RAW, NO_RAW, index)
+        add(if (space) ' ' else c, start, end, index)
     }
 }
 

@@ -105,8 +105,10 @@ internal fun Modifier.annotationGestures(
                 annotations.lastOrNull { a ->
                     a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
                 }?.let { tap(it) } ?: run {
+                    val blank = !annotateNow && currentSelect?.hooks?.selection == null && current.rects.isEmpty()
                     clearSelect?.invoke()
                     current.cancelQuick(annotateNow) // a tap beside the quick box drops it
+                    if (blank) current.pending.onBlankTap() // nothing was open: toggle the bars
                 }
             }
         }

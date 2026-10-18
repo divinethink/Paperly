@@ -29,6 +29,8 @@ data class PendingHooks(
     val onChange: (Int, MatchRect) -> Unit,
     val onRemove: (Int) -> Unit,
     val quick: QuickHooks? = null,
+    /** A tap on empty page space that closed nothing: the Reader shows / hides its bars. */
+    val onBlankTap: () -> Unit = {},
 )
 
 /** Everything the annotate-mode gesture of one page needs; [rects] = this page's pending parts. */

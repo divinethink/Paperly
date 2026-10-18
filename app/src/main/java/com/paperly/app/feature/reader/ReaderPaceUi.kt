@@ -29,12 +29,14 @@ private const val LABEL_ALPHA = 0.8f
 internal fun PdfPaceOverlay(
     listState: LazyListState,
     pageCount: Int,
+    visible: Boolean = true,
     pace: ReadingPaceViewModel = hiltViewModel(),
 ) {
     val minutes by pace.minutesLeft.collectAsStateWithLifecycle()
     LaunchedEffect(listState, pageCount) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { pace.record((it + 1f) / pageCount) }
     }
+    if (!visible) return // keeps recording the pace; only the label is hidden
     val page = listState.firstVisibleItemIndex
     val left = (pageCount - page - 1).coerceAtLeast(0)
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {

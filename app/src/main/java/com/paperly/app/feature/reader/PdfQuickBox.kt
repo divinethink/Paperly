@@ -124,16 +124,23 @@ internal fun AnnotationController.commitQuick(type: AnnotationType): AnnotationE
     return commitPending(chosen)
 }
 
-/** Select hooks plus the quick box (on after the probe: text-less pages, or a press that hits no text). */
+/**
+ * Select hooks plus the quick box (on after the probe: text-less pages, or a press that hits no text).
+ * [onBlankTap] = a tap on empty page space that closed nothing (the Reader toggles its bars).
+ */
 @Composable
-internal fun AnnotationHooks.withSelect(viewModel: ReaderViewModel, enabled: Boolean): AnnotationHooks {
+internal fun AnnotationHooks.withSelect(
+    viewModel: ReaderViewModel,
+    enabled: Boolean,
+    onBlankTap: () -> Unit,
+): AnnotationHooks {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val controller = viewModel.annotations
     val quick = remember(controller) { QuickHooks(controller::quickStart, controller::cancelPending) }
     val ready = enabled && search.probed
     return copy(
         select = rememberSelectHooks(viewModel, enabled),
-        pending = pending.copy(quick = quick.takeIf { ready }),
+        pending = pending.copy(quick = quick.takeIf { ready }, onBlankTap = onBlankTap),
     )
 }
 

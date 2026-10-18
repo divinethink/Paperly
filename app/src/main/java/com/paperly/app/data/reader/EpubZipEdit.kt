@@ -11,13 +11,14 @@ private val CHAPTER_EXTENSIONS = setOf("xhtml", "html", "htm")
 private val ENCODING = Regex("^\\s*<\\?xml[^>]*encoding\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
 private const val BOM_FIRST = 0xFE
 private const val BOM_SECOND = 0xFF
+private const val BYTE_MASK = 0xFF
 
 /** True for the chapter files of an EPUB (the only entries that can hold book text). */
 internal fun isChapter(name: String): Boolean = name.substringAfterLast('.', "").lowercase() in CHAPTER_EXTENSIONS
 
 /** The chapter as UTF-8 text, or null when it uses another encoding (then it is left alone). */
 internal fun utf8Chapter(bytes: ByteArray): String? {
-    val utf16 = bytes.size > 1 && (bytes[0].toInt() and 0xFF).let { it == BOM_FIRST || it == BOM_SECOND }
+    val utf16 = bytes.size > 1 && (bytes[0].toInt() and BYTE_MASK).let { it == BOM_FIRST || it == BOM_SECOND }
     if (utf16) return null
     val text = String(bytes, Charsets.UTF_8)
     val declared = ENCODING.find(text)?.groupValues?.get(1)

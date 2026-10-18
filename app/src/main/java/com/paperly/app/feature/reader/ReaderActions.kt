@@ -1,8 +1,14 @@
 package com.paperly.app.feature.reader
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -17,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -24,6 +32,30 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
+
+/** What the top bar needs to flip Fit-width / Fit-height. */
+internal class FitToggle(val fitHeight: Boolean, val onToggle: () -> Unit)
+
+/** PDF Reader top bar: Back, search (when the text layer is readable) and, once pages exist, the actions. */
+@Composable
+internal fun ReaderTopBar(viewModel: ReaderViewModel, listState: LazyListState, fit: FitToggle, onBack: () -> Unit) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val search by viewModel.search.state.collectAsStateWithLifecycle()
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
+        }
+        Spacer(Modifier.weight(1f))
+        if (search.available) {
+            IconButton(onClick = viewModel.search::toggle) {
+                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.reader_search))
+            }
+        }
+        if (state.pageCount > 0) {
+            ReaderActions(viewModel, listState.firstVisibleItemIndex, fit.fitHeight, fit.onToggle)
+        }
+    }
+}
 
 /** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
 @Composable

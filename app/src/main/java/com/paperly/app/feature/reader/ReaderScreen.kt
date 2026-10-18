@@ -6,8 +6,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,12 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -115,6 +108,7 @@ private data class PageLook(
     val filter: ColorFilter?,
     val highlights: Map<Int, List<MatchRect>>,
     val hooks: AnnotationHooks,
+    val showPace: Boolean,
     val onEditor: (AnnotationEditor) -> Unit,
 )
 
@@ -133,21 +127,11 @@ private fun ReaderContent(
     val pending by viewModel.annotations.pending.collectAsStateWithLifecycle()
     var fitHeight by rememberSaveable { mutableStateOf(false) }
     var editor by remember { mutableStateOf<AnnotationEditor?>(null) }
+    // One tap on a page hides / shows the bars (full page); they stay while searching, annotating or without pages.
+    var barsVisible by rememberSaveable { mutableStateOf(true) }
+    val showBars = barsVisible || search.open || annotate || state.pageCount <= 0
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
-            }
-            Spacer(Modifier.weight(1f))
-            if (search.available) {
-                IconButton(onClick = viewModel.search::toggle) {
-                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.reader_search))
-                }
-            }
-            if (state.pageCount > 0) {
-                ReaderActions(viewModel, listState.firstVisibleItemIndex, fitHeight) { fitHeight = !fitHeight }
-            }
-        }
+        if (showBars) ReaderTopBar(viewModel, listState, FitToggle(fitHeight) { fitHeight = !fitHeight }, onBack)
         if (search.open) SearchBar(viewModel.search, search)
         PdfAnnotateBars(viewModel.annotations, annotate) { editor = it }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -158,8 +142,8 @@ private fun ReaderContent(
                 state.pageCount > 0 -> {
                     val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                     val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
-                        .withSelect(viewModel, enabled = !annotate)
-                    val look = PageLook(fitHeight, pageFilter, highlights, hooks) { editor = it }
+                        .withSelect(viewModel, enabled = !annotate) { barsVisible = !barsVisible }
+                    val look = PageLook(fitHeight, pageFilter, highlights, hooks, showBars) { editor = it }
                     PdfOrReflow(viewModel, state, listState, look)
                     PdfSelectionMenu(viewModel) { editor = it }
                 }
@@ -203,7 +187,7 @@ private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listSt
         ReflowPages(viewModel.search, state.pageCount, if (search.needsOcr) viewModel.reflowOcr else null)
     } else {
         PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
-        PdfPaceOverlay(listState, state.pageCount)
+        PdfPaceOverlay(listState, state.pageCount, look.showPace)
     }
 }
 
