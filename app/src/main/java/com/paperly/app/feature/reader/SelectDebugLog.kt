@@ -43,7 +43,7 @@ object SelectDebugLog {
     }
 
     /** Who called the function that logs this (file:line of the nearest frames). */
-    fun caller(): String = Throwable().stackTrace.drop(SKIP_FRAMES).take(SHOW_FRAMES)
+    fun caller(): String = Throwable("select-log caller").stackTrace.drop(SKIP_FRAMES).take(SHOW_FRAMES)
         .joinToString("<") { "${it.fileName}:${it.lineNumber}" }
 
     private fun box(r: MatchRect) = "[${f(r.left)},${f(r.top)},${f(r.right)},${f(r.bottom)}]"
