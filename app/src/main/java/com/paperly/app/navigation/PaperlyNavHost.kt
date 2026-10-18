@@ -113,7 +113,11 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
 
     Scaffold(
         // The Reader lays itself out edge-to-edge (page area never resizes when the bars hide).
-        contentWindowInsets = if (currentRoute == Routes.READER) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
+        contentWindowInsets = if (currentRoute == Routes.READER) {
+            WindowInsets(0)
+        } else {
+            ScaffoldDefaults.contentWindowInsets
+        },
         bottomBar = {
             if (showNav && !useRail) {
                 NavigationBar {

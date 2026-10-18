@@ -6,15 +6,10 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -59,11 +54,9 @@ internal fun PdfScrollHandle(listState: LazyListState, pageCount: Int, enabled: 
             active = false
         }
     }
-    if (!enabled || pageCount < 2 || !(active || dragging)) return
-    val edge = PaddingValues(
-        top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() + TOP_BAR_HEIGHT,
-        bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding(),
-    )
+    if (!enabled || pageCount < 2) return
+    if (!active && !dragging) return
+    val edge = readerEdgePadding()
     val density = LocalDensity.current
     val last = pageCount - 1
     BoxWithConstraints(Modifier.fillMaxSize().padding(edge)) {

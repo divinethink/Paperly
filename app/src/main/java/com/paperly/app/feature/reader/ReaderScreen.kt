@@ -9,14 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
@@ -205,11 +202,7 @@ private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listSt
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     if (reflow) {
-        val edge = PaddingValues(
-            top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() + TOP_BAR_HEIGHT,
-            bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding(),
-        )
-        Box(Modifier.fillMaxSize().padding(edge)) {
+        Box(Modifier.fillMaxSize().padding(readerEdgePadding())) {
             ReflowPages(viewModel.search, state.pageCount, if (search.needsOcr) viewModel.reflowOcr else null)
         }
     } else {
@@ -239,11 +232,6 @@ private fun PdfPages(
         val zoom = zoomState.zoom
         // Render resolution follows the zoom step (1.5x, 2x, 3x, 4x of the page width) so zoomed text stays sharp.
         val renderPx = (basePx * maxOf(RENDER_WIDTH_FACTOR, ceil(zoom))).toInt().coerceAtMost(MAX_RENDER_WIDTH_PX)
-        // Fixed (visibility-independent) room so page 1 starts below the bar and the last page clears the nav bar.
-        val edgePadding = PaddingValues(
-            top = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding() + TOP_BAR_HEIGHT,
-            bottom = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding(),
-        )
         val gestureLock = remember { GestureLock() }
         val edgeScroll = remember { EdgeScroll() }
         val gesture = Modifier.fillMaxSize().pinchZoom(
@@ -271,19 +259,11 @@ private fun PdfPages(
                         transformOrigin = TransformOrigin(0f, 0f)
                     },
                     state = listState,
-                    contentPadding = edgePadding,
+                    contentPadding = readerEdgePadding(),
                     userScrollEnabled = !annotate,
                 ) {
                     items(count = pageCount, key = { it }) { index ->
-                        val spec = PageSpec(
-                            aspect = aspect,
-                            pageCount = pageCount,
-                            filter = look.filter,
-                            highlights = look.highlights[index].orEmpty(),
-                            annotations = look.hooks.items[index].orEmpty(),
-                            hooks = look.hooks,
-                        )
-                        PageItem(viewModel, index, renderPx, spec)
+                        PageItem(viewModel, index, renderPx, look.specFor(index, aspect, pageCount))
                     }
                 }
             }
@@ -294,6 +274,15 @@ private fun PdfPages(
         PdfSelectionPopup(viewModel, port, look.onEditor)
     }
 }
+
+private fun PageLook.specFor(index: Int, aspect: Float, pageCount: Int) = PageSpec(
+    aspect = aspect,
+    pageCount = pageCount,
+    filter = filter,
+    highlights = highlights[index].orEmpty(),
+    annotations = hooks.items[index].orEmpty(),
+    hooks = hooks,
+)
 
 /** Selection wiring of page [index]; [onFinger] also moves the loupe. Null = text selection off. */
 @Composable
