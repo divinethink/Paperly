@@ -5,9 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +42,11 @@ fun OrphanFilesSection(viewModel: OrphanFilesViewModel = hiltViewModel()) {
                 Text(stringResource(R.string.settings_orphans_check))
             }
             IconButton(onClick = { showInfo = true }) {
-                Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.settings_info))
+                Icon(
+                    Icons.Outlined.Info,
+                    contentDescription = stringResource(R.string.settings_info),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         when (val s = state) {

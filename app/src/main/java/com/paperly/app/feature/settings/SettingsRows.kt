@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -137,7 +137,11 @@ internal fun SettingSwitchRow(
         }
         if (text.info != null) {
             IconButton(onClick = { showInfo = true }) {
-                Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.settings_info))
+                Icon(
+                    Icons.Outlined.Info,
+                    contentDescription = stringResource(R.string.settings_info),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         Switch(
