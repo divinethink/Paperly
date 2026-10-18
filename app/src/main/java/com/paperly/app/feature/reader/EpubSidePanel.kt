@@ -38,6 +38,26 @@ internal fun SidePanel(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    SidePanelFrame(visible, fromStart, onDismiss) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDismiss) {
+                val label = stringResource(R.string.epub_close)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = label)
+            }
+            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+        }
+        content()
+    }
+}
+
+/** The sliding page itself (animation, Back handling, surface) without a header, for panels with their own. */
+@Composable
+internal fun SidePanelFrame(
+    visible: Boolean,
+    fromStart: Boolean,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     BackHandler(enabled = visible, onBack = onDismiss)
     val sign = if (fromStart) -1 else 1
     AnimatedVisibility(
@@ -46,16 +66,7 @@ internal fun SidePanel(
         exit = slideOutHorizontally { sign * it },
     ) {
         Surface(Modifier.fillMaxSize()) {
-            Column {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss) {
-                        val label = stringResource(R.string.epub_close)
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = label)
-                    }
-                    Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
-                }
-                content()
-            }
+            Column(content = content)
         }
     }
 }

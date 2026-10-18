@@ -30,6 +30,8 @@ private const val ARTICLE_PATH = "M14,2H6c-1.1,0 -1.99,0.9 -1.99,2L4,20c0,1.1 0.
     "c1.1,0 2,-0.9 2,-2V8l-6,-6z" +
     "M16,18H8v-2h8v2zM16,14H8v-2h8v2zM13,9V3.5L18.5,9H13z"
 
+private const val BOOKMARK_PATH = "M17,3H7c-1.1,0 -1.99,0.9 -1.99,2L5,21l7,-3 7,3V5c0,-1.1 -0.9,-2 -2,-2z"
+
 private fun glyph(name: String, pathData: String): ImageVector =
     ImageVector.Builder(
         name = name,
@@ -49,3 +51,4 @@ val BrightnessGlyph: ImageVector by lazy { glyph("Brightness", BRIGHTNESS_PATH) 
 val ShareGlyph: ImageVector by lazy { glyph("Share", SHARE_PATH) }
 val PrintGlyph: ImageVector by lazy { glyph("Print", PRINT_PATH) }
 val ArticleGlyph: ImageVector by lazy { glyph("Article", ARTICLE_PATH) }
+val BookmarkGlyph: ImageVector by lazy { glyph("Bookmark", BOOKMARK_PATH) }

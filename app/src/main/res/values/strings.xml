@@ -307,6 +307,11 @@
     <string name="epub_searching">Searching…</string>
     <string name="epub_close">Close</string>
     <string name="epub_annotate">Annotate</string>
+    <string name="epub_contents_meta">%1$d%% read · %2$d chapters</string>
+    <string name="epub_you_are_here">You are here</string>
+    <string name="epub_go">Go</string>
+    <string name="epub_chapter_read">Finished</string>
+    <string name="epub_chapter_bookmarked">Bookmarked</string>
     <string name="epub_tab_bookmarks">Bookmarks</string>
     <string name="epub_tab_annotations">Annotations</string>
     <string name="epub_empty_toc">This book has no table of contents.</string>

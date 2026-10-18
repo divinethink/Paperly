@@ -71,9 +71,14 @@ internal fun BlockLabel(text: Int) {
 private fun selectedColor(selected: Boolean): Color =
     if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
-/** Full-width pill segmented control; the selected segment is a raised white pill. */
+/** Full-width pill segmented control; the selected segment is a raised white pill. [badges]: option index -> count. */
 @Composable
-internal fun PillSegmented(options: List<Int>, selected: Int, onSelect: (Int) -> Unit) {
+internal fun PillSegmented(
+    options: List<Int>,
+    selected: Int,
+    badges: Map<Int, Int> = emptyMap(),
+    onSelect: (Int) -> Unit,
+) {
     Surface(
         Modifier.fillMaxWidth(),
         shape = CircleShape,
@@ -92,17 +97,32 @@ internal fun PillSegmented(options: List<Int>, selected: Int, onSelect: (Int) ->
                     color = if (isSelected) MaterialTheme.colorScheme.surfaceBright else Color.Transparent,
                     shadowElevation = if (isSelected) 2.dp else 0.dp,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Row(Modifier.padding(horizontal = 4.dp), Arrangement.Center, Alignment.CenterVertically) {
                         Text(
                             stringResource(label),
                             style = MaterialTheme.typography.titleSmall,
                             color = selectedColor(isSelected),
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
                         )
+                        badges[index]?.takeIf { it > 0 }?.let { CountBadge(it) }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CountBadge(count: Int) {
+    Surface(Modifier.padding(start = 6.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+        Text(
+            count.toString(),
+            Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
