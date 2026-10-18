@@ -119,7 +119,16 @@ private data class PageLook(
     val hooks: AnnotationHooks,
     val showPace: Boolean,
     val onEditor: (AnnotationEditor) -> Unit,
-)
+) {
+    fun specFor(index: Int, aspect: Float, pageCount: Int) = PageSpec(
+        aspect = aspect,
+        pageCount = pageCount,
+        filter = filter,
+        highlights = highlights[index].orEmpty(),
+        annotations = hooks.items[index].orEmpty(),
+        hooks = hooks,
+    )
+}
 
 @Composable
 private fun ReaderContent(
@@ -274,15 +283,6 @@ private fun PdfPages(
         PdfSelectionPopup(viewModel, port, look.onEditor)
     }
 }
-
-private fun PageLook.specFor(index: Int, aspect: Float, pageCount: Int) = PageSpec(
-    aspect = aspect,
-    pageCount = pageCount,
-    filter = filter,
-    highlights = highlights[index].orEmpty(),
-    annotations = hooks.items[index].orEmpty(),
-    hooks = hooks,
-)
 
 /** Selection wiring of page [index]; [onFinger] also moves the loupe. Null = text selection off. */
 @Composable

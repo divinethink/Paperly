@@ -61,6 +61,8 @@ import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
 
+/** The Reader handles the system bars itself (edge-to-edge, bars float over the page). */
+private val NoInsets = WindowInsets(0)
 private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT)
 
 object Routes {
@@ -112,12 +114,7 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     }
 
     Scaffold(
-        // The Reader lays itself out edge-to-edge (page area never resizes when the bars hide).
-        contentWindowInsets = if (currentRoute == Routes.READER) {
-            WindowInsets(0)
-        } else {
-            ScaffoldDefaults.contentWindowInsets
-        },
+        contentWindowInsets = if (currentRoute == Routes.READER) NoInsets else ScaffoldDefaults.contentWindowInsets,
         bottomBar = {
             if (showNav && !useRail) {
                 NavigationBar {
