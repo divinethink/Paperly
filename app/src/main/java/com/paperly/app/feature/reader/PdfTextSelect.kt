@@ -414,7 +414,8 @@ private suspend fun AwaitPointerEventScope.dragHandle(
         val (from, end) = if (moveStart) to to fixed else fixed to to
         log("PUSH to=p${to.page}${pt(to.point)} pin=${pin.first != null}/${pin.last != null}")
         edit.hooks.onUpdate(from, end, pin)
-        edit.onFinger(latest)
+        // the loupe follows the text point being picked, not the finger: the handle hangs below its line
+        edit.onFinger(origin + (latest - down.position))
     }
     // the page scrolls under a waiting finger near the screen edge: re-pick the moving end after every step
     edit.edge.onShift = { dy ->
