@@ -7,6 +7,10 @@ import com.paperly.app.core.database.ScanPageRemapDao
 import com.paperly.app.domain.reader.LibraryPdfFiles
 import com.paperly.app.domain.reader.PdfHighlightFileSync
 import com.paperly.app.domain.scanner.ADDED_INDEX
+import com.paperly.app.domain.scanner.MAX_BRIGHTNESS
+import com.paperly.app.domain.scanner.MAX_CONTRAST
+import com.paperly.app.domain.scanner.MIN_BRIGHTNESS
+import com.paperly.app.domain.scanner.MIN_CONTRAST
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditResult
@@ -80,6 +84,8 @@ class ScanEditRepositoryImpl @Inject constructor(
                 rotation = normalizeRotation(row?.rotation ?: 0),
                 quad = ScanQuad.fromJson(row?.cornersJson) ?: ScanQuad.FULL,
                 filter = ScanFilter.parse(row?.filter),
+                brightness = (row?.brightness ?: 0).coerceIn(MIN_BRIGHTNESS, MAX_BRIGHTNESS),
+                contrast = (row?.contrast ?: 0).coerceIn(MIN_CONTRAST, MAX_CONTRAST),
                 locked = i in locked,
             )
         }
@@ -161,6 +167,8 @@ class ScanEditRepositoryImpl @Inject constructor(
                 cornersJson = page.quad.takeIf { q -> q != ScanQuad.FULL }?.toJson(),
                 filter = page.filter.name,
                 updatedAt = now,
+                brightness = page.brightness,
+                contrast = page.contrast,
             )
         }
     }

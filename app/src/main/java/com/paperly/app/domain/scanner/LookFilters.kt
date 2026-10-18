@@ -24,6 +24,8 @@ object LookFilters {
     private const val PHOTO_SATURATION = 1.25f
     private const val MID = 128f
     private const val HALF = 0.5f
+    private const val PERCENT = 100f
+    private const val BRIGHTNESS_STEP = 1.28f
     private val SHIFT_FOR = intArrayOf(SHIFT_R, SHIFT_G, 0)
 
     /**
@@ -111,6 +113,21 @@ object LookFilters {
             argb = argb or (contrast(v, PHOTO_CONTRAST) shl SHIFT_FOR[c])
         }
         argb
+    }
+
+    /**
+     * Manual adjustment: [brightness] -100..100 shifts every channel (up to +-128), [contrast] -50..100 scales it
+     * around mid-grey (0.5x..2x). 0/0 returns the pixels unchanged.
+     */
+    fun adjust(px: IntArray, brightness: Int, contrast: Int): IntArray {
+        if (brightness == 0 && contrast == 0) return px.copyOf()
+        val factor = 1f + contrast / PERCENT
+        val shift = brightness * BRIGHTNESS_STEP
+        val lut = IntArray(CHANNEL + 1) { ((it - MID) * factor + MID + shift).toInt().coerceIn(0, CHANNEL) }
+        return IntArray(px.size) {
+            val p = px[it]
+            OPAQUE or (lut[channel(p, 0)] shl SHIFT_R) or (lut[channel(p, 1)] shl SHIFT_G) or lut[channel(p, 2)]
+        }
     }
 
     private fun channel(argb: Int, index: Int) = (argb shr SHIFT_FOR[index]) and CHANNEL

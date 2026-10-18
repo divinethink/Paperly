@@ -120,10 +120,12 @@ private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
 @Composable
 private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDelete: () -> Unit) {
     val page = state.page ?: return
+    var adjusting by remember { mutableStateOf(false) }
     Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
         FilterRow(state, page, viewModel)
-        ToolRow(state, viewModel)
+        if (adjusting) AdjustPanel(page, viewModel)
+        ToolRow(state, viewModel) { adjusting = !adjusting }
         PageManagementRow(state, viewModel, onDelete)
     }
 }

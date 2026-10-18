@@ -13,6 +13,8 @@ data class ScanEditPage(
     val rotation: Int = 0,
     val quad: ScanQuad = ScanQuad.FULL,
     val filter: ScanFilter = ScanFilter.ORIGINAL,
+    val brightness: Int = 0,
+    val contrast: Int = 0,
     val locked: Boolean = false,
     val added: String? = null,
 ) {
@@ -25,6 +27,20 @@ const val ADDED_INDEX = -1
 fun ScanEditPage.rotated(): ScanEditPage = if (locked) this else copy(rotation = rotateRight(rotation))
 
 fun ScanEditPage.withFilter(value: ScanFilter): ScanEditPage = copy(filter = value)
+
+/** Manual brightness / contrast (clamped to their ranges); like filters they never touch geometry. */
+fun ScanEditPage.withBrightness(value: Int): ScanEditPage =
+    copy(brightness = value.coerceIn(MIN_BRIGHTNESS, MAX_BRIGHTNESS))
+
+fun ScanEditPage.withContrast(value: Int): ScanEditPage =
+    copy(contrast = value.coerceIn(MIN_CONTRAST, MAX_CONTRAST))
+
+fun ScanEditPage.adjustReset(): ScanEditPage = copy(brightness = 0, contrast = 0)
+
+const val MIN_BRIGHTNESS = -100
+const val MAX_BRIGHTNESS = 100
+const val MIN_CONTRAST = -50
+const val MAX_CONTRAST = 100
 
 /** Same filter on every page (filters never touch geometry, so locked pages take it too). */
 fun List<ScanEditPage>.withFilterAll(value: ScanFilter): List<ScanEditPage> = map { it.withFilter(value) }

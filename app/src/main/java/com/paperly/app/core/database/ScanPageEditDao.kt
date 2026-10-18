@@ -1,5 +1,6 @@
 package com.paperly.app.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -10,7 +11,8 @@ import androidx.room.Query
 /**
  * S2: editor state of one page of a scanned document. [srcFile] = file name inside `files/scans/<documentId>/`
  * (the un-edited source JPEG), [cornersJson] = `[x0,y0,…,x3,y3]` as source-image fractions (null = full image),
- * [filter] = ScanFilter name. A row exists only once the page was edited. CASCADE: it goes with its document.
+ * [filter] = ScanFilter name, [brightness]/[contrast] = manual adjustment (0 = none; added in v13).
+ * A row exists only once the page was edited. CASCADE: it goes with its document.
  */
 @Entity(
     tableName = "scan_page_edit",
@@ -32,6 +34,8 @@ data class ScanPageEditEntity(
     val cornersJson: String?,
     val filter: String,
     val updatedAt: Long,
+    @ColumnInfo(defaultValue = "0") val brightness: Int = 0,
+    @ColumnInfo(defaultValue = "0") val contrast: Int = 0,
 )
 
 @Dao

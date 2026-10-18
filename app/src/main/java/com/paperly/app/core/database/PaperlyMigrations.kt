@@ -153,6 +153,14 @@ object PaperlyMigrations {
         }
     }
 
+    /** v12 → v13: add `scan_page_edit.brightness` / `contrast` (manual page adjustment). Additive, default 0. */
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `scan_page_edit` ADD COLUMN `brightness` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `scan_page_edit` ADD COLUMN `contrast` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -166,5 +174,6 @@ object PaperlyMigrations {
         MIGRATION_9_10,
         MIGRATION_10_11,
         MIGRATION_11_12,
+        MIGRATION_12_13,
     )
 }

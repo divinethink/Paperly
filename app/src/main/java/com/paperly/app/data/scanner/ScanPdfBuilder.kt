@@ -29,13 +29,7 @@ class ScanPdfBuilder @Inject constructor(@ApplicationContext private val context
         PDFBoxResourceLoader.init(context)
         PDDocument(MemoryUsageSetting.setupTempFileOnly()).use { doc ->
             pages.forEach { page ->
-                val bitmap = ScanPageRenderer.renderFile(
-                    source(page),
-                    page.quad,
-                    page.rotation,
-                    page.filter,
-                    size.maxSide,
-                )
+                val bitmap = ScanPageRenderer.renderFile(source(page), page, size.maxSide)
                 try {
                     addPage(doc, bitmap, size.jpegQuality)
                 } finally {

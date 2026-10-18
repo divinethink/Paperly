@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,17 +36,27 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
+import com.paperly.app.domain.scanner.MAX_BRIGHTNESS
+import com.paperly.app.domain.scanner.MAX_CONTRAST
+import com.paperly.app.domain.scanner.MIN_BRIGHTNESS
+import com.paperly.app.domain.scanner.MIN_CONTRAST
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanFilter
+import com.paperly.app.domain.scanner.adjustReset
 import com.paperly.app.domain.scanner.cropReset
 import com.paperly.app.domain.scanner.rotated
+import com.paperly.app.domain.scanner.withBrightness
+import com.paperly.app.domain.scanner.withContrast
 import com.paperly.app.domain.scanner.withFilter
+import kotlin.math.roundToInt
 
 private val ThumbWidth = 72.dp
 private val ThumbHeight = 92.dp
 private val ThumbCorner = 8.dp
 private val ThumbBorder = 1.dp
 private val ThumbBorderSelected = 2.dp
+private val ADJUST_LABEL_WIDTH = 88.dp
+private val ADJUST_VALUE_WIDTH = 36.dp
 
 /** Filter picker: a small preview of every filter on this page; "Apply to all" copies the choice to all pages. */
 @Composable
@@ -109,7 +121,7 @@ internal fun filterLabel(filter: ScanFilter): Int = when (filter) {
 
 /** Previous / rotate / crop / reset / next as icon buttons (each has a spoken label). */
 @Composable
-internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel) {
+internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel, onAdjust: () -> Unit) {
     val page = state.page ?: return
     val hasNext = state.current < state.pages.size - 1
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -128,7 +140,39 @@ internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel) {
         ToolButton(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {
             viewModel.edit(ScanEditPage::cropReset)
         }
+        ToolButton(ScanEditIcons.Adjust, R.string.scan_adjust, true, onAdjust)
         ToolButton(ScanEditIcons.Next, R.string.scan_edit_next, hasNext) { viewModel.goTo(state.current + 1) }
+    }
+}
+
+/** Manual brightness and contrast of the shown page (saved with the page; "Reset" puts both back to 0). */
+@Composable
+internal fun AdjustPanel(page: ScanEditPage, viewModel: ScanEditViewModel) {
+    Column(Modifier.padding(horizontal = 8.dp)) {
+        AdjustSlider(R.string.scan_adjust_brightness, page.brightness, MIN_BRIGHTNESS..MAX_BRIGHTNESS) { value ->
+            viewModel.edit { it.withBrightness(value) }
+        }
+        AdjustSlider(R.string.scan_adjust_contrast, page.contrast, MIN_CONTRAST..MAX_CONTRAST) { value ->
+            viewModel.edit { it.withContrast(value) }
+        }
+        TextButton(
+            onClick = { viewModel.edit(ScanEditPage::adjustReset) },
+            enabled = page.brightness != 0 || page.contrast != 0,
+        ) { Text(stringResource(R.string.scan_adjust_reset)) }
+    }
+}
+
+@Composable
+private fun AdjustSlider(label: Int, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(label), Modifier.width(ADJUST_LABEL_WIDTH), style = MaterialTheme.typography.bodySmall)
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onChange(it.roundToInt()) },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            modifier = Modifier.weight(1f),
+        )
+        Text(value.toString(), Modifier.width(ADJUST_VALUE_WIDTH), style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -154,6 +198,9 @@ private const val RESET_PATH =
         " -3.58,-8 -8,-8z"
 private const val PREVIOUS_PATH = "M15.41,7.41L14,6l-6,6 6,6 1.41,-1.41L10.83,12z"
 private const val NEXT_PATH = "M10,6L8.59,7.41 13.17,12l-4.58,4.59L10,18l6,-6z"
+private const val ADJUST_PATH =
+    "M3,17v2h6v-2H3zM3,5v2h10V5H3zM13,21v-2h8v-2h-8v-2h-2v6h2zM7,9v2H3v2h4v2h2V9H7zM21,13v-2H11v2h10z" +
+        "M15,9h2V7h4V5h-4V3h-2v6z"
 private const val DONE_PATH = "M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z"
 
 private fun glyph(name: String, pathData: String): ImageVector =
@@ -171,5 +218,6 @@ internal object ScanEditIcons {
     val Reset: ImageVector by lazy { glyph("ScanReset", RESET_PATH) }
     val Previous: ImageVector by lazy { glyph("ScanPrevious", PREVIOUS_PATH) }
     val Next: ImageVector by lazy { glyph("ScanNext", NEXT_PATH) }
+    val Adjust: ImageVector by lazy { glyph("ScanAdjust", ADJUST_PATH) }
     val Done: ImageVector by lazy { glyph("ScanDone", DONE_PATH) }
 }

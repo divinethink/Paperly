@@ -196,7 +196,7 @@ class ScanEditViewModel @Inject constructor(
         if (page == null || source == null) return
         val rendered = withContext(Dispatchers.Default) {
             try {
-                ScanPageRenderer.render(source, page.quad, page.rotation, page.filter, PREVIEW_SIDE)
+                ScanPageRenderer.render(source, page, PREVIEW_SIDE)
             } catch (ignored: OutOfMemoryError) {
                 null // keep the previous preview
             }
@@ -212,7 +212,8 @@ class ScanEditViewModel @Inject constructor(
         val thumbs = withContext(Dispatchers.Default) {
             try {
                 ScanFilter.entries.associateWith {
-                    ScanPageRenderer.render(source, page.quad, page.rotation, it, THUMB_SIDE).asImageBitmap()
+                    val look = page.copy(filter = it, brightness = 0, contrast = 0)
+                    ScanPageRenderer.render(source, look, THUMB_SIDE).asImageBitmap()
                 }
             } catch (ignored: OutOfMemoryError) {
                 null // keep the previous thumbnails

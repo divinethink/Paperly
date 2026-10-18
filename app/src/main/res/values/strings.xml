@@ -155,6 +155,10 @@
     <string name="scan_filter_auto">Auto</string>
     <string name="scan_filter_photo">Photo</string>
     <string name="scan_filter_apply_all">Use this filter on all pages</string>
+    <string name="scan_adjust">Adjust</string>
+    <string name="scan_adjust_brightness">Brightness</string>
+    <string name="scan_adjust_contrast">Contrast</string>
+    <string name="scan_adjust_reset">Reset adjustments</string>
     <string name="scan_size_title">File size</string>
     <string name="scan_size_hint">Smaller files are lower quality. Your current file is kept as a backup for 7 days.</string>
     <string name="scan_size_small">Small</string>

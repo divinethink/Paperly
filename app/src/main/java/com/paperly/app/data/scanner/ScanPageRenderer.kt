@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.media.ExifInterface
 import com.paperly.app.domain.scanner.LookFilters
 import com.paperly.app.domain.scanner.PixelFilters
+import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanQuad
 import java.io.File
@@ -56,8 +57,10 @@ internal object ScanPageRenderer {
         0
     }
 
-    /** Flattened, filtered, rotated copy of [src]; [src] is left untouched. Longest side <= [maxSide]. */
-    fun render(src: Bitmap, quad: ScanQuad, rotation: Int, filter: ScanFilter, maxSide: Int): Bitmap {
+    /** Flattened, filtered, adjusted, rotated copy of [src] per [page]; [src] is left untouched; side <= [maxSide]. */
+    fun render(src: Bitmap, page: ScanEditPage, maxSide: Int): Bitmap {
+        val quad = page.quad
+        val rotation = page.rotation
         val (w, h) = ScanQuad.outputSize(quad, src.width, src.height, maxSide)
         val flat = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val from = FloatArray(POLY_VALUES)
@@ -69,7 +72,7 @@ internal object ScanPageRenderer {
         val matrix = Matrix()
         matrix.setPolyToPoly(from, 0, to, 0, ScanQuad.CORNERS)
         Canvas(flat).drawBitmap(src, matrix, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
-        applyFilter(flat, filter) // before rotating: the Bitmap we created is mutable, filters ignore orientation
+        applyLook(flat, page) // before rotating: the Bitmap we created is mutable, filters ignore orientation
         if (rotation == 0) return flat
         val turned = Bitmap.createBitmap(
             flat,
@@ -85,24 +88,26 @@ internal object ScanPageRenderer {
     }
 
     /** Decode + render for the final PDF: only as much of the source is decoded as the output needs. */
-    fun renderFile(file: File, quad: ScanQuad, rotation: Int, filter: ScanFilter, maxSide: Int): Bitmap {
+    fun renderFile(file: File, page: ScanEditPage, maxSide: Int): Bitmap {
+        val quad = page.quad
         val span = maxOf(quad.points.maxOf { it.x } - quad.points.minOf { it.x }, MIN_SPAN)
         val spanY = maxOf(quad.points.maxOf { it.y } - quad.points.minOf { it.y }, MIN_SPAN)
         val src = decode(file, (maxSide / minOf(span, spanY)).toInt())
         try {
-            return render(src, quad, rotation, filter, maxSide)
+            return render(src, page, maxSide)
         } finally {
             src.recycle()
         }
     }
 
-    private fun applyFilter(bitmap: Bitmap, filter: ScanFilter) {
-        if (filter == ScanFilter.ORIGINAL) return
+    private fun applyLook(bitmap: Bitmap, page: ScanEditPage) {
+        val filter = page.filter
+        if (filter == ScanFilter.ORIGINAL && page.brightness == 0 && page.contrast == 0) return
         val w = bitmap.width
         val h = bitmap.height
         val px = IntArray(w * h)
         bitmap.getPixels(px, 0, w, 0, 0, w, h)
-        val out = when (filter) {
+        val filtered = when (filter) {
             ScanFilter.COLOR -> PixelFilters.enhanceColor(px)
             ScanFilter.GRAY -> PixelFilters.gray(px)
             ScanFilter.BW -> PixelFilters.blackWhite(px, w, h)
@@ -111,6 +116,7 @@ internal object ScanPageRenderer {
             ScanFilter.PHOTO -> LookFilters.photo(px)
             ScanFilter.ORIGINAL -> px
         }
+        val out = LookFilters.adjust(filtered, page.brightness, page.contrast)
         bitmap.setPixels(out, 0, w, 0, 0, w, h)
     }
 

@@ -163,4 +163,29 @@ class ScanEditLogicTest {
         assertEquals(90, out[1].rotation) // geometry of a locked page is untouched
         assertEquals(pages.map { it.index }, out.map { it.index })
     }
+
+    @Test fun brightnessAndContrastAreClampedAndResettable() {
+        val page = ScanEditPage(index = 0, locked = true)
+        assertEquals(MAX_BRIGHTNESS, page.withBrightness(500).brightness)
+        assertEquals(MIN_BRIGHTNESS, page.withBrightness(-500).brightness)
+        assertEquals(MAX_CONTRAST, page.withContrast(500).contrast)
+        assertEquals(MIN_CONTRAST, page.withContrast(-500).contrast)
+        val tuned = page.withBrightness(20).withContrast(-10)
+        assertTrue(tuned.locked) // adjustments work on locked pages (no geometry change)
+        assertEquals(page, tuned.adjustReset())
+    }
+
+    @Test fun adjustIsIdentityAtZeroAndMovesPixels() {
+        val px = intArrayOf(0xFF204060.toInt(), 0xFF808080.toInt(), 0xFFF0F0F0.toInt())
+        assertTrue(LookFilters.adjust(px, 0, 0).contentEquals(px))
+        val brighter = LookFilters.adjust(px, 50, 0)
+        assertTrue((brighter[1] and 0xFF) > 0x80)
+        val darker = LookFilters.adjust(px, -50, 0)
+        assertTrue((darker[1] and 0xFF) < 0x80)
+        val flat = LookFilters.adjust(px, 0, -50) // less contrast: the light pixel gets darker, the dark one lighter
+        assertTrue((flat[2] and 0xFF) < 0xF0 && (flat[0] and 0xFF) > 0x60)
+        val hard = LookFilters.adjust(px, 0, 100)
+        assertEquals(0xFF, hard[2] ushr 24)
+        assertEquals(0xFF, hard[2] and 0xFF) // light pixel saturates to white
+    }
 }

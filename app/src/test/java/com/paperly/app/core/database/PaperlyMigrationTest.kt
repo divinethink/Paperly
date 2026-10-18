@@ -353,6 +353,28 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v13ScanPageEditAdjustmentsDefaultToZeroAndStore() = runBlocking {
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val dao = db.scanPageEditDao()
+            dao.upsertAll(listOf(ScanPageEditEntity("d1", 0, "p0.img", 0, null, "DOCS", 1L))) // old shape: no adjustment
+            val old = dao.getForDocument("d1").single()
+            assertEquals(0, old.brightness)
+            assertEquals(0, old.contrast)
+            dao.upsertAll(listOf(ScanPageEditEntity("d1", 0, "p0.img", 0, null, "DOCS", 2L, brightness = 20, contrast = -10)))
+            val tuned = dao.getForDocument("d1").single()
+            assertEquals(20, tuned.brightness)
+            assertEquals(-10, tuned.contrast)
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =
