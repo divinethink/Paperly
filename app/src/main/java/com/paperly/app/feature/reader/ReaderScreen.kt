@@ -319,7 +319,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
         Modifier.fillMaxWidth().aspectRatio(ratio).then(gestures).drawWithContent {
             drawContent()
             // page overlays; the loupe replays the same drawing so marks/selection show inside it too
-            val overlay: DrawScope.() -> Unit = {
+            val overlay: DrawScope.(Boolean) -> Unit = { handles ->
                 spec.highlights.forEach { r ->
                     drawRect(
                         color = HighlightColor,
@@ -330,11 +330,13 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                 drawAnnotations(spec.annotations, zoomOf())
                 spec.hooks.select?.selection?.let { sel ->
                     sel.rectsOn(index).takeIf { it.isNotEmpty() }
-                        ?.let { drawSelection(it, zoomOf(), sel.startsOn(index), sel.endsOn(index)) }
+                        ?.let {
+                            drawSelection(it, zoomOf(), handles && sel.startsOn(index), handles && sel.endsOn(index))
+                        }
                 }
                 drawPending(edit.rects, zoomOf())
             }
-            overlay()
+            overlay(true)
             draft?.let { drawDraft(it) }
             val touch = finger
             // the loupe magnifies this page only: not while the finger is over a neighbouring page

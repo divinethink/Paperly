@@ -18,12 +18,12 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
-private val LoupeWidth = 240.dp
-private val LoupeHeight = 88.dp
-private val LoupeCorner = 20.dp
+private val LoupeWidth = 120.dp
+private val LoupeHeight = 72.dp
+private val LoupeCorner = 24.dp
 private val LoupeBorder = 1.5.dp
-private val LoupeGap = 32.dp // clear space between the loupe's edge and the fingertip
-private val LoupeShadow = 3.dp
+private val LoupeGap = 52.dp // clear space between the loupe's edge and the fingertip
+private val LoupeShadow = 2.dp
 private val LoupeBorderColor = Color(0xFF8A8A8A)
 private const val LOUPE_MAGNIFY = 1.8f
 private const val SHADOW_ALPHA = 0.16f
@@ -31,15 +31,15 @@ private const val SHADOW_ALPHA = 0.16f
 /**
  * Xodo-style magnifier for precise handle/edge placement: a wide rounded box (about two text lines) showing the page
  * bitmap around [finger] at [LOUPE_MAGNIFY]x, with the page's own overlays ([overlay]: selection, marks, highlights)
- * redrawn on top at the same scale. It floats above the fingertip (below it near the page top). Sizes are divided by
- * [zoom] so the loupe keeps its on-screen size.
+ * redrawn on top at the same scale (without the round handles). It floats above the fingertip (below it near the
+ * page top). Sizes are divided by [zoom] so the loupe keeps its on-screen size.
  */
 internal fun DrawScope.drawLoupe(
     image: ImageBitmap,
     finger: Offset,
     zoom: Float,
     filter: ColorFilter?,
-    overlay: DrawScope.() -> Unit,
+    overlay: DrawScope.(handles: Boolean) -> Unit,
 ) {
     val z = maxOf(zoom, MIN_ZOOM)
     val w = LoupeWidth.toPx() / z
@@ -80,7 +80,7 @@ internal fun DrawScope.drawLoupe(
             translate(centreX, centreY)
             scale(LOUPE_MAGNIFY, LOUPE_MAGNIFY, Offset.Zero)
             translate(-finger.x, -finger.y)
-        }) { overlay() }
+        }) { overlay(false) }
     }
     drawRoundRect(LoupeBorderColor, box.topLeft, box.size, corner, style = Stroke(LoupeBorder.toPx() / z))
 }
