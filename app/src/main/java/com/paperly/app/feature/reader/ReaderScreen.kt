@@ -18,8 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
@@ -27,18 +25,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +52,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -373,41 +366,4 @@ private fun errorText(error: ReaderError): Int = when (error) {
     ReaderError.PASSWORD_REQUIRED -> R.string.reader_password_required
     ReaderError.UNSUPPORTED -> R.string.reader_unsupported
     else -> R.string.reader_open_failed
-}
-
-@Composable
-private fun SearchBar(controller: ReaderSearchController, state: SearchUiState) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = controller::onQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text(stringResource(R.string.reader_search_hint)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { controller.submit() }),
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(searchStatus(state), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = controller::previous, enabled = state.matches.isNotEmpty()) {
-                Text(stringResource(R.string.reader_search_prev))
-            }
-            TextButton(onClick = controller::next, enabled = state.matches.isNotEmpty()) {
-                Text(stringResource(R.string.reader_search_next))
-            }
-        }
-        if (state.partialMatch) {
-            Text(stringResource(R.string.reader_search_partial), style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-private fun searchStatus(state: SearchUiState): String = when {
-    state.searching -> stringResource(R.string.reader_search_searching)
-    state.failed -> stringResource(R.string.reader_search_failed)
-    state.submitted && state.matches.isEmpty() -> stringResource(R.string.reader_search_none)
-    state.matches.isNotEmpty() ->
-        stringResource(R.string.reader_search_count, state.index + 1, state.matches.size)
-    else -> ""
 }
