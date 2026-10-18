@@ -105,6 +105,9 @@ internal object ScanPageRenderer {
             ScanFilter.COLOR -> PixelFilters.enhanceColor(px)
             ScanFilter.GRAY -> PixelFilters.gray(px)
             ScanFilter.BW -> PixelFilters.blackWhite(px, w, h)
+            ScanFilter.DOCS -> PixelFilters.docs(px, w, h)
+            ScanFilter.AUTO -> PixelFilters.autoEnhance(px)
+            ScanFilter.PHOTO -> PixelFilters.photo(px)
             ScanFilter.ORIGINAL -> px
         }
         bitmap.setPixels(out, 0, w, 0, 0, w, h)

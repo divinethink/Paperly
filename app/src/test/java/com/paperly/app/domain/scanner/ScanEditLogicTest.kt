@@ -106,4 +106,61 @@ class ScanEditLogicTest {
         assertEquals(90, page.rotated().rotation)
         assertEquals(page, page.withQuad(ScanQuad(ScanPoint(0f, 0f), ScanPoint(0f, 0f), ScanPoint(0f, 0f), ScanPoint(0f, 0f))))
     }
+
+    @Test fun newFilterNamesParse() {
+        assertEquals(ScanFilter.DOCS, ScanFilter.parse("DOCS"))
+        assertEquals(ScanFilter.AUTO, ScanFilter.parse("AUTO"))
+        assertEquals(ScanFilter.PHOTO, ScanFilter.parse("PHOTO"))
+    }
+
+    @Test fun docsEvensOutShadowAndKeepsInk() {
+        val w = 64
+        val h = 64
+        // paper gets darker left -> right (shadow); one dark ink pixel block in the middle
+        val px = IntArray(w * h) {
+            val shade = 230 - (it % w) * 2
+            if (it % w in 30..33 && it / w in 30..33) 0xFF202020.toInt() else (0xFF shl 24) or (shade shl 16) or (shade shl 8) or shade
+        }
+        val out = PixelFilters.docs(px, w, h)
+        assertEquals(px.size, out.size)
+        out.forEach { assertEquals(0xFF, it ushr 24) }
+        val left = out[5 * w + 2] and 0xFF
+        val right = out[5 * w + 61] and 0xFF
+        assertTrue(left > 235 && right > 200) // both sides near white now (was 230 vs 108)
+        assertTrue((out[31 * w + 31] and 0xFF) < 100) // ink stays dark
+    }
+
+    @Test fun docsHandlesTinyAndFlatImages() {
+        assertEquals(1, PixelFilters.docs(intArrayOf(0xFF808080.toInt()), 1, 1).size)
+        assertEquals(15, PixelFilters.docs(IntArray(15) { 0xFF000000.toInt() }, 5, 3).size)
+    }
+
+    @Test fun autoEnhanceRemovesColourCast() {
+        // yellow-tinted paper (low blue) with dark ink
+        val px = IntArray(100) { if (it < 10) 0xFF302010.toInt() else 0xFFE0D070.toInt() }
+        val out = PixelFilters.autoEnhance(px)
+        assertEquals(100, out.size)
+        val paper = out[50]
+        assertEquals(paper shr 16 and 0xFF, paper and 0xFF) // R and B end up equal: cast gone
+        assertTrue((out[0] and 0xFF) < 40)
+        assertEquals(0, PixelFilters.autoEnhance(IntArray(0)).size)
+    }
+
+    @Test fun photoBoostsColourKeepsGrey() {
+        val grey = intArrayOf(0xFF808080.toInt())
+        assertEquals(0x80, PixelFilters.photo(grey)[0] and 0xFF)
+        val red = intArrayOf(0xFFA06060.toInt())
+        val out = PixelFilters.photo(red)[0]
+        assertTrue((out shr 16 and 0xFF) - (out and 0xFF) > 0x40) // red-blue gap grew from 0x40
+        assertEquals(0xFF, out ushr 24)
+    }
+
+    @Test fun applyFilterToAllChangesOnlyTheFilter() {
+        val locked = ScanEditPage(index = 1, locked = true, rotation = 90)
+        val pages = listOf(ScanEditPage(index = 0), locked)
+        val out = pages.withFilterAll(ScanFilter.DOCS)
+        assertTrue(out.all { it.filter == ScanFilter.DOCS })
+        assertEquals(90, out[1].rotation) // geometry of a locked page is untouched
+        assertEquals(pages.map { it.index }, out.map { it.index })
+    }
 }

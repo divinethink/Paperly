@@ -6,6 +6,9 @@ enum class ScanFilter {
     COLOR,
     GRAY,
     BW,
+    DOCS,
+    AUTO,
+    PHOTO,
     ;
 
     companion object {

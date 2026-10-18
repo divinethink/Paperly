@@ -10,10 +10,12 @@ import com.paperly.app.data.scanner.ScanPageRenderer
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditResult
+import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanOutputSize
 import com.paperly.app.domain.scanner.ScanQuad
 import com.paperly.app.domain.scanner.canDeleteAt
 import com.paperly.app.domain.scanner.moved
+import com.paperly.app.domain.scanner.withFilterAll
 import com.paperly.app.domain.scanner.withQuad
 import com.paperly.app.domain.scanner.withoutAt
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +40,7 @@ data class ScanEditUi(
     val cropping: Boolean = false,
     val source: ImageBitmap? = null,
     val preview: ImageBitmap? = null,
+    val thumbs: Map<ScanFilter, ImageBitmap> = emptyMap(),
     val dirty: Boolean = false,
     val saving: Boolean = false,
     val failed: ScanEditResult? = null,
@@ -50,6 +53,7 @@ data class ScanEditUi(
 
 private const val SOURCE_SIDE = 1400
 private const val PREVIEW_SIDE = 1000
+private const val THUMB_SIDE = 160
 
 @HiltViewModel
 @Suppress("TooManyFunctions") // one small action per editor operation
@@ -62,6 +66,7 @@ class ScanEditViewModel @Inject constructor(
     val state: StateFlow<ScanEditUi> = _state.asStateFlow()
     private var sourceBitmap: Bitmap? = null
     private var previewJob: Job? = null
+    private var thumbKey: ThumbKey? = null
 
     init {
         viewModelScope.launch {
@@ -86,6 +91,14 @@ class ScanEditViewModel @Inject constructor(
         if (changed == page) return
         _state.update { it.withPage(changed) }
         refreshPreview()
+    }
+
+    /** "Apply to all": the shown page's filter goes onto every page (nothing is written until Save). */
+    fun applyFilterToAll() {
+        val state = _state.value
+        val filter = state.page?.filter ?: return
+        if (state.saving) return
+        _state.update { it.copy(pages = it.pages.withFilterAll(filter), dirty = true) }
     }
 
     /** Crop-frame drag: no preview render until the crop view is left. */
@@ -161,6 +174,7 @@ class ScanEditViewModel @Inject constructor(
 
     private fun showPage(index: Int) {
         previewJob?.cancel()
+        thumbKey = null
         _state.update { it.copy(current = index, cropping = false, loading = true) }
         previewJob = viewModelScope.launch {
             val file = _state.value.page?.let { repository.pageFile(documentId, it) }
@@ -188,8 +202,30 @@ class ScanEditViewModel @Inject constructor(
             }
         }
         if (rendered != null) target.update { it.copy(preview = rendered.asImageBitmap()) }
+        renderThumbs(target, source, page)
+    }
+
+    /** Small preview of every filter on the current page; redone only when the page, crop or rotation changed. */
+    private suspend fun renderThumbs(target: MutableStateFlow<ScanEditUi>, source: Bitmap, page: ScanEditPage) {
+        val key = ThumbKey(target.value.current, page.quad, page.rotation)
+        if (key == thumbKey) return
+        val thumbs = withContext(Dispatchers.Default) {
+            try {
+                ScanFilter.entries.associateWith {
+                    ScanPageRenderer.render(source, page.quad, page.rotation, it, THUMB_SIDE).asImageBitmap()
+                }
+            } catch (ignored: OutOfMemoryError) {
+                null // keep the previous thumbnails
+            }
+        }
+        if (thumbs != null) {
+            thumbKey = key
+            target.update { it.copy(thumbs = thumbs) }
+        }
     }
 }
+
+private data class ThumbKey(val page: Int, val quad: ScanQuad, val rotation: Int)
 
 private fun ScanEditUi.withPage(page: ScanEditPage) =
     copy(pages = pages.mapIndexed { position, old -> if (position == current) page else old }, dirty = true)

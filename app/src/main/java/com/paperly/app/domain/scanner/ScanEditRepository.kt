@@ -26,6 +26,9 @@ fun ScanEditPage.rotated(): ScanEditPage = if (locked) this else copy(rotation =
 
 fun ScanEditPage.withFilter(value: ScanFilter): ScanEditPage = copy(filter = value)
 
+/** Same filter on every page (filters never touch geometry, so locked pages take it too). */
+fun List<ScanEditPage>.withFilterAll(value: ScanFilter): List<ScanEditPage> = map { it.withFilter(value) }
+
 fun ScanEditPage.withQuad(value: ScanQuad): ScanEditPage = if (locked || !value.isValid()) this else copy(quad = value)
 
 fun ScanEditPage.cropReset(): ScanEditPage = withQuad(ScanQuad.FULL)

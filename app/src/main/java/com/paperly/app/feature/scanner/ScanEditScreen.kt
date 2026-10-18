@@ -2,7 +2,6 @@ package com.paperly.app.feature.scanner
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,11 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -34,13 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
-import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditResult
-import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanOutputSize
-import com.paperly.app.domain.scanner.cropReset
-import com.paperly.app.domain.scanner.rotated
-import com.paperly.app.domain.scanner.withFilter
 
 /** S2 page editor: filter, 4-corner crop, rotate; Save rebuilds the PDF (original kept as a 7-day backup). */
 @Composable
@@ -130,42 +122,10 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDele
     val page = state.page ?: return
     Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ScanFilter.entries.forEach { filter ->
-                FilterChip(
-                    selected = page.filter == filter,
-                    onClick = { viewModel.edit { it.withFilter(filter) } },
-                    label = { Text(stringResource(filterLabel(filter))) },
-                )
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { viewModel.goTo(state.current - 1) }, enabled = state.current > 0) {
-                Text(stringResource(R.string.scan_edit_prev))
-            }
-            TextButton(onClick = {
-                viewModel.edit(ScanEditPage::rotated)
-            }, enabled = !page.locked) { Text(stringResource(R.string.scan_edit_rotate)) }
-            TextButton(onClick = viewModel::toggleCrop, enabled = !page.locked) {
-                Text(stringResource(if (state.cropping) R.string.scan_edit_crop_done else R.string.scan_edit_crop))
-            }
-            TextButton(onClick = {
-                viewModel.edit(ScanEditPage::cropReset)
-            }, enabled = !page.locked) { Text(stringResource(R.string.scan_edit_reset)) }
-            val hasNext = state.current < state.pages.size - 1
-            TextButton(onClick = { viewModel.goTo(state.current + 1) }, enabled = hasNext) {
-                Text(stringResource(R.string.scan_edit_next))
-            }
-        }
+        FilterRow(state, page, viewModel)
+        ToolRow(state, viewModel)
         PageManagementRow(state, viewModel, onDelete)
     }
-}
-
-private fun filterLabel(filter: ScanFilter): Int = when (filter) {
-    ScanFilter.ORIGINAL -> R.string.scan_filter_original
-    ScanFilter.COLOR -> R.string.scan_filter_color
-    ScanFilter.GRAY -> R.string.scan_filter_gray
-    ScanFilter.BW -> R.string.scan_filter_bw
 }
 
 private fun sizeLabel(size: ScanOutputSize): Int = when (size) {

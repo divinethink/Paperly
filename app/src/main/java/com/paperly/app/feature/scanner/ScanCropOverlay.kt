@@ -11,11 +11,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -32,6 +39,15 @@ private val CORNER_HANDLE = 11.dp
 private val MID_HANDLE = 7.dp
 private val FRAME_STROKE = 3.dp
 private val HANDLE_STROKE = 2.dp
+private val LOUPE_WIDTH = 120.dp
+private val LOUPE_HEIGHT = 96.dp
+private val LOUPE_GAP = 28.dp
+private val LOUPE_CORNER = 12.dp
+private val LOUPE_BORDER = 2.dp
+private val LOUPE_SHADOW_OFFSET = 2.dp
+private val CROSS_ARM = 10.dp
+private const val LOUPE_MAGNIFY = 2.5f
+private const val LOUPE_SHADOW_ALPHA = 0.25f
 
 /** Where the image sits inside the canvas (letterboxed). */
 private class Fit(val left: Float, val top: Float, val width: Float, val height: Float)
@@ -128,5 +144,43 @@ fun ScanCropOverlay(
             drawCircle(Color.White, radius, at(handlePoint(quad, h)))
             drawCircle(line, radius, at(handlePoint(quad, h)), style = Stroke(width = HANDLE_STROKE.toPx()))
         }
+        if (active >= 0) drawCropLoupe(image, f, at(handlePoint(quad, active)), line)
     }
+}
+
+/**
+ * Magnifier for placing a handle precisely: the page around [point] at [LOUPE_MAGNIFY]x in a box that floats above
+ * the finger (below it near the top edge), with a cross-hair on the exact spot.
+ */
+private fun DrawScope.drawCropLoupe(image: ImageBitmap, f: Fit, point: Offset, line: Color) {
+    val w = LOUPE_WIDTH.toPx()
+    val h = LOUPE_HEIGHT.toPx()
+    val lift = h / 2 + LOUPE_GAP.toPx()
+    val above = point.y - lift
+    val centreY = if (above - h / 2 < 0f) point.y + lift else above
+    val centreX = point.x.coerceIn(w / 2, maxOf(w / 2, size.width - w / 2))
+    val box = Rect(Offset(centreX - w / 2, centreY - h / 2), Size(w, h))
+    val corner = CornerRadius(LOUPE_CORNER.toPx())
+    drawRoundRect(Color.Black.copy(alpha = LOUPE_SHADOW_ALPHA), box.topLeft + Offset(0f, LOUPE_SHADOW_OFFSET.toPx()), box.size, corner)
+    drawRoundRect(Color.White, box.topLeft, box.size, corner)
+    clipPath(Path().apply { addRoundRect(RoundRect(box, corner)) }) {
+        withTransform({
+            translate(centreX, centreY)
+            scale(LOUPE_MAGNIFY, LOUPE_MAGNIFY, Offset.Zero)
+            translate(-point.x, -point.y)
+        }) {
+            drawImage(
+                image,
+                srcOffset = IntOffset.Zero,
+                srcSize = IntSize(image.width, image.height),
+                dstOffset = IntOffset(f.left.toInt(), f.top.toInt()),
+                dstSize = IntSize(f.width.toInt(), f.height.toInt()),
+            )
+        }
+        val arm = CROSS_ARM.toPx()
+        val centre = Offset(centreX, centreY)
+        drawLine(line, centre - Offset(arm, 0f), centre + Offset(arm, 0f), strokeWidth = HANDLE_STROKE.toPx())
+        drawLine(line, centre - Offset(0f, arm), centre + Offset(0f, arm), strokeWidth = HANDLE_STROKE.toPx())
+    }
+    drawRoundRect(line, box.topLeft, box.size, corner, style = Stroke(LOUPE_BORDER.toPx()))
 }
