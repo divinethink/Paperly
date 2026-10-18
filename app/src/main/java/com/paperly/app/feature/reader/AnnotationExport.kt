@@ -1,7 +1,6 @@
 package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -13,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.intent.shareText
+import com.paperly.app.core.ui.icons.ArticleGlyph
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationExportEntry
 import com.paperly.app.domain.reader.EpubAnnotation
@@ -47,12 +47,9 @@ internal fun SharePdfAnnotationsItem(viewModel: ReaderViewModel, onDone: () -> U
     val items by viewModel.annotations.items.collectAsStateWithLifecycle()
     if (items.isEmpty()) return
     val context = LocalContext.current
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.annotations_share)) },
-        onClick = {
-            val title = viewModel.uiState.value.document?.title.orEmpty()
-            shareText(context, title, buildAnnotationMarkdown(title, items.map { it.toExportEntry() }))
-            onDone()
-        },
-    )
+    MenuRow(R.string.annotations_share, ArticleGlyph) {
+        val title = viewModel.uiState.value.document?.title.orEmpty()
+        shareText(context, title, buildAnnotationMarkdown(title, items.map { it.toExportEntry() }))
+        onDone()
+    }
 }

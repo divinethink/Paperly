@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -44,6 +43,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.BrightnessGlyph
 import com.paperly.app.domain.reader.MIN_BRIGHTNESS
 import com.paperly.app.domain.reader.ReaderComfort
 import kotlin.math.roundToInt
@@ -173,5 +173,5 @@ internal fun ComfortSheet(onDismiss: () -> Unit) {
 
 @Composable
 internal fun ComfortMenuItem(onClick: () -> Unit) {
-    DropdownMenuItem(text = { Text(stringResource(R.string.reader_comfort)) }, onClick = onClick)
+    MenuRow(R.string.reader_comfort, BrightnessGlyph, onClick)
 }

@@ -3,7 +3,6 @@ package com.paperly.app.feature.reader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,18 +36,12 @@ fun rememberCopyScanText(viewModel: ScanPageViewModel): () -> Unit {
 /** Menu items that exist only for scanned documents: page title/note and (S3) copy of the recognised text. */
 @Composable
 fun ScanMenuItems(onPageNote: () -> Unit, onCopyText: () -> Unit, onDone: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.scan_page_edit)) },
-        onClick = {
-            onPageNote()
-            onDone()
-        },
-    )
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.scan_text_copy)) },
-        onClick = {
-            onCopyText()
-            onDone()
-        },
-    )
+    MenuRow(R.string.scan_page_edit, null) {
+        onPageNote()
+        onDone()
+    }
+    MenuRow(R.string.scan_text_copy, null) {
+        onCopyText()
+        onDone()
+    }
 }

@@ -1,7 +1,6 @@
 package com.paperly.app.feature.reader
 
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -10,10 +9,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.DownloadGlyph
+import com.paperly.app.core.ui.icons.PrintGlyph
+import com.paperly.app.core.ui.icons.ShareGlyph
 import com.paperly.app.feature.library.DocumentExport
 import com.paperly.app.feature.library.rememberDocumentExport
 import com.paperly.app.feature.library.toast
@@ -72,21 +75,18 @@ internal fun ReplaceConfirm(show: Boolean, onYes: () -> Unit, onNo: () -> Unit) 
 
 @Composable
 internal fun FileMenuItems(actions: ReaderFileActions, onDone: () -> Unit) {
-    listOfNotNull<Pair<Int, () -> Unit>>(
-        actions.saveToLibrary?.let { R.string.quick_save_to_library to it },
-        R.string.doc_share to actions.export.share,
-        (if (actions.withMarks) R.string.quick_save_with_marks else R.string.doc_save_copy) to
-            actions.export.saveCopy,
-        actions.replaceOriginal?.let { R.string.quick_replace_with_marks to it },
-        actions.export.print?.let { R.string.doc_print to it },
-    ).forEach { (label, action) ->
-        DropdownMenuItem(
-            text = { Text(stringResource(label)) },
-            onClick = {
-                onDone()
-                action()
-            },
-        )
+    val saveLabel = if (actions.withMarks) R.string.quick_save_with_marks else R.string.doc_save_copy
+    listOfNotNull<Triple<Int, ImageVector?, () -> Unit>>(
+        actions.saveToLibrary?.let { Triple(R.string.quick_save_to_library, DownloadGlyph, it) },
+        Triple(R.string.doc_share, ShareGlyph, actions.export.share),
+        Triple(saveLabel, DownloadGlyph, actions.export.saveCopy),
+        actions.replaceOriginal?.let { Triple(R.string.quick_replace_with_marks, null, it) },
+        actions.export.print?.let { Triple(R.string.doc_print, PrintGlyph, it) },
+    ).forEach { (label, icon, action) ->
+        MenuRow(label, icon) {
+            onDone()
+            action()
+        }
     }
 }
 

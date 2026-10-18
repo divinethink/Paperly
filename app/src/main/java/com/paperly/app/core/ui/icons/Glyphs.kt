@@ -13,6 +13,23 @@ private const val DOWNLOAD_PATH = "M19,9h-4V3H9v6H5l7,7 7,-7zM5,18v2h14v-2H5z"
 private const val SORT_PATH = "M3,18h6v-2H3v2zM3,6v2h18V6H3zm0,7h12v-2H3v2z"
 private const val CHEVRON_PATH = "M10,6L8.59,7.41 13.17,12l-4.58,4.59L10,18l6,-6z"
 
+private const val REFLOW_PATH = "M3,18h13v-2H3v2zM3,6v2h18V6H3zm0,7h18v-2H3v2z"
+private const val FIT_HEIGHT_PATH = "M8.01,3L4,7h3v7h2V7h3L8.01,3zM16,17.01V10h-2v7.01h-3L15,21l4,-3.99h-3z"
+private const val FIT_WIDTH_PATH = "M6.99,11L3,15l3.99,4v-3H14v-2H6.99v-3zM21,9l-3.99,-4v3H10v2h7.01v3L21,9z"
+private const val BRIGHTNESS_PATH = "M12,7a5,5 0 1,0 0.001,0zM11,1h2v3h-2zM11,20h2v3h-2zM1,11h3v2H1zM20,11h3v2h-3z" +
+    "M4.2,5.6l1.4,-1.4 2.1,2.1 -1.4,1.4zM16.3,17.7l1.4,-1.4 2.1,2.1 -1.4,1.4z" +
+    "M17.7,4.2l1.4,1.4 -2.1,2.1 -1.4,-1.4zM5.6,19.8l-1.4,-1.4 2.1,-2.1 1.4,1.4z"
+private const val SHARE_PATH = "M18,16.08c-0.76,0 -1.44,0.3 -1.96,0.77L8.91,12.7c0.05,-0.23 0.09,-0.46 0.09,-0.7" +
+    "s-0.04,-0.47 -0.09,-0.7l7.05,-4.11c0.54,0.5 1.25,0.81 2.04,0.81 1.66,0 3,-1.34 3,-3s-1.34,-3 -3,-3" +
+    " -3,1.34 -3,3c0,0.24 0.04,0.47 0.09,0.7L8.04,9.81C7.5,9.31 6.79,9 6,9c-1.66,0 -3,1.34 -3,3s1.34,3 3,3" +
+    "c0.79,0 1.5,-0.31 2.04,-0.81l7.12,4.16c-0.05,0.21 -0.08,0.43 -0.08,0.65 0,1.61 1.31,2.92 2.92,2.92" +
+    " 1.61,0 2.92,-1.31 2.92,-2.92s-1.31,-2.92 -2.92,-2.92z"
+private const val PRINT_PATH = "M19,8H5c-1.66,0 -3,1.34 -3,3v6h4v4h12v-4h4v-6c0,-1.66 -1.34,-3 -3,-3zM16,19H8v-5h8v5z" +
+    "M19,12c-0.55,0 -1,-0.45 -1,-1s0.45,-1 1,-1 1,0.45 1,1 -0.45,1 -1,1zM18,3H6v4h12V3z"
+private const val ARTICLE_PATH = "M14,2H6c-1.1,0 -1.99,0.9 -1.99,2L4,20c0,1.1 0.89,2 1.99,2H18" +
+    "c1.1,0 2,-0.9 2,-2V8l-6,-6z" +
+    "M16,18H8v-2h8v2zM16,14H8v-2h8v2zM13,9V3.5L18.5,9H13z"
+
 private fun glyph(name: String, pathData: String): ImageVector =
     ImageVector.Builder(
         name = name,
@@ -25,3 +42,10 @@ private fun glyph(name: String, pathData: String): ImageVector =
 val DownloadGlyph: ImageVector by lazy { glyph("Download", DOWNLOAD_PATH) }
 val SortGlyph: ImageVector by lazy { glyph("Sort", SORT_PATH) }
 val ChevronGlyph: ImageVector by lazy { glyph("Chevron", CHEVRON_PATH) }
+val ReflowGlyph: ImageVector by lazy { glyph("Reflow", REFLOW_PATH) }
+val FitHeightGlyph: ImageVector by lazy { glyph("FitHeight", FIT_HEIGHT_PATH) }
+val FitWidthGlyph: ImageVector by lazy { glyph("FitWidth", FIT_WIDTH_PATH) }
+val BrightnessGlyph: ImageVector by lazy { glyph("Brightness", BRIGHTNESS_PATH) }
+val ShareGlyph: ImageVector by lazy { glyph("Share", SHARE_PATH) }
+val PrintGlyph: ImageVector by lazy { glyph("Print", PRINT_PATH) }
+val ArticleGlyph: ImageVector by lazy { glyph("Article", ARTICLE_PATH) }

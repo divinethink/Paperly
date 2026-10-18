@@ -1,9 +1,14 @@
 package com.paperly.app.feature.reader
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -11,13 +16,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,8 +33,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.FitHeightGlyph
+import com.paperly.app.core.ui.icons.FitWidthGlyph
+import com.paperly.app.core.ui.icons.ReflowGlyph
 import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
+
+private const val MENU_RADIUS = 24
+private const val THEME_BLOCK_WIDTH = 328
 
 /** What the top bar needs to flip Fit-width / Fit-height. */
 internal class FitToggle(val fitHeight: Boolean, val onToggle: () -> Unit)
@@ -114,39 +123,47 @@ private fun OverflowMenu(
     val files = rememberReaderFileActions(viewModel) // outside the dropdown: its launcher must outlive the menu
     val copyScanText = rememberCopyScanText(scanPages)
     if (editingPage) ScanPageEditor(page, scanPages) { editingPage = false }
-    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+    DropdownMenu(
+        expanded = open,
+        onDismissRequest = { open = false },
+        shape = RoundedCornerShape(MENU_RADIUS.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceBright,
+    ) {
         // Readable text layers use the text; scans/Bengali/broken text layers are read by OCR (P10). Once sampled.
         if (search.probed) {
-            DropdownMenuItem(
-                text = {
-                    val label = if (reflow) R.string.reader_view_original else R.string.reader_view_reflow
-                    Text(stringResource(label))
-                },
-                onClick = {
-                    viewModel.toggleReflow()
-                    open = false
-                },
-            )
-        }
-        SharePdfAnnotationsItem(viewModel) { open = false }
-        files?.let { FileMenuItems(it) { open = false } }
-        if (isScan) {
-            ScanMenuItems(onPageNote = { editingPage = true }, onCopyText = copyScanText) { open = false }
-        }
-        if (canEditPages) EditPagesMenuItem(scanPages.documentId) { open = false }
-        DropdownMenuItem(
-            text = { Text(stringResource(if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height)) },
-            onClick = {
-                onToggleFit()
+            MenuRow(if (reflow) R.string.reader_view_original else R.string.reader_view_reflow, ReflowGlyph) {
+                viewModel.toggleReflow()
                 open = false
-            },
-        )
+            }
+        }
+        MenuRow(
+            if (fitHeight) R.string.reader_fit_width else R.string.reader_fit_height,
+            if (fitHeight) FitWidthGlyph else FitHeightGlyph,
+        ) {
+            onToggleFit()
+            open = false
+        }
+        Column(Modifier.width(THEME_BLOCK_WIDTH.dp).padding(horizontal = 12.dp, vertical = 4.dp)) {
+            BlockLabel(R.string.reader_theme)
+            Spacer(Modifier.height(8.dp))
+            ThemeRow(current) {
+                viewModel.setTheme(it)
+                open = false
+            }
+        }
+        MenuDivider()
         ComfortMenuItem {
             onComfort()
             open = false
         }
+        if (isScan) {
+            ScanMenuItems(onPageNote = { editingPage = true }, onCopyText = copyScanText) { open = false }
+        }
+        if (canEditPages) EditPagesMenuItem(scanPages.documentId) { open = false }
+        MenuDivider()
+        files?.let { FileMenuItems(it) { open = false } }
+        SharePdfAnnotationsItem(viewModel) { open = false }
         SelectLogMenuItem { open = false }
-        ThemeMenuItems(current, viewModel::setTheme) { open = false }
     }
 }
 
@@ -154,26 +171,9 @@ private fun OverflowMenu(
 @Composable
 private fun EditPagesMenuItem(documentId: String, onDone: () -> Unit) {
     val openEditor = LocalOpenScanEditor.current
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.scan_edit_pages)) },
-        onClick = {
-            onDone()
-            openEditor(documentId)
-        },
-    )
-}
-
-@Composable
-private fun ThemeMenuItems(current: ReaderTheme, onPick: (ReaderTheme) -> Unit, onDone: () -> Unit) {
-    ReaderTheme.entries.forEach { option ->
-        val name = stringResource(R.string.reader_theme_item, stringResource(themeName(option)))
-        DropdownMenuItem(
-            text = { Text(if (option == current) "✓ $name" else name) },
-            onClick = {
-                onPick(option)
-                onDone()
-            },
-        )
+    MenuRow(R.string.scan_edit_pages, null) {
+        onDone()
+        openEditor(documentId)
     }
 }
 
