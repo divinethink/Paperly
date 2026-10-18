@@ -64,7 +64,14 @@ class EpubAnnotationRepositoryImpl @Inject constructor(
     private fun AnnotationEntity.toEpub(): EpubAnnotation? {
         if (!locator.startsWith("{")) return null // PDF row (page index)
         val kind = AnnotationType.fromKey(type) ?: return null
-        return EpubAnnotation(annotationId, locator, kind, AnnotationColor.fromKey(color), noteText, AnnotationStroke.fromKey(stroke))
+        return EpubAnnotation(
+            annotationId,
+            locator,
+            kind,
+            AnnotationColor.fromKey(color),
+            noteText,
+            AnnotationStroke.fromKey(stroke),
+        )
     }
 }
 

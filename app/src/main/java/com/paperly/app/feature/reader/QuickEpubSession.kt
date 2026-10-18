@@ -20,7 +20,14 @@ internal class QuickEpubAnnotationRepository : EpubAnnotationRepository {
     override fun observe(documentId: String): Flow<List<EpubAnnotation>> = state
 
     override suspend fun add(documentId: String, locatorJson: String, content: AnnotationContent) {
-        val item = EpubAnnotation("quick-${seq++}", locatorJson, content.type, content.color, content.noteText, content.stroke)
+        val item = EpubAnnotation(
+            "quick-${seq++}",
+            locatorJson,
+            content.type,
+            content.color,
+            content.noteText,
+            content.stroke,
+        )
         state.update { it + item }
     }
 
