@@ -36,7 +36,6 @@ private val SelectHandleRadius = 12.dp // big drop-shaped handle, easy to grab (
 private val SelectHandleReach = 36.dp // touch reach around a handle
 private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, so the end characters stay selected
 private const val HALF = 0.5f
-private const val MIN_LINE = 0.005f // page fraction: floor for a line height used by the forward test
 private const val MAX_SELECT_PAGES = 10 // a drag across more pages is ignored (keeps the last selection)
 private val PAGE_TOP_LEFT = Offset(0f, 0f)
 private val PAGE_BOTTOM_RIGHT = Offset(1f, 1f)
@@ -130,7 +129,9 @@ class PdfTextSelectController(
         val raw = pdf.selectText(page, from.x, from.y, to.x, to.y)
         log("RAW ${pt(from)}->${pt(to)} ${raw?.let { rs(it.rects) }} len=${raw?.text?.length}")
         val picked = raw?.takeIf { isNear(it.rects, from) } ?: return null
-        return listOf(SelectionPart(page, pinEnds(clampEnds(picked.rects, from, to), r.pin), picked.text))
+        // the pin belongs to the fixed end: only while the picked rects really run from it towards the moving end
+        val pin = r.pin?.takeIf { pickForward(picked.rects, from, to) }
+        return listOf(SelectionPart(page, pinEnds(clampEnds(picked.rects, from, to), pin), picked.text))
     }
 
     /**
@@ -399,7 +400,6 @@ private suspend fun AwaitPointerEventScope.dragHandle(
     val grabbedFirst = firstPart.rects.first()
     val grabbedLast = lastPart.rects.last()
     val origin = Offset(moving.x * size.width, moving.y * size.height)
-    val lineHeight = (grabbedLast.bottom - grabbedLast.top).coerceAtLeast(MIN_LINE)
     val sz = size
     var latest = down.position
     log("DRAG start moveStart=$moveStart fixed=p${fixed.page}${pt(fixed.point)} origin=${pt(origin)}")
@@ -407,9 +407,9 @@ private suspend fun AwaitPointerEventScope.dragHandle(
         val to = edit.pointAt(origin + (latest - down.position), sz)
         // the fixed end keeps its grabbed line rect while the moving end stays on its far side
         val pin = if (moveStart) {
-            SelectionPin(last = grabbedLast.takeIf { isForwardAcross(to, fixed, lineHeight) })
+            SelectionPin(last = grabbedLast.takeIf { pinnable(to, fixed) })
         } else {
-            SelectionPin(first = grabbedFirst.takeIf { isForwardAcross(fixed, to, lineHeight) })
+            SelectionPin(first = grabbedFirst.takeIf { pinnable(fixed, to) })
         }
         val (from, end) = if (moveStart) to to fixed else fixed to to
         log("PUSH to=p${to.page}${pt(to.point)} pin=${pin.first != null}/${pin.last != null}")

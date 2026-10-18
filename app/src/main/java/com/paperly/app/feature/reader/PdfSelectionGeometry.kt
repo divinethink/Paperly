@@ -15,7 +15,7 @@ private const val HALF = 0.5f
  */
 internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<MatchRect> {
     val first = rects.firstOrNull() ?: return rects
-    val forward = isForward(from, to, first.bottom - first.top)
+    val forward = pickForward(rects, from, to)
     val start = if (forward) from else to
     val end = if (forward) to else from
     val out = rects.toMutableList()
@@ -25,6 +25,16 @@ internal fun clampEnds(rects: List<MatchRect>, from: Offset, to: Offset): List<M
     val right = minOf(last.right, end.x + NEAR_X)
     if (right > last.left) out[out.lastIndex] = last.copy(right = right)
     return dropOtherColumns(out, minOf(start.x, end.x) - NEAR_X, maxOf(start.x, end.x) + NEAR_X)
+}
+
+/**
+ * Direction of a picked selection from [from] to [to]. A selection on one line is decided by left/right only: a
+ * finger that drifts up while it drags along the line (the handle sits below the text) must not turn it backwards.
+ * Several lines: reading order ([isForward]).
+ */
+internal fun pickForward(rects: List<MatchRect>, from: Offset, to: Offset): Boolean {
+    val first = rects.firstOrNull() ?: return true
+    return if (first.onLineOf(rects.last())) from.x <= to.x else isForward(from, to, first.bottom - first.top)
 }
 
 /**

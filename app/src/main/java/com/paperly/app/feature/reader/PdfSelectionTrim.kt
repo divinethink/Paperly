@@ -10,6 +10,12 @@ private const val TRIM_NEAR_Y = 0.012f
 internal fun isForwardAcross(from: PagePoint, to: PagePoint, lineHeight: Float): Boolean =
     if (from.page != to.page) from.page < to.page else isForward(from.point, to.point, lineHeight)
 
+/**
+ * Whether the fixed end's grabbed rect may be put back: page order across pages; on one page [pickForward] decides
+ * from the picked rects, because the finger's height says nothing about the direction.
+ */
+internal fun pinnable(from: PagePoint, to: PagePoint): Boolean = from.page <= to.page
+
 private fun MatchRect.touches(y: Float) = y in (top - TRIM_NEAR_Y)..(bottom + TRIM_NEAR_Y)
 
 /**
