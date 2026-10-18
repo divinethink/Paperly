@@ -2,9 +2,7 @@ package com.paperly.app.feature.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,18 +22,15 @@ import com.paperly.app.R
 fun PrivacySection(busy: Boolean, onExport: () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
+        ArrowRow(stringResource(R.string.settings_privacy_export), onExport, enabled = !busy)
         Text(
-            stringResource(R.string.settings_privacy_header),
-            style = MaterialTheme.typography.titleMedium,
+            stringResource(R.string.settings_privacy_export_summary),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp),
         )
-        Text(stringResource(R.string.settings_privacy_export_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = onExport, enabled = !busy, modifier = Modifier.padding(top = 8.dp)) {
-            Text(stringResource(R.string.settings_privacy_export))
-        }
-        OutlinedButton(onClick = { expanded = !expanded }, modifier = Modifier.padding(top = 8.dp)) {
-            Text(stringResource(if (expanded) R.string.settings_privacy_hide else R.string.settings_privacy_show))
-        }
+        SettingsDivider()
+        ArrowRow(stringResource(R.string.settings_privacy_show), { expanded = !expanded }, expanded = expanded)
         if (expanded) {
             Text(stringResource(R.string.settings_privacy_intro), Modifier.padding(top = 8.dp))
             PrivacyDisclosure.items.forEach { DisclosureRow(it) }

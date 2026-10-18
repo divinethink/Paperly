@@ -19,8 +19,21 @@ private val LightColors = lightColorScheme(
     onBackground = InkText,
     surface = Paper,
     onSurface = InkText,
-    surfaceVariant = PaperVariant,
-    onSurfaceVariant = InkText,
+    surfaceVariant = SurfaceSoft,
+    onSurfaceVariant = MutedText,
+    primaryContainer = Tonal,
+    onPrimaryContainer = OnTonal,
+    secondaryContainer = Tonal,
+    onSecondaryContainer = OnTonal,
+    outline = OutlineSoft,
+    outlineVariant = DividerSoft,
+    error = Danger,
+    surfaceBright = Color.White,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Paper,
+    surfaceContainer = CardSoft,
+    surfaceContainerHigh = CardSoft,
+    surfaceContainerHighest = CardSoft,
 )
 
 private val DarkColors = darkColorScheme(
@@ -34,6 +47,19 @@ private val DarkColors = darkColorScheme(
     onSurface = SoftGreyText,
     surfaceVariant = NightSurfaceVariant,
     onSurfaceVariant = SoftGreyText,
+    primaryContainer = TonalDark,
+    onPrimaryContainer = Tonal,
+    secondaryContainer = TonalDark,
+    onSecondaryContainer = Tonal,
+    outline = OutlineDark,
+    outlineVariant = DividerDark,
+    error = DangerDark,
+    surfaceBright = Color(0xFF3A3632),
+    surfaceContainerLowest = Color(0xFF0E0E0E),
+    surfaceContainerLow = Color(0xFF1A1A1A),
+    surfaceContainer = Color(0xFF202020),
+    surfaceContainerHigh = Color(0xFF262626),
+    surfaceContainerHighest = Color(0xFF2C2C2C),
 )
 
 /**

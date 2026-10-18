@@ -3,7 +3,6 @@ package com.paperly.app.feature.settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,19 +27,17 @@ private val NEW_PHONE_STEPS = listOf(
 @Composable
 fun NewPhoneGuideSection() {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Column(Modifier.padding(top = 8.dp)) {
-        OutlinedButton(onClick = { expanded = !expanded }) {
-            Text(stringResource(if (expanded) R.string.new_phone_hide else R.string.new_phone_show))
-        }
+    Column {
+        ArrowRow(stringResource(R.string.new_phone_show), { expanded = !expanded }, expanded = expanded)
         if (expanded) {
-            Text(stringResource(R.string.new_phone_intro), Modifier.padding(top = 8.dp))
+            Text(stringResource(R.string.new_phone_intro), Modifier.padding(top = 4.dp))
             NEW_PHONE_STEPS.forEachIndexed { index, step ->
                 Text("${index + 1}. ${stringResource(step)}", Modifier.padding(top = 6.dp))
             }
             Text(
                 stringResource(R.string.new_phone_note),
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
             )
         }
     }

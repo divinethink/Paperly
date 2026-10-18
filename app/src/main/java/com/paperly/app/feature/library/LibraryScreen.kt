@@ -4,24 +4,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -29,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,16 +42,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.Document
 import com.paperly.app.feature.common.EmptyState
 import com.paperly.app.feature.common.ErrorRetry
@@ -87,7 +97,7 @@ fun LibraryScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<LibraryDialog?>(null) }
     val batch = rememberBatchState()
-    val libraryTitle = stringResource(viewModel.type.titleRes(), state.totalCount)
+    val libraryTitle = stringResource(viewModel.type.nameRes())
     val context = LocalContext.current
     LibraryTabEffects(viewModel, navigation.onShowTab)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -123,11 +133,11 @@ fun LibraryScreen(
         if (batch.active) {
             BatchBar(batch, state.documents, state.folders)
         } else {
-            LibraryHeader(libraryTitle, state.isImporting, navigation.onOpenTrash, navigation.onOpenStorage) {
+            LibraryHeader(libraryTitle, state.totalCount, state.isImporting, navigation) {
                 picker.launch(ImportMimeTypes)
             }
         }
-        SearchField(state.query, viewModel::setQuery)
+        SearchRow(state.query, viewModel::setQuery, state.view)
         FilterRow(state.filter, viewModel::setFilter)
         FolderRow(
             folders = state.folders,
@@ -136,7 +146,6 @@ fun LibraryScreen(
             onNew = { dialog = LibraryDialog.NewFolder },
             onDelete = { deleteFolderAction(state, it, organize)?.let { d -> dialog = d } },
         )
-        ViewRow(state.view)
         ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
         ImageExportStatus()
         DocxConversionStatus(navigation.onOpenReader)
@@ -183,58 +192,78 @@ private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
 @Composable
 private fun LibraryHeader(
     title: String,
+    count: Int,
     isImporting: Boolean,
-    onOpenTrash: () -> Unit,
-    onOpenStorage: () -> Unit,
+    navigation: LibraryNavigation,
     onImport: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = onImport, enabled = !isImporting) {
-                Text(stringResource(R.string.library_import))
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                title,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { heading() },
+            )
+            CountPill(count)
+        }
+        Button(onClick = onImport, enabled = !isImporting, modifier = Modifier.height(44.dp)) {
+            Icon(DownloadGlyph, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.library_import))
+        }
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.library_more))
             }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.library_more))
-                }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_trash)) },
-                        onClick = {
-                            menuOpen = false
-                            onOpenTrash()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_storage)) },
-                        onClick = {
-                            menuOpen = false
-                            onOpenStorage()
-                        },
-                    )
-                }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.menu_trash)) },
+                    onClick = {
+                        menuOpen = false
+                        navigation.onOpenTrash()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.menu_storage)) },
+                    onClick = {
+                        menuOpen = false
+                        navigation.onOpenStorage()
+                    },
+                )
             }
         }
     }
 }
 
 @Composable
+private fun CountPill(count: Int) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = Modifier.padding(start = 8.dp),
+    ) {
+        Text(
+            count.toString(),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+}
+
+@Composable
 private fun DocumentList(docs: List<Document>, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(150.dp),
+        columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         items(docs, key = { it.id }) { doc -> DocumentCard(doc, actions, batch, covers) }
     }
@@ -246,7 +275,7 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
     val export = rememberDocumentExport(doc)
-    Card(
+    Column(
         Modifier.fillMaxWidth().combinedClickable(
             role = Role.Button,
             onClick = { if (batch.active) batch.toggle(doc.id) else actions.onOpen(doc) },
@@ -255,7 +284,8 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
         ),
     ) {
         Box {
-            CoverImage(doc, covers, Modifier.fillMaxWidth().aspectRatio(COVER_RATIO).padding(8.dp))
+            CoverImage(doc, covers, Modifier.fillMaxWidth().height(COVER_HEIGHT.dp))
+            if (doc.isFavorite) FavoriteBadge(Modifier.align(Alignment.TopEnd).padding(8.dp))
             if (batch.active) {
                 Checkbox(
                     checked = doc.id in batch.selected,
@@ -264,22 +294,22 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
                 )
             }
         }
-        Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp)) {
-            Text(
-                doc.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(documentMeta(context, doc), style = MaterialTheme.typography.bodySmall)
-        }
-        if (!batch.active) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FavoriteButton(doc.isFavorite) { actions.onToggleFavorite(doc) }
+        Row(Modifier.padding(start = 4.dp, top = 8.dp), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    doc.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    documentMeta(context, doc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!batch.active) {
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doc_more))
@@ -291,7 +321,27 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
     }
 }
 
-private const val COVER_RATIO = 0.72f
+private const val COVER_HEIGHT = 176
+
+/** Round badge on the cover of a favourite document (toggled from the card menu). */
+@Composable
+private fun FavoriteBadge(modifier: Modifier = Modifier) {
+    val description = stringResource(R.string.doc_is_favorite)
+    Box(
+        modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = BADGE_ALPHA))
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Filled.Star, contentDescription = null, tint = StarGold, modifier = Modifier.size(18.dp))
+    }
+}
+
+@StringRes
+private fun favoriteLabel(isFavorite: Boolean): Int =
+    if (isFavorite) R.string.doc_favorite_remove else R.string.doc_favorite_add
+
+private const val BADGE_ALPHA = 0.4f
+private val StarGold = Color(0xFFF5C24A)
 
 @Composable
 private fun DocumentMenu(
@@ -302,6 +352,13 @@ private fun DocumentMenu(
     onDismiss: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(stringResource(favoriteLabel(doc.isFavorite))) },
+            onClick = {
+                onDismiss()
+                actions.onToggleFavorite(doc)
+            },
+        )
         listOfNotNull(
             R.string.doc_share to export.share,
             R.string.doc_save_copy to export.saveCopy,
@@ -330,14 +387,5 @@ private fun DocumentMenu(
                 },
             )
         }
-    }
-}
-
-@Composable
-private fun FavoriteButton(isFavorite: Boolean, onToggle: () -> Unit) {
-    val description = if (isFavorite) R.string.doc_favorite_remove else R.string.doc_favorite_add
-    val tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    IconButton(onClick = onToggle) {
-        Icon(Icons.Filled.Favorite, contentDescription = stringResource(description), tint = tint)
     }
 }

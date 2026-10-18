@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
@@ -45,7 +46,11 @@ fun SyncSection(viewModel: SyncAccountViewModel = hiltViewModel()) {
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(bottom = 8.dp),
         )
-        Text(stringResource(R.string.settings_sync_hint), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            stringResource(R.string.settings_sync_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         when (val a = account) {
             null -> Unit
             AuthState.Unavailable ->
@@ -53,7 +58,7 @@ fun SyncSection(viewModel: SyncAccountViewModel = hiltViewModel()) {
             AuthState.SignedOut -> Button(
                 onClick = { viewModel.signIn(context) },
                 enabled = !ui.busy,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 48.dp),
             ) { Text(stringResource(R.string.settings_sync_sign_in)) }
             is AuthState.SignedIn -> SignedInRows(a, ui, viewModel)
         }

@@ -18,10 +18,10 @@ class LibraryNavigation(
 )
 
 @StringRes
-internal fun LibraryType.titleRes(): Int = when (this) {
-    LibraryType.SCAN -> R.string.library_title_scanned
-    LibraryType.PDF -> R.string.library_title_pdf
-    LibraryType.EPUB -> R.string.library_title_epub
+internal fun LibraryType.nameRes(): Int = when (this) {
+    LibraryType.SCAN -> R.string.library_name_scanned
+    LibraryType.PDF -> R.string.library_name_pdf
+    LibraryType.EPUB -> R.string.library_name_epub
 }
 
 /** Tab-level side effects: incoming Share/Open-With imports and "jump to the tab that holds the new document". */

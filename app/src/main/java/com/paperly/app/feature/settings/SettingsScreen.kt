@@ -1,46 +1,36 @@
 package com.paperly.app.feature.settings
 
-import android.content.Context
-import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
-import com.paperly.app.domain.storage.StorageUsage
 import com.paperly.app.feature.reader.ReadingTimeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Sections (Reading/Scanner/Sync/...) are added with their phases; Storage arrives in P1. */
+/** Settings: Reading, Data (storage, sync, backup), Privacy and the Danger zone. */
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -54,7 +44,6 @@ fun SettingsScreen(
     val backup by backupViewModel.state.collectAsStateWithLifecycle()
     val del by deleteViewModel.state.collectAsStateWithLifecycle()
     val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
         it?.let(backupViewModel::export)
     }
@@ -65,87 +54,55 @@ fun SettingsScreen(
         it?.let(backupViewModel::check)
     }
     backup.confirm?.let { RestoreConfirmDialog(it, backupViewModel::confirmRestore, backupViewModel::cancelRestore) }
+    val onExport = { exportLauncher.launch(backupFileName()) }
+    val busy = backup.busy || del.running
+    val actions = BackupActions(
+        onExport = onExport,
+        onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
+        onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
+    )
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text(
+            stringResource(R.string.nav_settings),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 4.dp).semantics { heading() },
+        )
         GroupLabel(R.string.settings_group_preferences)
-        SettingsCard {
-            CardTitle(R.string.settings_reading_header)
-            Text(stringResource(R.string.settings_reading_today, minutesToday), Modifier.padding(bottom = 8.dp))
-            DynamicColorRow(dynamicColor, appearance::setDynamicColor)
-        }
+        ReadingCard(minutesToday, dynamicColor, appearance::setDynamicColor)
         GroupLabel(R.string.settings_group_data)
-        SettingsCard {
-            CardTitle(R.string.settings_storage_header)
-            usage?.let { StorageUsageRows(it, context) }
-            OrphanFilesSection()
-        }
+        SettingsCard { StorageCardContent(usage) }
         SettingsCard { SyncSection() }
-        SettingsCard {
-            BackupSection(
-                state = backup.copy(busy = backup.busy || del.running),
-                onExport = { exportLauncher.launch(backupFileName()) },
-                onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
-                onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
-            )
-            NewPhoneGuideSection()
-        }
+        SettingsCard { BackupSection(backup.copy(busy = busy), actions) }
         GroupLabel(R.string.settings_group_privacy)
-        SettingsCard {
-            PrivacySection(busy = backup.busy || del.running, onExport = { exportLauncher.launch(backupFileName()) })
-        }
-        SettingsCard {
-            DeleteDataSection(
-                state = del,
-                viewModel = deleteViewModel,
-                onExport = { exportLauncher.launch(backupFileName()) },
-                backupBusy = backup.busy,
-            )
+        SettingsCard { PrivacySection(busy = busy, onExport = onExport) }
+        GroupLabel(R.string.settings_group_danger, danger = true)
+        SettingsCard(danger = true) {
+            DeleteDataSection(state = del, viewModel = deleteViewModel, onExport = onExport, backupBusy = backup.busy)
         }
     }
 }
 
-/** Small section label above a group of cards (Preferences / Data / Privacy). */
 @Composable
-private fun GroupLabel(@StringRes label: Int) {
-    Text(
-        stringResource(label),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp).semantics { heading() },
-    )
-}
-
-@Composable
-private fun CardTitle(@StringRes title: Int) {
-    Text(
-        stringResource(title),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(bottom = 8.dp),
-    )
-}
-
-/** One settings group: a rounded card; the sections inside keep their own behaviour and strings. */
-@Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-        Column(Modifier.padding(16.dp), content = content)
-    }
-}
-
-/** Optional Material You colours (brand palette stays the default); then the "write highlights into the PDF" switch. */
-@Composable
-private fun DynamicColorRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Column {
-        Row(
-            Modifier.fillMaxWidth().toggleable(enabled, role = Role.Switch, onValueChange = onChange),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.settings_dynamic_color), Modifier.weight(1f))
-            Switch(checked = enabled, onCheckedChange = null)
-        }
-        Text(stringResource(R.string.settings_dynamic_color_hint), style = MaterialTheme.typography.bodySmall)
+private fun ReadingCard(minutesToday: Int, dynamicColor: Boolean, onDynamicColor: (Boolean) -> Unit) {
+    SettingsCard {
+        ValueRow(
+            stringResource(R.string.settings_read_today),
+            stringResource(R.string.settings_read_today_summary),
+            stringResource(R.string.settings_read_today_value, minutesToday),
+        )
+        SettingsDivider()
+        val colorText = SwitchText(
+            stringResource(R.string.settings_dynamic_color),
+            stringResource(R.string.settings_dynamic_color_summary),
+            R.string.settings_dynamic_color_hint,
+        )
+        SettingSwitchRow(colorText, dynamicColor, onDynamicColor)
+        SettingsDivider()
         PdfFileWriteRow()
+        SettingsDivider()
         ScanEditorRow()
+        SettingsDivider()
         ScanOcrRow()
     }
 }
@@ -155,23 +112,36 @@ private val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/octet-st
 private fun backupFileName(): String =
     "paperly-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".zip"
 
+/** Callbacks of the Backup card, grouped to keep parameter counts small. */
+private class BackupActions(val onExport: () -> Unit, val onRestore: () -> Unit, val onCheck: () -> Unit)
+
 @Composable
-private fun BackupSection(state: BackupUiState, onExport: () -> Unit, onRestore: () -> Unit, onCheck: () -> Unit) {
+private fun BackupSection(state: BackupUiState, actions: BackupActions) {
+    CardHeader(R.string.settings_backup_header)
     Text(
-        stringResource(R.string.settings_backup_header),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(bottom = 8.dp),
+        stringResource(R.string.settings_backup_hint),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp),
     )
-    Text(stringResource(R.string.settings_backup_hint), style = MaterialTheme.typography.bodyMedium)
-    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onExport, enabled = !state.busy) { Text(stringResource(R.string.settings_backup_export)) }
-        Button(onClick = onRestore, enabled = !state.busy) { Text(stringResource(R.string.settings_backup_restore)) }
-    }
-    OutlinedButton(onClick = onCheck, enabled = !state.busy, modifier = Modifier.padding(top = 8.dp)) {
-        Text(stringResource(R.string.settings_backup_check))
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Button(
+            onClick = actions.onExport,
+            enabled = !state.busy,
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+        ) { Text(stringResource(R.string.settings_backup_export)) }
+        FilledTonalButton(
+            onClick = actions.onRestore,
+            enabled = !state.busy,
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+        ) { Text(stringResource(R.string.settings_backup_restore)) }
     }
     if (state.busy) Text(stringResource(R.string.settings_backup_working), Modifier.padding(top = 8.dp))
     state.message?.let { Text(backupMessageText(it), Modifier.padding(top = 8.dp)) }
+    SettingsDivider()
+    ArrowRow(stringResource(R.string.settings_backup_check), actions.onCheck, enabled = !state.busy)
+    SettingsDivider()
+    NewPhoneGuideSection()
 }
 
 @Composable
@@ -191,31 +161,4 @@ private fun backupMessageText(m: BackupMessage): String = when (m) {
         )
     is BackupMessage.CheckDamaged -> stringResource(R.string.settings_backup_check_damaged, m.badFiles)
     BackupMessage.CheckFailed -> stringResource(R.string.settings_backup_check_failed)
-}
-
-@Composable
-private fun UsageRow(label: String, value: String) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Text(value, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun StorageUsageRows(u: StorageUsage, context: Context) {
-    UsageRow(
-        pluralStringResource(R.plurals.settings_storage_documents, u.activeCount, u.activeCount),
-        Formatter.formatShortFileSize(context, u.activeBytes),
-    )
-    UsageRow(
-        pluralStringResource(R.plurals.settings_storage_trash, u.trashCount, u.trashCount),
-        Formatter.formatShortFileSize(context, u.trashBytes),
-    )
-    UsageRow(
-        stringResource(R.string.settings_storage_total),
-        Formatter.formatShortFileSize(context, u.totalBytes),
-    )
 }

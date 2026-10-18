@@ -1,20 +1,13 @@
 package com.paperly.app.feature.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -24,24 +17,22 @@ import com.paperly.app.R
 @Composable
 fun ScanOcrRow(viewModel: ScanOcrViewModel = hiltViewModel()) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    Column(Modifier.padding(top = 8.dp)) {
-        Row(
-            Modifier.fillMaxWidth().toggleable(
-                value = ui.enabled,
-                enabled = !ui.downloading,
-                role = Role.Switch,
-                onValueChange = viewModel::setEnabled,
-            ),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.settings_scan_ocr), Modifier.weight(1f))
-            Switch(checked = ui.enabled, onCheckedChange = null, enabled = !ui.downloading)
+    val text = SwitchText(
+        stringResource(R.string.settings_scan_ocr),
+        stringResource(R.string.settings_scan_ocr_summary),
+        R.string.settings_scan_ocr_hint,
+    )
+    Column {
+        SettingSwitchRow(text, ui.enabled, viewModel::setEnabled, enabled = !ui.downloading)
+        if (ui.downloading) {
+            Text(stringResource(R.string.settings_scan_ocr_downloading), Modifier.padding(bottom = 8.dp))
         }
-        Text(stringResource(R.string.settings_scan_ocr_hint), style = MaterialTheme.typography.bodySmall)
-        if (ui.downloading) Text(stringResource(R.string.settings_scan_ocr_downloading))
         if (ui.failed) {
-            Text(stringResource(R.string.settings_scan_ocr_failed), color = MaterialTheme.colorScheme.error)
+            Text(
+                stringResource(R.string.settings_scan_ocr_failed),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
         }
     }
 }

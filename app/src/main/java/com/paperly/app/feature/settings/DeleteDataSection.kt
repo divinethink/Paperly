@@ -1,14 +1,16 @@
 package com.paperly.app.feature.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,15 +38,17 @@ fun DeleteDataSection(state: DeleteUiState, viewModel: DeleteDataViewModel, onEx
     )
     val onOpen = viewModel::open
     Column {
-        Text(stringResource(R.string.delete_all_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(
+        Text(
+            stringResource(R.string.delete_all_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(
             onClick = onOpen,
             enabled = !state.running && !backupBusy,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError,
-            ),
-            modifier = Modifier.padding(top = 8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         ) { Text(stringResource(R.string.delete_all_button)) }
         state.step?.let { Text(stepText(it), Modifier.padding(top = 8.dp)) }
         state.outcome?.let { Text(outcomeText(it), Modifier.padding(top = 8.dp)) }
