@@ -3,15 +3,19 @@ package com.paperly.app.feature.reader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -38,10 +43,12 @@ import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 
-private val MenuGap = 8.dp
+private val MenuGap = 36.dp // at least; the menu sits about two text lines above the selection
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
 private val MenuElevation = 6.dp
-private val SwatchWidth = 44.dp
+private val PanelPadding = 12.dp
+private val PanelShape = RoundedCornerShape(16.dp)
+private const val LINES_ABOVE = 2f
 private val BarPadding = PaddingValues(horizontal = 8.dp)
 private const val HALF = 0.5f
 
@@ -77,7 +84,6 @@ internal fun PdfSelectionPopup(
     val selection by viewModel.textSelect.state.collectAsStateWithLifecycle()
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
-    val search by viewModel.search.state.collectAsStateWithLifecycle()
     val style by viewModel.annotations.style.collectAsStateWithLifecycle()
     val dragging by viewModel.textSelect.dragging.collectAsStateWithLifecycle()
     val items by viewModel.annotations.items.collectAsStateWithLifecycle()
@@ -128,12 +134,11 @@ internal fun PdfSelectionPopup(
             modifier = Modifier
                 .onSizeChanged { menu = it }
                 .offset { popupOrigin(picked, port, menu, gap, clearance) },
-            shape = MaterialTheme.shapes.large,
+            shape = PanelShape,
             tonalElevation = MenuElevation,
             shadowElevation = MenuElevation,
         ) {
-            // Bengali extraction drops vowel signs: never offer a copy of broken text
-            SelectionBar(style, mark?.type, canCopy = !search.partialMatch, actions)
+            SelectionBar(style, mark?.type, actions)
         }
     }
 }
@@ -142,30 +147,32 @@ internal fun PdfSelectionPopup(
 private fun SelectionBar(
     style: AnnotateStyle,
     marked: AnnotationType?,
-    canCopy: Boolean,
     actions: SelectionActions,
 ) {
     var panel by remember { mutableStateOf(false) } // colour + thickness, opened by the colour dot
-    Column {
+    Column(Modifier.width(IntrinsicSize.Max)) { // the panel is exactly as wide as the bar
         Row(verticalAlignment = Alignment.CenterVertically) {
             ColorDot(style.color, panel) { panel = !panel }
             MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
             TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }, contentPadding = BarPadding) {
                 Text(stringResource(R.string.reader_annotation_note))
             }
-            if (canCopy) {
-                TextButton(onClick = actions.onCopy, contentPadding = BarPadding) {
-                    Text(stringResource(R.string.reader_select_copy))
-                }
+            TextButton(onClick = actions.onCopy, contentPadding = BarPadding) {
+                Text(stringResource(R.string.reader_select_copy))
             }
         }
         if (panel) {
-            Row {
-                AnnotationColor.entries.forEach { option ->
-                    ColorSwatch(option, option == style.color, Modifier.width(SwatchWidth)) { actions.onColor(option) }
-                }
-            }
-            StrokeRow(style.stroke, style.color, Modifier.fillMaxWidth(), actions.onStroke)
+            ColorRow(style.color, Modifier.fillMaxWidth(), actions.onColor)
+            StrokeRow(
+                style.stroke,
+                style.color,
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PanelPadding, vertical = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                actions.onStroke,
+            )
         }
     }
 }
@@ -193,7 +200,9 @@ internal fun popupOrigin(
     val firstItem = visible.firstOrNull { it.index == firstPart?.page }
     val lastItem = visible.firstOrNull { it.index == lastPart?.page }
     val above = if (firstItem != null && first != null) {
-        (firstItem.offset + first.top * firstItem.size) * zoom - menu.height - gap
+        // clear of the selected line by about two line heights (never less than [gap])
+        val lines = (first.bottom - first.top) * firstItem.size * zoom * LINES_ABOVE
+        (firstItem.offset + first.top * firstItem.size) * zoom - menu.height - maxOf(gap, lines)
     } else {
         null
     }

@@ -82,7 +82,7 @@ internal fun ColorSwatch(option: AnnotationColor, selected: Boolean, modifier: M
     }
 }
 
-private fun colorLabel(color: AnnotationColor): Int = when (color) {
+internal fun colorLabel(color: AnnotationColor): Int = when (color) {
     AnnotationColor.AMBER -> R.string.reader_annotation_color_amber
     AnnotationColor.RED -> R.string.reader_annotation_color_red
     AnnotationColor.GREEN -> R.string.reader_annotation_color_green

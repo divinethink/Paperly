@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -40,6 +42,8 @@ private val DotSize = 22.dp
 private val StrokeCell = 64.dp
 private val StrokePreview = 36.dp
 private const val PREVIEW_SCALE = 1.6f // the 0.8 dp thin line would be nearly invisible at true size
+private val ChipSize = 32.dp
+private const val LIGHT_COLOR = 0.5f // above this luminance the tick is drawn dark
 private val MarkGlyph = 24.dp
 private val MarkStroke = 2.dp
 private const val FILL_ALPHA = 0.45f
@@ -159,4 +163,27 @@ private fun strokeLabel(stroke: AnnotationStroke): Int = when (stroke) {
     AnnotationStroke.THIN -> R.string.reader_annotation_stroke_thin
     AnnotationStroke.MEDIUM -> R.string.reader_annotation_stroke_medium
     AnnotationStroke.THICK -> R.string.reader_annotation_stroke_thick
+}
+
+/** Six colour circles; the chosen one carries a tick (dark on light colours, white on dark ones). */
+@Composable
+internal fun ColorRow(selected: AnnotationColor, modifier: Modifier = Modifier, onPick: (AnnotationColor) -> Unit) {
+    Row(modifier, horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        AnnotationColor.entries.forEach { option ->
+            val name = stringResource(colorLabel(option))
+            val on = option == selected
+            val tick = if (option.argb().luminance() > LIGHT_COLOR) Color.Black else Color.White
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .selectable(selected = on, onClick = { onPick(option) }, role = Role.RadioButton)
+                    .semantics { contentDescription = name },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(ChipSize).clip(CircleShape).background(option.argb()), Alignment.Center) {
+                    if (on) Text("\u2713", color = tick, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            }
+        }
+    }
 }

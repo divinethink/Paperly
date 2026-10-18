@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -317,24 +318,28 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     Box(
         Modifier.fillMaxWidth().aspectRatio(ratio).then(gestures).drawWithContent {
             drawContent()
-            spec.highlights.forEach { r ->
-                drawRect(
-                    color = HighlightColor,
-                    topLeft = Offset(r.left * size.width, r.top * size.height),
-                    size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
-                )
+            // page overlays; the loupe replays the same drawing so marks/selection show inside it too
+            val overlay: DrawScope.() -> Unit = {
+                spec.highlights.forEach { r ->
+                    drawRect(
+                        color = HighlightColor,
+                        topLeft = Offset(r.left * size.width, r.top * size.height),
+                        size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
+                    )
+                }
+                drawAnnotations(spec.annotations, zoomOf())
+                spec.hooks.select?.selection?.let { sel ->
+                    sel.rectsOn(index).takeIf { it.isNotEmpty() }
+                        ?.let { drawSelection(it, zoomOf(), sel.startsOn(index), sel.endsOn(index)) }
+                }
+                drawPending(edit.rects, zoomOf())
             }
-            drawAnnotations(spec.annotations, zoomOf())
-            spec.hooks.select?.selection?.let { sel ->
-                sel.rectsOn(index).takeIf { it.isNotEmpty() }
-                    ?.let { drawSelection(it, zoomOf(), sel.startsOn(index), sel.endsOn(index)) }
-            }
-            drawPending(edit.rects, zoomOf())
+            overlay()
             draft?.let { drawDraft(it) }
             val touch = finger
             // the loupe magnifies this page only: not while the finger is over a neighbouring page
             if (touch != null && picture != null && touch.y in 0f..size.height) {
-                drawLoupe(picture, touch, zoomOf(), spec.filter)
+                drawLoupe(picture, touch, zoomOf(), spec.filter, overlay)
             }
         },
         contentAlignment = Alignment.Center,
