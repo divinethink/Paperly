@@ -47,4 +47,14 @@ class OriginalFileWriterTest {
         val gone = Uri.fromFile(File(context.cacheDir, "absent/none.pdf"))
         assertEquals(OriginalWriteResult.NO_PERMISSION, writer.overwrite(gone, "a", new, "b", "t3"))
     }
+
+    @Test
+    fun epubBackupKeepsItsExtension() = runBlocking {
+        val dir = context.cacheDir
+        val orig = File(dir, "orig.epub").apply { writeText("book original") }
+        val new = File(dir, "new.epub").apply { writeText("book with marks") }
+        val r = writer.overwrite(Uri.fromFile(orig), sha(orig.readBytes()), new, sha(new.readBytes()), "t4")
+        assertEquals(OriginalWriteResult.WRITTEN, r)
+        assertEquals("book original", File(context.filesDir, "quick_backups/t4.epub").readText())
+    }
 }

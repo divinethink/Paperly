@@ -59,7 +59,7 @@ internal fun rememberReaderFileActions(viewModel: ReaderViewModel): ReaderFileAc
 }
 
 @Composable
-private fun ReplaceConfirm(show: Boolean, onYes: () -> Unit, onNo: () -> Unit) {
+internal fun ReplaceConfirm(show: Boolean, onYes: () -> Unit, onNo: () -> Unit) {
     if (!show) return
     AlertDialog(
         onDismissRequest = onNo,

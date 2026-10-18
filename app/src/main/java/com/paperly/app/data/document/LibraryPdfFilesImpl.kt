@@ -35,6 +35,13 @@ class LibraryPdfFilesImpl @Inject constructor(
         return if (ok) files.resolve(documentId) else null
     }
 
+    override suspend fun writableEpub(documentId: String): File? {
+        val doc = documents.getById(documentId)
+        val ok = doc != null && doc.deletedAt == null && doc.type == DocumentType.EPUB &&
+            doc.storageState != StorageState.CLOUD_ONLY
+        return if (ok) files.resolve(documentId) else null
+    }
+
     override suspend fun replaced(documentId: String, checksum: String, sizeBytes: Long) {
         val now = System.currentTimeMillis()
         retry { cloud.replaceFile(documentId, checksum, sizeBytes, now, StorageState.QUEUED) }

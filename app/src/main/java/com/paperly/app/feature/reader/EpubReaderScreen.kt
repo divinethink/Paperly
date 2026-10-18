@@ -83,6 +83,7 @@ private fun EpubReaderScreen(
     var showContents by rememberSaveable { mutableStateOf(false) }
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var barsVisible by rememberSaveable { mutableStateOf(true) }
+    val leave = rememberEpubQuickExit(viewModel, onBack)
     FlushOnPause(viewModel::flushProgress)
     Box(Modifier.fillMaxSize()) {
         if (state.publication == null) {
@@ -99,7 +100,7 @@ private fun EpubReaderScreen(
             PinchBadge(pinch, Modifier.align(Alignment.Center))
         }
         val actions = EpubBarActions(
-            onBack = onBack,
+            onBack = leave,
             onContents = { showContents = true },
             onBookmark = viewModel::toggleBookmark,
             onSearch = { showSearch = true },

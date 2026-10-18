@@ -12,8 +12,10 @@ import com.paperly.app.data.reader.EpubPublicationOpener
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
+import com.paperly.app.domain.reader.EpubAnnotation
 import com.paperly.app.domain.reader.ReaderStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -65,6 +67,13 @@ class EpubReaderViewModel @Inject constructor(
     private val quick = QuickEpubSession()
     val annotations = annotationFactory.create(viewModelScope, documentId, if (isQuick) quick.annotations else null)
 
+    /** Quick view: true while at least one mark exists (the \"with marks\" menu items then appear). */
+    val hasQuickMarks: StateFlow<Boolean> = annotations.items.map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** What \"Replace\" already wrote into the original in this session; leaving then has nothing left to ask. */
+    private var writtenMarks: List<EpubAnnotation>? = null
+
     private val _quickDocument = MutableStateFlow<Document?>(null)
 
     /** Quick view only: the in-memory document (for Share / Save a copy). */
@@ -75,6 +84,7 @@ class EpubReaderViewModel @Inject constructor(
     val notice: StateFlow<Int?> = _notice.asStateFlow()
     private val latest = MutableStateFlow<Locator?>(null)
     private var quickChecksum: String? = null
+    private var savedTargetId: String? = null
     private var persistJob: Job? = null
     private var searchJob: Job? = null
     private val _searchState = MutableStateFlow(EpubSearchState())
@@ -196,6 +206,47 @@ class EpubReaderViewModel @Inject constructor(
         _notice.value = null
     }
 
+    /** Quick view: a copy of the book with the marks in it (Save with marks / Share); null = failed. */
+    suspend fun markedCopy(): File? = deps.fileOps.quickWrite.markedCopy(documentId, quick.annotations.snapshot())
+
+    /** Quick view: writes the marks into the original file now (the caller asked and confirmed). */
+    fun replaceOriginal() = replaceNow { message, _ -> _notice.value = message }
+
+    /** Quick view: marks made here that are in neither the original file nor the Library, so leaving must ask. */
+    fun needsExitChoice(): Boolean {
+        val marks = quick.annotations.snapshot()
+        return isQuick && !_saved.value && marks.isNotEmpty() && marks != writtenMarks
+    }
+
+    /** Exit choice \"Make a copy\" / \"Discard marks\": the original stays as opened; the remembered marks go. */
+    fun leaveWithoutWriting(onDone: () -> Unit) {
+        viewModelScope.launch {
+            forgetRemembered()
+            onDone()
+        }
+    }
+
+    /** Exit choice \"Replace original\": [onResult] gets the message and whether it worked. */
+    fun replaceNow(onResult: (message: Int, ok: Boolean) -> Unit) {
+        viewModelScope.launch {
+            val marks = quick.annotations.snapshot()
+            val message = deps.fileOps.quickWrite.replaceNow(documentId, marks)
+            val ok = message == R.string.quick_replace_ok
+            if (ok) {
+                writtenMarks = marks
+                forgetRemembered() // the file now holds them (and has a new checksum)
+            }
+            onResult(message, ok)
+        }
+    }
+
+    private suspend fun forgetRemembered() {
+        persistJob?.cancel()
+        val checksum = quickChecksum ?: return
+        quickChecksum = null
+        deps.quickMarks.delete(checksum)
+    }
+
     /** Quick view -> Library: imports the book, copies highlights/bookmarks/position, then reopens the Library copy. */
     fun saveToLibrary() {
         val file = deps.quickStore.resolve(documentId) ?: return
@@ -218,6 +269,7 @@ class EpubReaderViewModel @Inject constructor(
                 latest.value,
                 fresh = result is ImportResult.Success,
             )
+            savedTargetId = target
             persistJob?.cancel() // the marks now live in the Library; stop remembering them by file
             quickChecksum?.let { deps.quickMarks.delete(it) }
             quickChecksum = null
@@ -231,7 +283,11 @@ class EpubReaderViewModel @Inject constructor(
         // Only an EPUB's temporary copy dies here. This ViewModel also exists for a quick PDF (same route); that copy
         // belongs to the PDF reader, whose write-back into the original needs it after this ViewModel is gone.
         if (isQuick && deps.quickStore.resolve(documentId)?.extension == EPUB_EXTENSION) {
+            deps.fileOps.quickWrite.release(documentId)
             deps.quickStore.delete(documentId)
         }
+        // The book is closed: write the marks into the Library file (no-op when the setting is off / not an EPUB).
+        if (!isQuick && annotations.changed) deps.fileOps.fileSync.schedule(documentId)
+        savedTargetId?.let(deps.fileOps.fileSync::schedule)
     }
 }

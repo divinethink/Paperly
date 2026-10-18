@@ -460,7 +460,7 @@
     <string name="quick_save_with_marks">Save with marks</string>
     <string name="quick_replace_with_marks">Replace original with marks</string>
     <string name="quick_exit_title">Save your marks?</string>
-    <string name="quick_exit_body">You marked this PDF. A copy keeps the original untouched; Replace puts the marks into the original file (a backup is kept for 7 days).</string>
+    <string name="quick_exit_body">You marked this file. A copy keeps the original untouched; Replace puts the marks into the original file (a backup is kept for 7 days).</string>
     <string name="quick_exit_copy">Make a copy</string>
     <string name="quick_exit_replace">Replace original</string>
     <string name="quick_exit_discard">Discard marks</string>

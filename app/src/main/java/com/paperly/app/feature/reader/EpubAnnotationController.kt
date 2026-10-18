@@ -49,6 +49,11 @@ class EpubAnnotationController(
         (if (documentId.isEmpty()) emptyFlow() else repository.observe(documentId))
             .stateIn(scope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
+    /** True once this session added, edited or deleted a mark: the book file then needs the new marks. */
+    @Volatile
+    var changed: Boolean = false
+        private set
+
     private val _editor = MutableStateFlow<EpubAnnotationEditor?>(null)
     val editor: StateFlow<EpubAnnotationEditor?> = _editor.asStateFlow()
 
@@ -77,6 +82,7 @@ class EpubAnnotationController(
             startNew(locatorJson)
         } else {
             val content = AnnotationContent(type, style.value.color, null)
+            changed = true
             scope.launch { repository.add(documentId, locatorJson, content) }
         }
     }
@@ -106,6 +112,7 @@ class EpubAnnotationController(
     }
 
     fun save(editor: EpubAnnotationEditor, content: AnnotationContent) {
+        changed = true
         scope.launch {
             val existing = editor.existing
             val locator = editor.locatorJson
@@ -118,6 +125,7 @@ class EpubAnnotationController(
     }
 
     fun delete(id: String) {
+        changed = true
         scope.launch { repository.delete(id) }
     }
 

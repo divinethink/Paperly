@@ -51,7 +51,9 @@ class OriginalFileWriter @Inject constructor(@ApplicationContext private val con
 
     private fun run(pfd: ParcelFileDescriptor, job: Job): OriginalWriteResult {
         if (readChecksum(job.uri) != job.expectedChecksum) return OriginalWriteResult.CHANGED
-        val backup = backupOf(job.uri, job.expectedChecksum, job.backupName) ?: return OriginalWriteResult.FAILED
+        val extension = job.newFile.extension.ifEmpty { "pdf" }
+        val backup = backupOf(job.uri, job.expectedChecksum, job.backupName, extension)
+            ?: return OriginalWriteResult.FAILED
         val out = FileOutputStream(pfd.fileDescriptor).channel // not closed here: the descriptor is owned by [pfd]
         val ok = runCatching { replaceAll(out, job.newFile) }.isSuccess && readChecksum(job.uri) == job.newChecksum
         if (!ok) runCatching { replaceAll(out, backup) } // the original must never stay half-written
@@ -65,10 +67,10 @@ class OriginalFileWriter @Inject constructor(@ApplicationContext private val con
         context.contentResolver.openInputStream(uri)?.use { sha256(it, null) }
     }.getOrNull()
 
-    private fun backupOf(uri: Uri, checksum: String, name: String): File? = runCatching {
+    private fun backupOf(uri: Uri, checksum: String, name: String, extension: String): File? = runCatching {
         val dir = File(context.filesDir, BACKUP_DIR).apply { mkdirs() }
         pruneBackups(dir)
-        val target = File(dir, "$name.pdf")
+        val target = File(dir, "$name.$extension")
         val copied = context.contentResolver.openInputStream(uri)?.use { src ->
             target.outputStream().buffered().use { sha256(src, it) }
         }

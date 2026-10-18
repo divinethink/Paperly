@@ -19,12 +19,17 @@ import com.paperly.app.R
 import com.paperly.app.feature.library.rememberDocumentExport
 import com.paperly.app.feature.library.toast
 
-/** Quick-view EPUB: menu (Save to Library / Share / Save a copy). Marks are remembered by file, so no prompt. */
+/**
+ * Quick-view EPUB: menu (Save to Library / Share / Save a copy / Replace original). With marks, Share and Save use a
+ * copy of the book that has them; Replace writes them into the original file (asks first).
+ */
 @Composable
 internal fun EpubQuickMenu(viewModel: EpubReaderViewModel) {
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val doc by viewModel.quickDocument.collectAsStateWithLifecycle()
+    val hasMarks by viewModel.hasQuickMarks.collectAsStateWithLifecycle()
+    var confirmReplace by remember { mutableStateOf(false) }
     val context = LocalContext.current
     LaunchedEffect(notice) {
         notice?.let {
@@ -33,14 +38,25 @@ internal fun EpubQuickMenu(viewModel: EpubReaderViewModel) {
         }
     }
     val document = doc ?: return
-    val export = rememberDocumentExport(document)
+    val export = rememberDocumentExport(document, if (hasMarks) viewModel::markedCopy else null)
+    ReplaceConfirm(confirmReplace, onYes = {
+        confirmReplace = false
+        viewModel.replaceOriginal()
+    }, onNo = { confirmReplace = false })
+    val canReplace = hasMarks && !saved
+    val actions = ReaderFileActions(
+        export = export,
+        saveToLibrary = if (saved) null else viewModel::saveToLibrary,
+        replaceOriginal = if (canReplace) ({ confirmReplace = true }) else null,
+        withMarks = hasMarks,
+    )
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.reader_more))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            FileMenuItems(ReaderFileActions(export, if (saved) null else viewModel::saveToLibrary)) { open = false }
+            FileMenuItems(actions) { open = false }
         }
     }
 }

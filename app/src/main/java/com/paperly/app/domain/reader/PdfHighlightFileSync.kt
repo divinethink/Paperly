@@ -13,6 +13,9 @@ interface LibraryPdfFiles {
     /** The stored file of a live (not trashed, downloaded) PDF/scanned-PDF document; null otherwise. */
     suspend fun writableFile(documentId: String): File?
 
+    /** Same for an EPUB document (marks written into the book file); null otherwise. */
+    suspend fun writableEpub(documentId: String): File? = null
+
     /** The file was replaced: record the new checksum/size and queue the cloud update. */
     suspend fun replaced(documentId: String, checksum: String, sizeBytes: Long)
 }

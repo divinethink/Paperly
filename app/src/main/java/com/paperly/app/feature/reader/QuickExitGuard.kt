@@ -66,7 +66,7 @@ internal fun rememberQuickExit(viewModel: ReaderViewModel, doc: Document?, onLea
 }
 
 @Composable
-private fun QuickExitDialog(onReplace: () -> Unit, onCopy: () -> Unit, onDiscard: () -> Unit, onDismiss: () -> Unit) {
+internal fun QuickExitDialog(onReplace: () -> Unit, onCopy: () -> Unit, onDiscard: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.quick_exit_title)) },
