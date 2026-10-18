@@ -46,7 +46,7 @@ private val ThumbCorner = 8.dp
 private val ThumbBorder = 1.dp
 private val ThumbBorderSelected = 2.dp
 
-/** Filter picker: a small preview of every filter on the current page; "Apply to all" copies the choice to all pages. */
+/** Filter picker: a small preview of every filter on this page; "Apply to all" copies the choice to all pages. */
 @Composable
 internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEditViewModel) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -113,15 +113,21 @@ internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel) {
     val page = state.page ?: return
     val hasNext = state.current < state.pages.size - 1
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        ToolButton(ScanEditIcons.Previous, R.string.scan_edit_prev, state.current > 0) { viewModel.goTo(state.current - 1) }
-        ToolButton(ScanEditIcons.Rotate, R.string.scan_edit_rotate, !page.locked) { viewModel.edit(ScanEditPage::rotated) }
+        ToolButton(ScanEditIcons.Previous, R.string.scan_edit_prev, state.current > 0) {
+            viewModel.goTo(state.current - 1)
+        }
+        ToolButton(ScanEditIcons.Rotate, R.string.scan_edit_rotate, !page.locked) {
+            viewModel.edit(ScanEditPage::rotated)
+        }
         ToolButton(
             if (state.cropping) ScanEditIcons.Done else ScanEditIcons.Crop,
             if (state.cropping) R.string.scan_edit_crop_done else R.string.scan_edit_crop,
             !page.locked,
             viewModel::toggleCrop,
         )
-        ToolButton(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) { viewModel.edit(ScanEditPage::cropReset) }
+        ToolButton(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {
+            viewModel.edit(ScanEditPage::cropReset)
+        }
         ToolButton(ScanEditIcons.Next, R.string.scan_edit_next, hasNext) { viewModel.goTo(state.current + 1) }
     }
 }

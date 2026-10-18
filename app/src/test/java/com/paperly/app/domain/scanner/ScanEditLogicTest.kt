@@ -121,7 +121,7 @@ class ScanEditLogicTest {
             val shade = 230 - (it % w) * 2
             if (it % w in 30..33 && it / w in 30..33) 0xFF202020.toInt() else (0xFF shl 24) or (shade shl 16) or (shade shl 8) or shade
         }
-        val out = PixelFilters.docs(px, w, h)
+        val out = LookFilters.docs(px, w, h)
         assertEquals(px.size, out.size)
         out.forEach { assertEquals(0xFF, it ushr 24) }
         val left = out[5 * w + 2] and 0xFF
@@ -131,26 +131,26 @@ class ScanEditLogicTest {
     }
 
     @Test fun docsHandlesTinyAndFlatImages() {
-        assertEquals(1, PixelFilters.docs(intArrayOf(0xFF808080.toInt()), 1, 1).size)
-        assertEquals(15, PixelFilters.docs(IntArray(15) { 0xFF000000.toInt() }, 5, 3).size)
+        assertEquals(1, LookFilters.docs(intArrayOf(0xFF808080.toInt()), 1, 1).size)
+        assertEquals(15, LookFilters.docs(IntArray(15) { 0xFF000000.toInt() }, 5, 3).size)
     }
 
     @Test fun autoEnhanceRemovesColourCast() {
         // yellow-tinted paper (low blue) with dark ink
         val px = IntArray(100) { if (it < 10) 0xFF302010.toInt() else 0xFFE0D070.toInt() }
-        val out = PixelFilters.autoEnhance(px)
+        val out = LookFilters.autoEnhance(px)
         assertEquals(100, out.size)
         val paper = out[50]
         assertEquals(paper shr 16 and 0xFF, paper and 0xFF) // R and B end up equal: cast gone
         assertTrue((out[0] and 0xFF) < 40)
-        assertEquals(0, PixelFilters.autoEnhance(IntArray(0)).size)
+        assertEquals(0, LookFilters.autoEnhance(IntArray(0)).size)
     }
 
     @Test fun photoBoostsColourKeepsGrey() {
         val grey = intArrayOf(0xFF808080.toInt())
-        assertEquals(0x80, PixelFilters.photo(grey)[0] and 0xFF)
+        assertEquals(0x80, LookFilters.photo(grey)[0] and 0xFF)
         val red = intArrayOf(0xFFA06060.toInt())
-        val out = PixelFilters.photo(red)[0]
+        val out = LookFilters.photo(red)[0]
         assertTrue((out shr 16 and 0xFF) - (out and 0xFF) > 0x40) // red-blue gap grew from 0x40
         assertEquals(0xFF, out ushr 24)
     }

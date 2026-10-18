@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.media.ExifInterface
+import com.paperly.app.domain.scanner.LookFilters
 import com.paperly.app.domain.scanner.PixelFilters
 import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanQuad
@@ -105,9 +106,9 @@ internal object ScanPageRenderer {
             ScanFilter.COLOR -> PixelFilters.enhanceColor(px)
             ScanFilter.GRAY -> PixelFilters.gray(px)
             ScanFilter.BW -> PixelFilters.blackWhite(px, w, h)
-            ScanFilter.DOCS -> PixelFilters.docs(px, w, h)
-            ScanFilter.AUTO -> PixelFilters.autoEnhance(px)
-            ScanFilter.PHOTO -> PixelFilters.photo(px)
+            ScanFilter.DOCS -> LookFilters.docs(px, w, h)
+            ScanFilter.AUTO -> LookFilters.autoEnhance(px)
+            ScanFilter.PHOTO -> LookFilters.photo(px)
             ScanFilter.ORIGINAL -> px
         }
         bitmap.setPixels(out, 0, w, 0, 0, w, h)

@@ -96,8 +96,6 @@ fun ScanCropOverlay(
     var active by remember { mutableIntStateOf(-1) }
     val latest by rememberUpdatedState(quad)
     val hitRadius = with(LocalDensity.current) { HIT_RADIUS.toPx() }
-    val cornerRadius = with(LocalDensity.current) { CORNER_HANDLE.toPx() }
-    val midRadius = with(LocalDensity.current) { MID_HANDLE.toPx() }
     val line = MaterialTheme.colorScheme.primary
     Canvas(
         modifier
@@ -131,21 +129,34 @@ fun ScanCropOverlay(
             dstOffset = IntOffset(f.left.toInt(), f.top.toInt()),
             dstSize = IntSize(f.width.toInt(), f.height.toInt()),
         )
-        fun at(pt: ScanPoint) = Offset(f.left + pt.x * f.width, f.top + pt.y * f.height)
-        val frame = Path().apply {
-            val pts = quad.points.map(::at)
-            moveTo(pts[0].x, pts[0].y)
-            pts.drop(1).forEach { lineTo(it.x, it.y) }
-            close()
-        }
-        drawPath(frame, line, style = Stroke(width = FRAME_STROKE.toPx()))
-        for (h in 0 until HANDLES) {
-            val radius = if (h < CORNER_COUNT) cornerRadius else midRadius
-            drawCircle(Color.White, radius, at(handlePoint(quad, h)))
-            drawCircle(line, radius, at(handlePoint(quad, h)), style = Stroke(width = HANDLE_STROKE.toPx()))
-        }
-        if (active >= 0) drawCropLoupe(image, f, at(handlePoint(quad, active)), line)
+        drawCropFrame(image, f, quad, active, line)
     }
+}
+
+/** The crop frame with its 8 handles; while one is dragged ([active] >= 0) the loupe shows its surroundings. */
+private fun DrawScope.drawCropFrame(
+    image: ImageBitmap,
+    f: Fit,
+    quad: ScanQuad,
+    active: Int,
+    line: Color,
+) {
+    fun at(pt: ScanPoint) = Offset(f.left + pt.x * f.width, f.top + pt.y * f.height)
+    val frame = Path().apply {
+        val pts = quad.points.map(::at)
+        moveTo(pts[0].x, pts[0].y)
+        pts.drop(1).forEach { lineTo(it.x, it.y) }
+        close()
+    }
+    drawPath(frame, line, style = Stroke(width = FRAME_STROKE.toPx()))
+    val cornerRadius = CORNER_HANDLE.toPx()
+    val midRadius = MID_HANDLE.toPx()
+    for (h in 0 until HANDLES) {
+        val radius = if (h < CORNER_COUNT) cornerRadius else midRadius
+        drawCircle(Color.White, radius, at(handlePoint(quad, h)))
+        drawCircle(line, radius, at(handlePoint(quad, h)), style = Stroke(width = HANDLE_STROKE.toPx()))
+    }
+    if (active >= 0) drawCropLoupe(image, f, at(handlePoint(quad, active)), line)
 }
 
 /**
@@ -161,7 +172,8 @@ private fun DrawScope.drawCropLoupe(image: ImageBitmap, f: Fit, point: Offset, l
     val centreX = point.x.coerceIn(w / 2, maxOf(w / 2, size.width - w / 2))
     val box = Rect(Offset(centreX - w / 2, centreY - h / 2), Size(w, h))
     val corner = CornerRadius(LOUPE_CORNER.toPx())
-    drawRoundRect(Color.Black.copy(alpha = LOUPE_SHADOW_ALPHA), box.topLeft + Offset(0f, LOUPE_SHADOW_OFFSET.toPx()), box.size, corner)
+    val shadowAt = box.topLeft + Offset(0f, LOUPE_SHADOW_OFFSET.toPx())
+    drawRoundRect(Color.Black.copy(alpha = LOUPE_SHADOW_ALPHA), shadowAt, box.size, corner)
     drawRoundRect(Color.White, box.topLeft, box.size, corner)
     clipPath(Path().apply { addRoundRect(RoundRect(box, corner)) }) {
         withTransform({
