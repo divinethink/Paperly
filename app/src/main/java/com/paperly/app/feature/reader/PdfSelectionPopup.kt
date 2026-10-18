@@ -150,7 +150,8 @@ private fun SelectionBar(
     actions: SelectionActions,
 ) {
     var panel by remember { mutableStateOf(false) } // colour + thickness, opened by the colour dot
-    Column(Modifier.width(IntrinsicSize.Max)) { // the panel is exactly as wide as the bar
+    // the panel is exactly as wide as the bar
+    Column(Modifier.width(IntrinsicSize.Max)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ColorDot(style.color, panel) { panel = !panel }
             MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
