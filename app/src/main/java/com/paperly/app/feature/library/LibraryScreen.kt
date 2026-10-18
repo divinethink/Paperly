@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -42,12 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -323,25 +318,9 @@ private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchSt
 
 private const val COVER_HEIGHT = 176
 
-/** Round badge on the cover of a favourite document (toggled from the card menu). */
-@Composable
-private fun FavoriteBadge(modifier: Modifier = Modifier) {
-    val description = stringResource(R.string.doc_is_favorite)
-    Box(
-        modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = BADGE_ALPHA))
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(Icons.Filled.Star, contentDescription = null, tint = StarGold, modifier = Modifier.size(18.dp))
-    }
-}
-
 @StringRes
 private fun favoriteLabel(isFavorite: Boolean): Int =
     if (isFavorite) R.string.doc_favorite_remove else R.string.doc_favorite_add
-
-private const val BADGE_ALPHA = 0.4f
-private val StarGold = Color(0xFFF5C24A)
 
 @Composable
 private fun DocumentMenu(
