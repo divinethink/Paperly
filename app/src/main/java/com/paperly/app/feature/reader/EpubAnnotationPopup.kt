@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.EpubAnnotation
 
@@ -35,15 +36,20 @@ internal fun EpubAnnotationPopup(annotations: EpubAnnotationController) {
 
 @Composable
 private fun TappedMenu(item: EpubAnnotation, annotations: EpubAnnotationController) {
-    fun change(type: AnnotationType, color: AnnotationColor?) {
-        annotations.save(EpubAnnotationEditor(null, item), AnnotationContent(type, color, item.noteText))
+    fun change(type: AnnotationType, color: AnnotationColor?, stroke: AnnotationStroke? = item.stroke) {
+        annotations.save(EpubAnnotationEditor(null, item), AnnotationContent(type, color, item.noteText, stroke))
         annotations.dismissTap()
     }
     Column {
         if (item.type != AnnotationType.NOTE) {
             val current = item.color ?: AnnotationColor.defaultFor(item.type)
             ColorRow(current, Modifier.fillMaxWidth()) { change(item.type, it) }
-            MarkIconRow(item.type, current, Modifier.fillMaxWidth(), EPUB_MARK_TYPES) { change(it, current) }
+            MarkIconRow(item.type, current, Modifier.fillMaxWidth()) { change(it, current) }
+            if (AnnotationStroke.appliesTo(item.type)) {
+                StrokeRow(item.stroke ?: AnnotationStroke.MEDIUM, current, Modifier.fillMaxWidth()) {
+                    change(item.type, item.color, it)
+                }
+            }
         }
         Row {
             TextButton(

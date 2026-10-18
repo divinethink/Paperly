@@ -4,6 +4,7 @@ import com.paperly.app.core.database.AnnotationDao
 import com.paperly.app.core.database.AnnotationEntity
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.EpubAnnotation
 import com.paperly.app.domain.reader.EpubAnnotationRepository
@@ -42,6 +43,7 @@ class EpubAnnotationRepositoryImpl @Inject constructor(
                 noteText = content.noteText?.trim()?.takeIf { it.isNotEmpty() },
                 createdAt = now,
                 updatedAt = now,
+                stroke = content.storedStroke(),
             ),
         )
     }
@@ -50,16 +52,19 @@ class EpubAnnotationRepositoryImpl @Inject constructor(
         val color = content.color?.key?.takeIf { content.type != AnnotationType.NOTE }
         val note = content.noteText?.trim()?.takeIf { it.isNotEmpty() }
         dao.update(id, content.type.key, color, note, System.currentTimeMillis())
+        dao.setStroke(id, content.storedStroke())
     }
 
     override suspend fun delete(id: String) {
         dao.delete(id)
     }
 
+    private fun AnnotationContent.storedStroke(): String? = stroke?.key?.takeIf { AnnotationStroke.appliesTo(type) }
+
     private fun AnnotationEntity.toEpub(): EpubAnnotation? {
         if (!locator.startsWith("{")) return null // PDF row (page index)
         val kind = AnnotationType.fromKey(type) ?: return null
-        return EpubAnnotation(annotationId, locator, kind, AnnotationColor.fromKey(color), noteText)
+        return EpubAnnotation(annotationId, locator, kind, AnnotationColor.fromKey(color), noteText, AnnotationStroke.fromKey(stroke))
     }
 }
 

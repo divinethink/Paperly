@@ -15,12 +15,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-// Readium decorations have only highlight and underline; these PDF-only types read as underline in EPUB.
-private val PDF_ONLY_TYPES = setOf(AnnotationType.STRIKETHROUGH, AnnotationType.SQUIGGLY)
 
 /** [locatorJson] = the new selection (existing == null), or [existing] being edited. */
 data class EpubAnnotationEditor(val locatorJson: String?, val existing: EpubAnnotation?)
@@ -63,9 +59,7 @@ class EpubAnnotationController(
     private val _mode = MutableStateFlow(false)
     val mode: StateFlow<Boolean> = _mode.asStateFlow()
 
-    // Readium has no strikethrough/squiggly decoration, so such a style picked in the PDF reader reads as underline.
     val style: StateFlow<AnnotateStyle> = styleStore.style
-        .map { if (it.type in PDF_ONLY_TYPES) it.copy(type = AnnotationType.UNDERLINE) else it }
         .stateIn(scope, SharingStarted.Eagerly, AnnotateStyle())
 
     fun toggleMode() {
@@ -81,7 +75,7 @@ class EpubAnnotationController(
         if (type == AnnotationType.NOTE) {
             startNew(locatorJson)
         } else {
-            val content = AnnotationContent(type, style.value.color, null)
+            val content = AnnotationContent(type, style.value.color, null, style.value.stroke)
             changed = true
             scope.launch { repository.add(documentId, locatorJson, content) }
         }
@@ -136,4 +130,4 @@ class EpubAnnotationController(
 
 /** Adapter so the PDF annotation dialog can edit an EPUB annotation (page/rect are unused by the dialog). */
 internal fun EpubAnnotation.toDialogModel() =
-    Annotation(id, 0, type, MatchRect(0f, 0f, 0f, 0f), noteText, color)
+    Annotation(id, 0, type, MatchRect(0f, 0f, 0f, 0f), noteText, color, stroke = stroke)

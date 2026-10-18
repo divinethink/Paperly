@@ -207,6 +207,7 @@ private fun navigatorContainer(context: Context, activity: FragmentActivity) =
 private fun rememberEpubConfiguration(selection: EpubSelectionTracker): EpubNavigatorFragment.Configuration =
     remember {
         EpubNavigatorFragment.Configuration(
+            decorationTemplates = epubDecorationTemplates(),
             selectionActionModeCallback = EpubSelectionMenu(selection::set),
             shouldApplyInsetsPadding = false,
         ).withBundledFonts()

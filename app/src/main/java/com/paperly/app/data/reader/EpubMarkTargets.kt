@@ -24,7 +24,7 @@ internal fun toXhtmlMark(annotation: EpubAnnotation, id: String): Pair<String, X
             before = text?.optString("before").orEmpty(),
             highlight = highlight,
             after = text?.optString("after").orEmpty(),
-            style = epubMarkStyle(annotation.type, annotation.color),
+            style = epubMarkStyle(annotation.type, annotation.color, annotation.stroke),
             title = annotation.noteText,
         )
     }

@@ -21,12 +21,6 @@ import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
 
-// EPUB omits strikethrough and squiggly: Readium decorations have only highlight and underline.
-private val EPUB_STRIP_TYPES = listOf(
-    AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
-    AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
-    AnnotationType.NOTE to R.string.reader_annotation_note,
-)
 internal val PDF_STRIP_TYPES = listOf(
     AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
     AnnotationType.UNDERLINE to R.string.reader_annotation_underline,
@@ -47,7 +41,7 @@ internal fun EpubTopOverlay(
     val style by annotations.style.collectAsStateWithLifecycle()
     Column {
         EpubTopBar(bar.copy(annotating = annotating), actions, trailing = trailing)
-        if (annotating) AnnotateStrip(style, EPUB_STRIP_TYPES, annotations::setStyle)
+        if (annotating) AnnotateStrip(style, PDF_STRIP_TYPES, annotations::setStyle)
     }
 }
 

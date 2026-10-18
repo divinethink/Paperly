@@ -27,10 +27,11 @@ private fun lighter(rgb: Int): Int {
 }
 
 /** The inline CSS an EPUB mark gets: same colours as in the app (Note = blue highlight). */
-internal fun epubMarkStyle(type: AnnotationType, color: AnnotationColor?): String {
+internal fun epubMarkStyle(type: AnnotationType, color: AnnotationColor?, stroke: AnnotationStroke? = null): String {
     val chosen = if (type == AnnotationType.NOTE) AnnotationColor.BLUE else color ?: AnnotationColor.defaultFor(type)
     val tint = RGB.getValue(chosen)
-    val line = "text-decoration-color:${hex(tint)}"
+    val thickness = stroke?.let { ";text-decoration-thickness:${it.dp}px" }.orEmpty()
+    val line = "text-decoration-color:${hex(tint)}$thickness"
     return when (type) {
         AnnotationType.HIGHLIGHT, AnnotationType.NOTE -> {
             val rgba = "rgba(${channels(tint).joinToString(",")},$HIGHLIGHT_ALPHA)"

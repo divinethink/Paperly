@@ -1,5 +1,6 @@
 package com.paperly.app.feature.reader
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -8,8 +9,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -34,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,11 +50,9 @@ private val MenuGap = 36.dp // the bar sits this far above the selected text (ha
 private val MenuElevation = 6.dp
 private val PanelShape = RoundedCornerShape(16.dp)
 private val BarPadding = PaddingValues(horizontal = 8.dp)
+private val PanelPadding = 12.dp
 private const val POLL_MS = 150L
 private const val HALF = 0.5f
-
-// Readium draws only these two as decorations (strikethrough/squiggly would need custom decoration templates)
-internal val EPUB_MARK_TYPES = listOf(AnnotationType.HIGHLIGHT, AnnotationType.UNDERLINE)
 
 /** Where a selection or a tapped mark sits, in the pixels of the navigator view. */
 data class EpubAnchor(val left: Float, val top: Float, val right: Float, val bottom: Float)
@@ -97,6 +100,7 @@ internal fun EpubSelectionPopup(tracker: EpubSelectionTracker, annotations: Epub
         SelectionBar(
             style,
             onColor = { annotations.setStyle(style.copy(color = it)) },
+            onStroke = { annotations.setStyle(style.copy(stroke = it)) },
             onMark = { type -> finish { annotations.markSelection(sel.locatorJson, type) } },
             onCopy = { finish { copyText(activity, sel.text) } },
         )
@@ -107,6 +111,7 @@ internal fun EpubSelectionPopup(tracker: EpubSelectionTracker, annotations: Epub
 private fun SelectionBar(
     style: AnnotateStyle,
     onColor: (AnnotationColor) -> Unit,
+    onStroke: (AnnotationStroke) -> Unit,
     onMark: (AnnotationType) -> Unit,
     onCopy: () -> Unit,
 ) {
@@ -114,7 +119,7 @@ private fun SelectionBar(
     Column(Modifier.width(IntrinsicSize.Max)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ColorDot(style.color, panel) { panel = !panel }
-            MarkIconRow(selected = null, color = style.color, types = EPUB_MARK_TYPES, onPick = onMark)
+            MarkIconRow(selected = null, color = style.color, onPick = onMark)
             TextButton(onClick = { onMark(AnnotationType.NOTE) }, contentPadding = BarPadding) {
                 Text(stringResource(R.string.reader_annotation_note))
             }
@@ -122,7 +127,19 @@ private fun SelectionBar(
                 Text(stringResource(R.string.reader_select_copy))
             }
         }
-        if (panel) ColorRow(style.color, Modifier.fillMaxWidth(), onColor)
+        if (panel) {
+            ColorRow(style.color, Modifier.fillMaxWidth(), onColor)
+            StrokeRow(
+                style.stroke,
+                style.color,
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PanelPadding, vertical = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                onStroke,
+            )
+        }
     }
 }
 

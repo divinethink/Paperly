@@ -9,6 +9,7 @@ data class EpubAnnotation(
     val type: AnnotationType,
     val color: AnnotationColor?,
     val noteText: String?,
+    val stroke: AnnotationStroke? = null,
 )
 
 interface EpubAnnotationRepository {

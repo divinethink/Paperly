@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-18d (EPUB popups like PDF: 4 mark types + Thin/Medium/Thick; no schema change)
+
+- EPUB selection popup and tap popup now offer Highlight, Underline, Squiggly, Strikethrough, Note, Copy; the colour dot opens colours + Thin/Medium/Thick (closed by default, as in PDF). The tap popup shows colours, types and thickness for line marks.
+- Thickness is stored in the existing `annotations.stroke` column (null = Medium). Line marks are drawn with a custom Readium decoration (`EpubLineStyle`); marks written into the book file also get `text-decoration-thickness`.
+- Not verified in the sandbox (no Gradle/Readium access): Readium `HtmlDecorationTemplate` usage in `EpubLineStyle.kt`. Needs build + on-device check.
+
 ## 2026-10-18c (Folders belong to a tab; DB v12)
 
 - Each Library tab (Scanned / PDF / EPUB) now shows only its own folders. New folders get the type of the tab they are created in. The folder chips, "Move to folder", Batch Move and the scan "Save" dialog list only that tab's folders (plus untyped ones).

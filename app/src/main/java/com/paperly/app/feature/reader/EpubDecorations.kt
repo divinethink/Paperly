@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.domain.reader.AnnotationColor
+import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.EpubAnnotation
 import kotlinx.coroutines.awaitCancellation
@@ -17,7 +18,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 
 private const val ANNOTATION_GROUP = "annotations"
 
-/** Highlight/Note -> highlight; Underline/Squiggly/Strikethrough -> underline (Readium has only these two styles). */
+/** Highlight/Note -> Readium highlight; Underline/Squiggly/Strikethrough -> [EpubLineStyle] (colour + thickness). */
 internal fun EpubAnnotation.toDecoration(): Decoration? {
     val locator = decodeLocator(locatorJson) ?: return null
     val tint = (if (type == AnnotationType.NOTE) AnnotationColor.BLUE else color ?: AnnotationColor.defaultFor(type))
@@ -25,11 +26,14 @@ internal fun EpubAnnotation.toDecoration(): Decoration? {
         .toArgb()
     val style = when (type) {
         AnnotationType.HIGHLIGHT, AnnotationType.NOTE -> Decoration.Style.Highlight(tint)
-        AnnotationType.UNDERLINE, AnnotationType.SQUIGGLY, AnnotationType.STRIKETHROUGH ->
-            Decoration.Style.Underline(tint)
+        AnnotationType.UNDERLINE -> EpubLineStyle(EpubLineKind.UNDERLINE, tint, weightDp())
+        AnnotationType.SQUIGGLY -> EpubLineStyle(EpubLineKind.SQUIGGLY, tint, weightDp())
+        AnnotationType.STRIKETHROUGH -> EpubLineStyle(EpubLineKind.STRIKETHROUGH, tint, weightDp())
     }
     return Decoration(id = id, locator = locator, style = style)
 }
+
+private fun EpubAnnotation.weightDp(): Float = (stroke ?: AnnotationStroke.MEDIUM).dp
 
 /** Draws saved annotations in the book and opens the tap popup when one is tapped. */
 @OptIn(ExperimentalReadiumApi::class)
