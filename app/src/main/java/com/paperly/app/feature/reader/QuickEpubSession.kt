@@ -27,12 +27,16 @@ internal class QuickEpubAnnotationRepository : EpubAnnotationRepository {
     override suspend fun update(id: String, content: AnnotationContent) {
         state.update { list ->
             list.map { a ->
-                if (a.id != id) a else a.copy(
-                    type = content.type,
-                    color = content.color,
-                    noteText = content.noteText,
-                    stroke = content.stroke,
-                )
+                if (a.id != id) {
+                    a
+                } else {
+                    a.copy(
+                        type = content.type,
+                        color = content.color,
+                        noteText = content.noteText,
+                        stroke = content.stroke,
+                    )
+                }
             }
         }
     }
