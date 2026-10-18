@@ -28,11 +28,11 @@ class FolderRepositoryImpl @Inject constructor(
 ) : FolderRepository {
 
     override fun observeFolders(): Flow<List<Folder>> =
-        folderDao.observeFolders().map { list -> list.map { Folder(it.folderId, it.name) } }
+        folderDao.observeFolders().map { list -> list.map { Folder(it.folderId, it.name, it.type) } }
 
-    override suspend fun createFolder(name: String): Boolean {
+    override suspend fun createFolder(name: String, type: String?): Boolean {
         val clean = normalizeFolderName(name) ?: return false
-        val entity = FolderEntity(UUID.randomUUID().toString(), clean, null, System.currentTimeMillis())
+        val entity = FolderEntity(UUID.randomUUID().toString(), clean, null, System.currentTimeMillis(), type)
         return folderDao.insert(entity) != -1L
     }
 

@@ -14,6 +14,7 @@ import com.paperly.app.domain.document.LibraryView
 import com.paperly.app.domain.document.LibraryViewStore
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
+import com.paperly.app.domain.folder.visibleIn
 import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.trash.TrashRepository
@@ -183,8 +184,9 @@ class LibraryViewModel @Inject constructor(
         ) { (result, hits), folders, sel, t, view ->
             val docs = (result as? DocsResult.Ready)?.docs.orEmpty()
             val tabView = view.copy(type = type)
+            val tabFolders = folders.visibleIn(type.docType)
             // A deleted folder silently falls back to "all folders".
-            val folderId = sel.folderId?.takeIf { id -> folders.any { it.id == id } }
+            val folderId = sel.folderId?.takeIf { id -> tabFolders.any { it.id == id } }
             LibraryUiState(
                 documents = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits),
                 totalCount = docs.count { it.type == type.docType },
@@ -193,7 +195,7 @@ class LibraryViewModel @Inject constructor(
                 error = t.error,
                 duplicate = t.duplicate,
                 query = sel.query,
-                folders = folders,
+                folders = tabFolders,
                 selectedFolderId = folderId,
                 view = tabView,
                 load = when (result) {

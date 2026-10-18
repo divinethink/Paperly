@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-18c (Folders belong to a tab; DB v12)
+
+- Each Library tab (Scanned / PDF / EPUB) now shows only its own folders. New folders get the type of the tab they are created in. The folder chips, "Move to folder", Batch Move and the scan "Save" dialog list only that tab's folders (plus untyped ones).
+- DB v12: nullable `folders.type` (hand-written `MIGRATION_11_12`, auto-backup runs before as always). Old folders get a type only when every document inside (Trash included) has the same one; empty or mixed old folders stay `null` and show in every tab, so nothing disappears. No data is deleted.
+- Backup: optional `type` per folder in the manifest (`formatVersion` stays 1). An old backup restores its folders as `null` (shown in every tab); an unknown `type` value is ignored.
+- Folders are still not cloud-synced (unchanged). Tests: `PaperlyMigrationTest`, `BackupArchiveTest`, `FolderRulesTest`.
+- Needs on-device check: create a folder in PDF tab, open EPUB tab (not listed); old folders after update.
+
 ## 2026-10-18b (EPUB quick view remembers marks, bookmarks and position by file; no schema change)
 
 - A book opened with Open-With (not in the Library) keeps its highlights, underlines, notes, bookmarks and reading position: they are stored in the app's private folder `files/quick-marks/<SHA-256>.json` (`QuickMarksStore`), so opening the same file again brings them back (like Moon+ Reader). The EPUB file is never changed. At most 200 books are remembered (oldest dropped); written atomically (.part -> move), best-effort.

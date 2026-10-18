@@ -2,13 +2,14 @@ package com.paperly.app.domain.folder
 
 import kotlinx.coroutines.flow.Flow
 
-data class Folder(val id: String, val name: String)
+/** [type] = document type of the Library tab it belongs to; null = shown in every tab. */
+data class Folder(val id: String, val name: String, val type: String? = null)
 
 interface FolderRepository {
     fun observeFolders(): Flow<List<Folder>>
 
-    /** False if the name is blank. */
-    suspend fun createFolder(name: String): Boolean
+    /** False if the name is blank. [type] = document type of the tab it is created in. */
+    suspend fun createFolder(name: String, type: String? = null): Boolean
 
     /** Documents inside are kept and become "no folder". */
     suspend fun deleteFolder(id: String)

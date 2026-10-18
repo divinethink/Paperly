@@ -9,13 +9,17 @@ import androidx.room.Query
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
-/** Folder table (Architecture §২.১). `parentFolderId` is reserved for nesting; unused in P1. */
+/**
+ * Folder table (Architecture §২.১). `parentFolderId` is reserved for nesting; unused in P1.
+ * `type` (v12) = the document type the folder belongs to (one Library tab); null = shown in every tab.
+ */
 @Entity(tableName = "folders")
 data class FolderEntity(
     @PrimaryKey val folderId: String,
     val name: String,
     val parentFolderId: String? = null,
     val createdAt: Long,
+    val type: String? = null,
 )
 
 @Dao

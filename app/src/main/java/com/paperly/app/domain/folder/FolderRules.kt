@@ -9,6 +9,9 @@ private const val TAG_STORAGE_SEPARATOR = "\u001F" // reserved by the Room tag c
 /** Trimmed, length-capped folder name; null if nothing is left. */
 fun normalizeFolderName(raw: String): String? = raw.trim().take(MAX_FOLDER_NAME_LENGTH).ifEmpty { null }
 
+/** Folders a Library tab / scan dialog may show: its own type plus the untyped (old empty/mixed) ones. */
+fun List<Folder>.visibleIn(docType: String): List<Folder> = filter { it.type == null || it.type == docType }
+
 /** Comma-separated user input -> clean, de-duplicated (case-insensitive), capped tag list. */
 fun parseTags(raw: String): List<String> = raw.split(',')
     .map { it.replace(TAG_STORAGE_SEPARATOR, "").trim().take(MAX_TAG_LENGTH) }

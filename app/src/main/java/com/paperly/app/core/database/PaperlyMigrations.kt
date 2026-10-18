@@ -135,6 +135,24 @@ object PaperlyMigrations {
         }
     }
 
+    /**
+     * Backfill for v12: a folder gets a type only when every document inside (Trash included) has the same one.
+     * Empty or mixed folders stay NULL = visible in every tab, so nothing disappears.
+     */
+    const val BACKFILL_FOLDER_TYPE =
+        "UPDATE `folders` SET `type` = " +
+            "(SELECT MIN(d.`type`) FROM `documents` d WHERE d.`folderId` = `folders`.`folderId`) " +
+            "WHERE (SELECT COUNT(DISTINCT d.`type`) FROM `documents` d " +
+            "WHERE d.`folderId` = `folders`.`folderId`) = 1"
+
+    /** v11 → v12: add nullable `folders.type` (Library tab the folder belongs to) and backfill it. Additive only. */
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `folders` ADD COLUMN `type` TEXT")
+            db.execSQL(BACKFILL_FOLDER_TYPE)
+        }
+    }
+
     /** Every migration in order: the single list used by the app and by tests. */
     val ALL = arrayOf(
         MIGRATION_1_2,
@@ -147,5 +165,6 @@ object PaperlyMigrations {
         MIGRATION_8_9,
         MIGRATION_9_10,
         MIGRATION_10_11,
+        MIGRATION_11_12,
     )
 }

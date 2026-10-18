@@ -88,4 +88,21 @@ class BackupArchiveTest {
         assertNull(BackupManifestCodec.decode("not json"))
         assertNull(BackupManifestCodec.decode("""{"documents":[]}"""))
     }
+
+    @Test
+    fun folderTypeRoundTripsAndOldOrUnknownTypeReadsNull() {
+        val file: File = tmp.newFile("t.zip").apply {
+            val out = ByteArrayOutputStream()
+            val folders = listOf(BackupFolder("f1", "Work", null, 5L, "epub"))
+            BackupArchive.write(out, emptyList(), folders, BackupHeader(12, "1", 9L))
+            writeBytes(out.toByteArray())
+        }
+        ZipFile(file).use { assertEquals("epub", BackupArchive.readManifest(it)!!.folders.single().type) }
+
+        fun folderOf(extra: String) = BackupManifestCodec.decode(
+            """{"formatVersion":1,"documents":[],"folders":[{"folderId":"f1","name":"W","createdAt":1$extra}]}""",
+        )!!.folders.single().type
+        assertNull(folderOf("")) // old backup: no "type" key
+        assertNull(folderOf(""","type":"exe"""")) // unknown value is dropped, folder kept
+    }
 }

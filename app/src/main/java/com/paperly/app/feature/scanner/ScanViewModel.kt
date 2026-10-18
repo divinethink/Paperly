@@ -7,10 +7,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.core.model.DocumentType
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
+import com.paperly.app.domain.folder.visibleIn
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditorSettings
 import com.paperly.app.domain.scanner.ScanOcrRepository
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -61,8 +64,9 @@ class ScanViewModel @Inject constructor(
     private val _state = MutableStateFlow(ScanUiState())
     val state: StateFlow<ScanUiState> = _state.asStateFlow()
 
-    val folders: StateFlow<List<Folder>> =
-        folderRepository.observeFolders().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val folders: StateFlow<List<Folder>> = folderRepository.observeFolders()
+        .map { it.visibleIn(DocumentType.SCANNED_PDF) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** S2 flag: OFF = the previous behaviour (ML Kit PDF only, no gallery button, no editor). */
     val editorEnabled: StateFlow<Boolean> =

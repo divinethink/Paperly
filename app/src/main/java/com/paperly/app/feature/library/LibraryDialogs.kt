@@ -133,7 +133,7 @@ internal fun LibraryDialogHost(
         )
         LibraryDialog.NewFolder -> NewFolderDialog(
             onConfirm = {
-                organize.createFolder(it)
+                organize.createFolder(it, library.type.docType)
                 onDismiss()
             },
             onDismiss = onDismiss,

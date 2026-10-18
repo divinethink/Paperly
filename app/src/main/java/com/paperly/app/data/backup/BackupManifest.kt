@@ -14,6 +14,7 @@ data class BackupFolder(
     val name: String,
     val parentFolderId: String?,
     val createdAt: Long,
+    val type: String? = null, // optional (absent in older archives) = shown in every tab
 )
 
 data class BackupDocument(
@@ -94,6 +95,7 @@ object BackupManifestCodec {
         put("name", f.name)
         put("parentFolderId", f.parentFolderId ?: JSONObject.NULL)
         put("createdAt", f.createdAt)
+        put("type", f.type ?: JSONObject.NULL)
     }
 
     private fun documentJson(d: BackupDocument) = JSONObject().apply {
@@ -114,7 +116,13 @@ object BackupManifestCodec {
         val id = o.optString("folderId")
         val name = o.optString("name")
         return if (SAFE_DOCUMENT_ID.matches(id) && name.isNotBlank()) {
-            BackupFolder(id, name, o.nullableString("parentFolderId"), o.optLong("createdAt"))
+            BackupFolder(
+                id,
+                name,
+                o.nullableString("parentFolderId"),
+                o.optLong("createdAt"),
+                o.nullableString("type")?.takeIf { DocumentType.isValid(it) },
+            )
         } else {
             null
         }

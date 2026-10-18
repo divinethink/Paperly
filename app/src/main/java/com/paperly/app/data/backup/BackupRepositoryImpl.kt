@@ -82,7 +82,7 @@ class BackupRepositoryImpl @Inject constructor(
             fileStore.resolve(e.documentId)?.let { BackupSource(e.toBackupDocument(), it) }
         }
         val folders = folderDao.getAll().map {
-            BackupFolder(it.folderId, it.name, it.parentFolderId, it.createdAt)
+            BackupFolder(it.folderId, it.name, it.parentFolderId, it.createdAt, it.type)
         }
         val header = BackupHeader(DATABASE_VERSION, appVersion(context), System.currentTimeMillis())
         val extras = extrasStore.collect(sources.map { it.doc.documentId }.toSet())
@@ -115,7 +115,7 @@ class BackupRepositoryImpl @Inject constructor(
         if (manifest.formatVersion > BACKUP_FORMAT_VERSION) return@use RestoreResult.NewerVersion
         manifest.folders.forEach { f ->
             if (folderDao.countById(f.folderId) == 0) {
-                folderDao.insert(FolderEntity(f.folderId, f.name, f.parentFolderId, f.createdAt))
+                folderDao.insert(FolderEntity(f.folderId, f.name, f.parentFolderId, f.createdAt, f.type))
             }
         }
         val folderIds = folderDao.getAll().map { it.folderId }.toSet()

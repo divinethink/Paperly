@@ -33,4 +33,12 @@ class FolderRulesTest {
     fun reservedStorageSeparatorIsStripped() {
         assertEquals(listOf("ab"), parseTags("a\u001Fb"))
     }
+
+    @Test
+    fun tabShowsOwnTypeAndUntypedFoldersOnly() {
+        val all = listOf(Folder("a", "A", "pdf"), Folder("b", "B", "epub"), Folder("c", "C", null))
+        assertEquals(listOf("a", "c"), all.visibleIn("pdf").map { it.id })
+        assertEquals(listOf("b", "c"), all.visibleIn("epub").map { it.id })
+        assertEquals(listOf("c"), all.visibleIn("scanned-pdf").map { it.id })
+    }
 }

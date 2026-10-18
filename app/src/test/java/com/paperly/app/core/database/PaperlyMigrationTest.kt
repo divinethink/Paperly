@@ -314,6 +314,45 @@ class PaperlyMigrationTest {
         }
     }
 
+    @Test
+    fun v12FolderTypeBackfillTypesOnlyUniformFoldersAndFullChainOpens() = runBlocking {
+        val raw = SQLiteDatabase.create(null)
+        raw.execSQL("CREATE TABLE folders (folderId TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, type TEXT)")
+        raw.execSQL("CREATE TABLE documents (documentId TEXT NOT NULL PRIMARY KEY, type TEXT NOT NULL, folderId TEXT)")
+        listOf("fPdf", "fMixed", "fEmpty", "fEpub").forEach {
+            raw.execSQL("INSERT INTO folders (folderId, name) VALUES ('$it', '$it')")
+        }
+        listOf(
+            Triple("d1", "pdf", "fPdf"),
+            Triple("d2", "pdf", "fPdf"),
+            Triple("d3", "pdf", "fMixed"),
+            Triple("d4", "epub", "fMixed"),
+            Triple("d5", "epub", "fEpub"),
+        ).forEach { (id, type, folder) -> raw.execSQL("INSERT INTO documents VALUES ('$id', '$type', '$folder')") }
+        raw.execSQL(PaperlyMigrations.BACKFILL_FOLDER_TYPE)
+        val types = raw.rawQuery("SELECT folderId, type FROM folders", null).use { c ->
+            buildMap { while (c.moveToNext()) put(c.getString(0), c.getString(1)) }
+        }
+        raw.close()
+        assertEquals(mapOf("fPdf" to "pdf", "fMixed" to null, "fEmpty" to null, "fEpub" to "epub"), types)
+
+        createV1Database()
+        val db = Room.databaseBuilder(context, PaperlyDatabase::class.java, TEST_DB)
+            .addMigrations(*PaperlyMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            db.folderDao().insert(FolderEntity("f1", "Work", null, 5L, "epub"))
+            db.folderDao().insert(FolderEntity("f2", "Old", null, 6L))
+            val byId = db.folderDao().getAll().associateBy { it.folderId }
+            assertEquals("epub", byId.getValue("f1").type)
+            assertEquals(null, byId.getValue("f2").type)
+            assertNotNull(db.documentDao().getById("d1")) // documents survive the whole chain
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
         const val V1_DOCUMENTS =
