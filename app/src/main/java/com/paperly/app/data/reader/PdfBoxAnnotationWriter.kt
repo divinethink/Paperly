@@ -216,10 +216,14 @@ private fun hasSameMark(annots: COSArray, type: AnnotationType, bounds: PdfQuad)
         dict != null && dict.getNameAsString(COSName.SUBTYPE) == subtypeOf(type) && sameSpot(dict, bounds)
     }
 
-private fun sameSpot(dict: COSDictionary, bounds: PdfQuad): Boolean {
-    val array = dict.getDictionaryObject(COSName.RECT) as? COSArray ?: return false
+private fun sameSpot(dict: COSDictionary, bounds: PdfQuad): Boolean =
+    sameBox(dict, COSName.RECT, bounds, RECT_VALUES) || sameBox(dict, COSName.QUADPOINTS, bounds, QUAD_VALUES)
+
+/** PdfBox may resize `/Rect` while drawing the appearance; `/QuadPoints` stay as written, so check both. */
+private fun sameBox(dict: COSDictionary, key: COSName, bounds: PdfQuad, step: Int): Boolean {
+    val array = dict.getDictionaryObject(key) as? COSArray ?: return false
     val v = (0 until array.size()).mapNotNull { (array.getObject(it) as? COSNumber)?.floatValue() }
-    if (v.size != RECT_VALUES) return false
+    if (v.size < RECT_VALUES || v.size % step != 0) return false
     val xs = v.filterIndexed { i, _ -> i % 2 == 0 }
     val ys = v.filterIndexed { i, _ -> i % 2 == 1 }
     return abs(xs.min() - bounds.minX) < SAME_SPOT && abs(ys.min() - bounds.minY) < SAME_SPOT &&
@@ -238,6 +242,7 @@ private fun rectOf(minX: Float, minY: Float, maxX: Float, maxY: Float) =
 
 private const val BUFFER_SIZE = 64 * 1024
 private const val RECT_VALUES = 4
+private const val QUAD_VALUES = 8
 private const val SAME_SPOT = 1f // points
 
 private fun sha256Hex(file: File): String {
