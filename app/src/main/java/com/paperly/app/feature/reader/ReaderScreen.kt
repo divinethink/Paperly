@@ -296,6 +296,29 @@ private fun pageSelectEdit(index: Int, hooks: SelectHooks?, onFinger: (Offset?) 
     }
 }
 
+/** Highlights, marks, selection (round handles only if [handles]) and the pending mark of page [index]. */
+private fun DrawScope.drawPageOverlay(
+    spec: PageSpec,
+    index: Int,
+    pending: List<MatchRect>,
+    zoom: Float,
+    handles: Boolean,
+) {
+    spec.highlights.forEach { r ->
+        drawRect(
+            color = HighlightColor,
+            topLeft = Offset(r.left * size.width, r.top * size.height),
+            size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
+        )
+    }
+    drawAnnotations(spec.annotations, zoom)
+    spec.hooks.select?.selection?.let { sel ->
+        sel.rectsOn(index).takeIf { it.isNotEmpty() }
+            ?.let { drawSelection(it, zoom, handles && sel.startsOn(index), handles && sel.endsOn(index)) }
+    }
+    drawPending(pending, zoom)
+}
+
 @Composable
 private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec: PageSpec) {
     var failed by remember(index) { mutableStateOf(false) }
@@ -320,21 +343,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
             drawContent()
             // page overlays; the loupe replays the same drawing so marks/selection show inside it too
             val overlay: DrawScope.(Boolean) -> Unit = { handles ->
-                spec.highlights.forEach { r ->
-                    drawRect(
-                        color = HighlightColor,
-                        topLeft = Offset(r.left * size.width, r.top * size.height),
-                        size = Size((r.right - r.left) * size.width, (r.bottom - r.top) * size.height),
-                    )
-                }
-                drawAnnotations(spec.annotations, zoomOf())
-                spec.hooks.select?.selection?.let { sel ->
-                    sel.rectsOn(index).takeIf { it.isNotEmpty() }
-                        ?.let {
-                            drawSelection(it, zoomOf(), handles && sel.startsOn(index), handles && sel.endsOn(index))
-                        }
-                }
-                drawPending(edit.rects, zoomOf())
+                drawPageOverlay(spec, index, edit.rects, zoomOf(), handles)
             }
             overlay(true)
             draft?.let { drawDraft(it) }
