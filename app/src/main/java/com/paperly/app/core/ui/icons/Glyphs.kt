@@ -44,6 +44,11 @@ private const val GRID_PATH = "M3,3v8h8V3H3zM9,9H5V5h4V9zM3,13v8h8v-8H3zM9,19H5v
 private const val LIST_PATH = "M3,14h4v-4H3V14zM3,19h4v-4H3V19zM3,9h4V5H3V9zM8,14h13v-4H8V14z" +
     "M8,19h13v-4H8V19zM8,5v4h13V5H8z"
 
+private const val MOVE_PATH = "M20,6h-8l-2,-2H4c-1.1,0 -1.99,0.9 -1.99,2L2,18c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V8" +
+    "c0,-1.1 -0.9,-2 -2,-2zM12.16,17.5l-1.41,-1.41 1.58,-1.59H8v-2h4.33l-1.58,-1.59 1.41,-1.41L16,13.5l-3.84,4z"
+private const val COPY_PATH = "M16,1H4c-1.1,0 -2,0.9 -2,2v14h2V3h12V1zM19,5H8c-1.1,0 -2,0.9 -2,2v14" +
+    "c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7c0,-1.1 -0.9,-2 -2,-2zM19,21H8V7h11v14z"
+
 private fun glyph(name: String, pathData: String): ImageVector =
     ImageVector.Builder(
         name = name,
@@ -69,3 +74,5 @@ val GalleryGlyph: ImageVector by lazy { glyph("Gallery", IMAGE_PATH) }
 val CameraGlyph: ImageVector by lazy { glyph("Camera", CAMERA_PATH) }
 val GridGlyph: ImageVector by lazy { glyph("Grid", GRID_PATH) }
 val ListGlyph: ImageVector by lazy { glyph("List", LIST_PATH) }
+val MoveGlyph: ImageVector by lazy { glyph("Move", MOVE_PATH) }
+val CopyGlyph: ImageVector by lazy { glyph("Copy", COPY_PATH) }

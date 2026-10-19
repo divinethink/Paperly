@@ -22,6 +22,27 @@
     <string name="scan_pages_delete_not_editable">These pages cannot be deleted here: this scan has no kept originals, or the page editor is off.</string>
     <string name="scan_pages_delete_blocked">Nothing was deleted: a chosen page has highlights, or you chose every page.</string>
     <string name="scan_pages_delete_failed">The pages could not be deleted. Your document is unchanged.</string>
+    <string name="scan_pages_move">Move</string>
+    <string name="scan_pages_copy">Copy</string>
+    <plurals name="scan_transfer_move_title">
+        <item quantity="one">Move %d page to…</item>
+        <item quantity="other">Move %d pages to…</item>
+    </plurals>
+    <plurals name="scan_transfer_copy_title">
+        <item quantity="one">Copy %d page to…</item>
+        <item quantity="other">Copy %d pages to…</item>
+    </plurals>
+    <string name="scan_transfer_new_document">New document</string>
+    <string name="scan_transfer_no_originals">No kept originals, cannot add pages</string>
+    <string name="scan_transfer_copied">Pages copied</string>
+    <string name="scan_transfer_moved">Pages moved</string>
+    <string name="scan_transfer_not_editable">The pages cannot be copied here: a scan has no kept originals, or the page editor is off. Nothing was changed.</string>
+    <string name="scan_transfer_move_blocked">Nothing was moved: a chosen page has highlights, or you chose every page. You can still copy them.</string>
+    <string name="scan_transfer_failed">The pages could not be copied. Nothing was changed.</string>
+    <string name="scan_transfer_duplicate">An identical document is already in your Library. Nothing was changed.</string>
+    <string name="scan_transfer_partial_copy">The pages were copied, but some crop, filter or notes did not come along.</string>
+    <string name="scan_transfer_partial_move">The pages were copied, but something did not come along, so the originals were kept here.</string>
+    <string name="scan_transfer_not_removed">The pages were copied but could not be removed here. They are now in both places.</string>
     <string name="export_saved_gallery">Saved to Gallery (Pictures/Paperly)</string>
     <plurals name="scan_pages_delete_title">
         <item quantity="one">Delete %d page?</item>

@@ -27,6 +27,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.paperly.app.R
 import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.core.ui.icons.CopyGlyph
+import com.paperly.app.core.ui.icons.MoveGlyph
 import com.paperly.app.core.ui.icons.ShareGlyph
 import com.paperly.app.feature.library.PageExport
 
@@ -38,9 +40,15 @@ internal fun PagesSelectTopBar(count: Int, onClose: () -> Unit, onSelectAll: () 
     }
 }
 
-/** Selection mode bottom bar: Delete · Share · More (email, print, Gallery, storage). Move/Copy come later. */
+/** Selection mode bottom bar: Delete · Move · Copy · Share · More (email, print, Gallery, storage). */
 @Composable
-internal fun PagesSelectBar(count: Int, busy: Boolean, export: PageExport, onDelete: () -> Unit) {
+internal fun PagesSelectBar(
+    count: Int,
+    busy: Boolean,
+    export: PageExport,
+    onTransfer: (TransferMode) -> Unit,
+    onDelete: () -> Unit,
+) {
     var confirm by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(false) }
     if (confirm) {
@@ -61,6 +69,12 @@ internal fun PagesSelectBar(count: Int, busy: Boolean, export: PageExport, onDel
             val item = Modifier.weight(1f)
             BarButton(Icons.Filled.Delete, stringResource(R.string.scan_pages_delete), item) {
                 if (!busy) confirm = true
+            }
+            BarButton(MoveGlyph, stringResource(R.string.scan_pages_move), item) {
+                if (!busy) onTransfer(TransferMode.MOVE)
+            }
+            BarButton(CopyGlyph, stringResource(R.string.scan_pages_copy), item) {
+                if (!busy) onTransfer(TransferMode.COPY)
             }
             BarButton(ShareGlyph, stringResource(R.string.doc_share), item, export.share)
             Box(item) {

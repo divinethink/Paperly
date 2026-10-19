@@ -75,6 +75,10 @@ private fun ScanPagesReady(
     val selecting = chosen.isNotEmpty()
     val export = rememberDocumentExport(doc)
     val pageExport = rememberPageExport(doc, chosen)
+    val transfer = rememberPageTransfer(chosen) { moved ->
+        selection.clear()
+        if (moved) viewModel.refresh()
+    }
     BackHandler(selecting) { selection.clear() }
     NoticeEffect(selection)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -86,7 +90,7 @@ private fun ScanPagesReady(
                 PagesMenuButton(export)
             }
         }
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (busy || transfer.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         val taps = PageTaps(
             onTap = { index ->
                 if (selecting) selection.toggle(index) else viewModel.openPage(index) { actions.onOpenReader(doc.id) }
@@ -99,7 +103,9 @@ private fun ScanPagesReady(
             ScanPageList(ready, viewModel, chosen, taps, Modifier.weight(1f))
         }
         if (selecting) {
-            PagesSelectBar(chosen.size, busy, pageExport) { selection.delete(viewModel::refresh) }
+            PagesSelectBar(chosen.size, busy || transfer.busy, pageExport, transfer.start) {
+                selection.delete(viewModel::refresh)
+            }
         } else {
             PagesBottomBar(
                 export,
