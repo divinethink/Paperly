@@ -60,7 +60,6 @@ internal fun BatchBar(
 ) {
     var dialog by remember { mutableStateOf<BatchDialog?>(null) }
     val chosen = docs.filter { it.id in batch.selected }
-    val share = rememberBatchShare()
     BackHandler { batch.clear() }
     BatchDialogHost(
         dialog = dialog,
@@ -88,7 +87,6 @@ internal fun BatchBar(
             modifier = Modifier.padding(horizontal = 8.dp).semantics { heading() },
         )
         val on = chosen.isNotEmpty()
-        BatchButton(R.string.batch_share, on) { share(chosen) { batch.clear() } }
         BatchButton(R.string.batch_favorite, on) {
             viewModel.setFavorite(chosen, !chosen.all { it.isFavorite })
             batch.clear()

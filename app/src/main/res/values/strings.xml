@@ -80,10 +80,6 @@
     <string name="batch_selected">%1$d selected</string>
     <string name="batch_select">Select</string>
     <string name="batch_favorite">Favorite</string>
-    <string name="batch_share">Share</string>
-    <string name="batch_share_limit">You can share up to %1$d documents at once.</string>
-    <string name="batch_share_preparing">Preparing files…</string>
-    <string name="batch_share_partial">Some files could not be prepared. The rest are shared.</string>
     <string name="batch_move">Move</string>
     <string name="batch_tags">Add tags</string>
     <string name="batch_trash">Trash</string>

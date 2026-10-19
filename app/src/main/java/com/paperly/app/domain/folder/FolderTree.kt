@@ -1,7 +1,7 @@
 package com.paperly.app.domain.folder
 
 /** Deepest allowed nesting: a top-level folder is level 1. */
-const val MAX_FOLDER_DEPTH = 3
+const val MAX_FOLDER_DEPTH = 1 // one level only (Notebloc-style); raise to allow folders inside folders
 
 const val FOLDER_PATH_SEPARATOR = " › " // "Bills › 2026"
 

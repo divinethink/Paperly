@@ -43,11 +43,10 @@ class FolderTreeTest {
         assertEquals(listOf("oct"), all.childrenOf("y26").map { it.id })
     }
 
-    @Test fun nestingStopsAtThreeLevels() {
+    @Test fun nestingIsLimitedByMaxDepth() {
         assertTrue(all.canNestUnder(null))
-        assertTrue(all.canNestUnder("bills"))
-        assertTrue(all.canNestUnder("y26"))
-        assertFalse(all.canNestUnder("oct")) // oct is level 3
+        assertFalse(all.canNestUnder("bills")) // MAX_FOLDER_DEPTH = 1: top-level folders only
+        assertFalse(all.canNestUnder("oct"))
         assertFalse(all.canNestUnder("missing"))
     }
 
