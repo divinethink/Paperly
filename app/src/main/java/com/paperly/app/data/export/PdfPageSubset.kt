@@ -41,7 +41,9 @@ class PdfPageSubset @Inject constructor(@ApplicationContext private val context:
     private fun saveOnly(doc: PDDocument, pages: Set<Int>, target: File): Boolean {
         val keep = pages.filter { it in 0 until doc.numberOfPages }.toSet()
         if (doc.isEncrypted || keep.isEmpty()) return false
-        (doc.numberOfPages - 1 downTo 0).filter { it !in keep }.forEach { doc.removePage(it) }
+        for (index in doc.numberOfPages - 1 downTo 0) {
+            if (index !in keep) doc.removePage(index)
+        }
         doc.save(target)
         return target.length() > 0
     }
