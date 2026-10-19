@@ -84,7 +84,7 @@ interface ScanEditRepository {
     suspend fun stageGallery(uris: List<String>): StagedScan?
 }
 
-/** Feature flag `scan_editor_enabled` (default ON). OFF = previous behaviour: ML Kit PDF only, no editor/gallery. */
+/** Feature flag `scan_editor_enabled` (default ON). OFF hides the page editor and gallery buttons. */
 interface ScanEditorSettings {
     val enabled: kotlinx.coroutines.flow.Flow<Boolean>
 

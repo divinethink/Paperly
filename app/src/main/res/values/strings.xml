@@ -145,7 +145,7 @@
     <string name="scan_save">Save</string>
     <string name="scan_duplicate">This scan is already in your Library.</string>
     <string name="scan_saving">Saving scan…</string>
-    <string name="scan_error_unavailable">Scanner is not available on this device (Google Play services needed).</string>
+    <string name="scan_error_unavailable">The camera could not be started on this device.</string>
     <string name="scan_here">Scan here</string>
     <string name="scan_here_gallery">Gallery here</string>
     <string name="scan_gallery">Import from gallery</string>

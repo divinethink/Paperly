@@ -10,7 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
 import com.paperly.app.domain.scanner.ScanEditRepository
-import com.paperly.app.domain.scanner.ScanEditorSettings
 import com.paperly.app.domain.scanner.ScanOcrRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
@@ -24,11 +23,9 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,14 +41,9 @@ class ScanViewModel @Inject constructor(
     private val store: DataStore<Preferences>,
     private val editRepository: ScanEditRepository,
     private val ocr: ScanOcrRepository,
-    settings: ScanEditorSettings,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ScanUiState())
     val state: StateFlow<ScanUiState> = _state.asStateFlow()
-
-    /** S2 flag: OFF = the previous behaviour (ML Kit PDF only, no gallery button, no editor). */
-    val editorEnabled: StateFlow<Boolean> =
-        settings.enabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     /** The save/import that is running now (null or finished = nothing is running). */
     private var work: Job? = null
@@ -88,19 +80,7 @@ class ScanViewModel @Inject constructor(
         _state.update { it.copy(saved = false, duplicate = false, editDocumentId = null, openDocumentId = null) }
     }
 
-    /**
-     * [pdfUri] = ML Kit's result PDF, [pageUris] = its page JPEGs (kept for the page editor; may be empty).
-     * No name question: the scan is saved at once with a date-time name (rename later from the card menu).
-     * With the page editor ON (and page pictures available) the editor opens next, in crop mode; otherwise the
-     * saved scan opens in the Reader. Double delivery is ignored while a save runs.
-     */
-    fun onScanned(pdfUri: String, pageUris: List<String> = emptyList()) {
-        if (_state.value.saving) return
-        val editor = editorEnabled.value && pageUris.isNotEmpty()
-        save(Saving(pdfUri, pageUris, openEditor = editor, openDocument = true, folderId = folderTarget.folderId))
-    }
-
-    /** Gallery pictures: build the unedited PDF first, then the normal save; the editor opens after. */
+    /** Camera or gallery pictures: build the unedited PDF first, then the normal save; the crop editor opens after. */
     fun onGalleryPicked(uris: List<String>) {
         if (_state.value.saving || uris.isEmpty()) return
         startWork {

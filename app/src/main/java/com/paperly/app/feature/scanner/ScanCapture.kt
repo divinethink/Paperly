@@ -14,22 +14,25 @@ import androidx.core.content.FileProvider
 import com.paperly.app.core.file.ExportFiles
 import java.io.File
 
+/** What happens with the camera's result; kept together so the composable stays under the parameter limit. */
+internal class CameraResult(
+    val onPicture: (Uri) -> Unit,
+    val onCancel: () -> Unit,
+    val onUnavailable: () -> Unit,
+)
+
 /**
- * "Add scan" from a document: the phone's camera takes one picture, which then goes through the app's own
- * crop -> filter steps (same as gallery pictures). Returns the function that starts the camera.
+ * The phone's camera takes ONE picture into a temp file (no document-scanner screen, no automatic detection);
+ * the app's own crop -> filter steps follow. Returns the function that starts the camera.
  */
 @Composable
-internal fun rememberScanCapture(viewModel: ScanEditViewModel): () -> Unit {
+internal fun rememberCameraCapture(result: CameraResult): () -> Unit {
     val context = LocalContext.current
     var pending by rememberSaveable { mutableStateOf<String?>(null) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
         val path = pending
         pending = null
-        if (taken && path != null) {
-            viewModel.addPages(listOf(Uri.fromFile(File(path)).toString()), crop = true)
-        } else {
-            viewModel.onAddCancelled()
-        }
+        if (taken && path != null) result.onPicture(Uri.fromFile(File(path))) else result.onCancel()
     }
     return {
         val file = newCaptureFile(context)
@@ -39,12 +42,23 @@ internal fun rememberScanCapture(viewModel: ScanEditViewModel): () -> Unit {
         }
         if (started.isFailure) {
             pending = null
-            viewModel.onAddUnavailable()
+            result.onUnavailable()
         }
     }
 }
 
-/** One temp file; an older picture (already copied into the editor) is removed first. */
+/** "Add scan" inside a document: the picture is added as a new page and opens in the crop step. */
+@Composable
+internal fun rememberScanCapture(viewModel: ScanEditViewModel): () -> Unit =
+    rememberCameraCapture(
+        CameraResult(
+            onPicture = { viewModel.addPages(listOf(it.toString()), crop = true) },
+            onCancel = viewModel::onAddCancelled,
+            onUnavailable = viewModel::onAddUnavailable,
+        ),
+    )
+
+/** One temp file; an older picture (already copied elsewhere) is removed first. */
 private fun newCaptureFile(context: Context): File {
     val dir = File(context.cacheDir, CAPTURE_DIR).apply { mkdirs() }
     dir.listFiles()?.forEach { it.delete() }

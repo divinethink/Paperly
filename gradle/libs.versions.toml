@@ -3,7 +3,6 @@
 agp = "8.13.0"
 kotlin = "2.2.20"
 readium = "3.1.2"
-mlkitDocScanner = "16.0.0"
 tesseract4android = "4.9.0"
 desugarJdkLibs = "2.1.5"
 ksp = "2.2.20-2.0.3"
@@ -66,7 +65,6 @@ androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "a
 androidx-pdf-document-service = { module = "androidx.pdf:pdf-document-service", version.ref = "androidxPdf" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfboxAndroid" }
 tesseract4android = { module = "cz.adaptech.tesseract4android:tesseract4android", version.ref = "tesseract4android" }
-mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "mlkitDocScanner" }
 readium-shared = { module = "org.readium.kotlin-toolkit:readium-shared", version.ref = "readium" }
 readium-streamer = { module = "org.readium.kotlin-toolkit:readium-streamer", version.ref = "readium" }
 readium-navigator = { module = "org.readium.kotlin-toolkit:readium-navigator", version.ref = "readium" }
