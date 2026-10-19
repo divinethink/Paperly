@@ -64,55 +64,66 @@ internal fun rememberDocumentExport(
             }
         }
     }
-    var askFormat by remember { mutableStateOf(false) }
-    if (askFormat) {
-        ImageFormatDialog(
-            onPick = { png ->
-                askFormat = false
-                viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(doc.title), png) }
-            },
-            onDismiss = { askFormat = false },
-        )
-    }
+    val askImages = rememberImagesAsk(doc, viewModel)
     val isPdf = ExportFiles.isPdf(doc.type)
     val isScan = doc.type == SCAN_TYPE
     val sharePdf: (String) -> Unit = { shareName -> scope.launch { shareFile(context, fileOf(), shareName, mime) } }
-    // Scans: Share / Save a copy first ask PDF or JPG; JPG renders the pages and shares/saves them right away.
-    var askScan by remember { mutableStateOf<ScanAction?>(null) }
-    val jpg = rememberJpgExport(doc.id, viewModel)
-    ScanFormatPrompt(
-        action = askScan,
-        doc = doc,
-        viewModel = viewModel,
-        onChoose = { action, format, base ->
-            val share = action == ScanAction.SHARE
-            when (format) {
-                ScanFormat.PDF -> {
-                    val chosen = ExportFiles.fileName(base, doc.type)
-                    if (share) sharePdf(chosen) else saver.launch(chosen)
-                }
-                ScanFormat.JPG -> {
-                    val chosen = ExportFiles.baseName(base)
-                    if (share) jpg.share(chosen) else jpg.save(chosen)
-                }
-            }
-        },
-        onClose = { askScan = null },
-    )
+    val scan = rememberScanChoice(doc, viewModel, sharePdf) { saver.launch(it) }
     return DocumentExport(
-        share = { if (isScan) askScan = ScanAction.SHARE else sharePdf(name) },
-        saveCopy = { if (isScan) askScan = ScanAction.SAVE else saver.launch(name) },
+        share = { if (isScan) scan.share() else sharePdf(name) },
+        saveCopy = { if (isScan) scan.save() else saver.launch(name) },
         print = if (isPdf) {
             { scope.launch { printFile(context, fileOf(), name) } }
         } else {
             null
         },
-        exportImages = if (isPdf) {
-            { askFormat = true }
-        } else {
-            null
-        },
+        exportImages = if (isPdf) askImages else null,
     )
+}
+
+/** "Export as images" question (JPG or PNG); returns the action that opens it. */
+@Composable
+private fun rememberImagesAsk(doc: Document, viewModel: ExportViewModel): () -> Unit {
+    val context = LocalContext.current
+    var ask by remember { mutableStateOf(false) }
+    if (ask) {
+        ImageFormatDialog(
+            onPick = { png ->
+                ask = false
+                viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(doc.title), png) }
+            },
+            onDismiss = { ask = false },
+        )
+    }
+    return { ask = true }
+}
+
+/** Scan Share / Save a copy: asks PDF or JPG first; JPG renders the pages and shares/saves them right away. */
+private class ScanChoice(val share: () -> Unit, val save: () -> Unit)
+
+@Composable
+private fun rememberScanChoice(
+    doc: Document,
+    viewModel: ExportViewModel,
+    sharePdf: (String) -> Unit,
+    savePdf: (String) -> Unit,
+): ScanChoice {
+    var ask by remember { mutableStateOf<ScanAction?>(null) }
+    val jpg = rememberJpgExport(doc.id, viewModel)
+    ScanFormatPrompt(
+        action = ask,
+        doc = doc,
+        viewModel = viewModel,
+        onChoose = { action, format, base ->
+            val share = action == ScanAction.SHARE
+            when (format) {
+                ScanFormat.PDF -> ExportFiles.fileName(base, doc.type).let { if (share) sharePdf(it) else savePdf(it) }
+                ScanFormat.JPG -> ExportFiles.baseName(base).let { if (share) jpg.share(it) else jpg.save(it) }
+            }
+        },
+        onClose = { ask = null },
+    )
+    return ScanChoice(share = { ask = ScanAction.SHARE }, save = { ask = ScanAction.SAVE })
 }
 
 private const val SCAN_TYPE = "scanned-pdf"
