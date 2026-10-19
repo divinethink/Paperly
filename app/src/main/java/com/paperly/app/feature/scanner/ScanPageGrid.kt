@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 
 private const val THUMB_WIDTH_PX = 360
+private const val GRID_COLUMNS = 3 // 6-9 pages on one phone screen
+private const val MIN_THUMB_ASPECT = 0.7f // very tall/wide pages are fitted into a box of normal proportions
+private const val MAX_THUMB_ASPECT = 1f
 
 /** "Today" / "Yesterday" / a short date; one value for the whole document (pages have no date of their own). */
 @Composable
@@ -45,7 +48,7 @@ internal fun rememberScanDate(createdAt: Long): String = remember(createdAt) {
     DateUtils.getRelativeTimeSpanString(createdAt, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS).toString()
 }
 
-/** Two-column page grid (Notebloc style): page thumbnail with a teal footer — page number left, date right. */
+/** Three-column page grid (Notebloc style): page thumbnail with a teal footer — page number left, date right. */
 @Composable
 internal fun ScanPageGrid(
     ready: ScanPagesUi.Ready,
@@ -55,11 +58,11 @@ internal fun ScanPageGrid(
 ) {
     val date = rememberScanDate(ready.document.createdAt)
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(GRID_COLUMNS),
         modifier = modifier,
-        contentPadding = PaddingValues(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(ready.pageCount, key = { it }) { index ->
             PageCell(index, ready, date, viewModel) { onPage(index) }
@@ -94,7 +97,8 @@ internal fun PageThumb(index: Int, ready: ScanPagesUi.Ready, viewModel: ScanPage
     var bitmap by remember(index, ready.revision) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(index, ready.revision) { bitmap = viewModel.thumbnail(index, THUMB_WIDTH_PX) }
     // The grey box is the loading skeleton.
-    Box(modifier.aspectRatio(ready.aspect).background(MaterialTheme.colorScheme.surfaceVariant)) {
+    val aspect = ready.aspect.coerceIn(MIN_THUMB_ASPECT, MAX_THUMB_ASPECT)
+    Box(modifier.aspectRatio(aspect).background(MaterialTheme.colorScheme.surfaceVariant)) {
         bitmap?.let {
             Image(
                 it.asImageBitmap(),
@@ -113,16 +117,16 @@ private fun PageFooter(number: Int, date: String) {
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             stringResource(R.string.scan_page_number, number),
             color = onBar,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.border(1.dp, onBar).padding(horizontal = 6.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.border(1.dp, onBar).padding(horizontal = 4.dp, vertical = 1.dp),
         )
         Spacer(Modifier.weight(1f))
-        Text(date, color = onBar, style = MaterialTheme.typography.labelMedium)
+        Text(date, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }

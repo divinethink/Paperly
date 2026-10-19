@@ -1,6 +1,5 @@
 package com.paperly.app.feature.scanner
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
@@ -26,22 +25,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.paperly.app.R
 import kotlinx.coroutines.launch
 
 /** S4: move / add / delete pages. Nothing changes in the file until Save. */
 @Composable
 internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, onDelete: () -> Unit) {
-    val context = LocalContext.current
-    val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val scanned = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            viewModel.addPages(scanned?.pages.orEmpty().map { it.imageUri.toString() }, crop = false)
-        } else {
-            viewModel.onAddCancelled()
-        }
-    }
+    val capture = rememberScanCapture(viewModel)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
         if (uris.isEmpty()) viewModel.onAddCancelled() else viewModel.addPages(uris.map { it.toString() }, crop = true)
     }
@@ -50,7 +40,7 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
     LaunchedEffect(state.autoAdd, state.autoPick, busy) {
         if (!busy && state.autoAdd) {
             viewModel.consumeAutoAdd()
-            startScan(context.findActivity(), scanner, keepPages = true, onUnavailable = viewModel::onAddUnavailable)
+            capture()
         } else if (!busy && state.autoPick) {
             viewModel.consumeAutoPick()
             pickPictures()
@@ -63,10 +53,7 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
             ActionButton(R.string.scan_edit_move_later, !busy && state.current < state.pages.size - 1) {
                 viewModel.move(1)
             }
-            ActionButton(R.string.scan_edit_add_scan, !busy) {
-                val unavailable = viewModel::onAddUnavailable
-                startScan(context.findActivity(), scanner, keepPages = true, onUnavailable = unavailable)
-            }
+            ActionButton(R.string.scan_edit_add_scan, !busy, onClick = capture)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             ActionButton(R.string.scan_edit_add_gallery, !busy, onClick = pickPictures)
