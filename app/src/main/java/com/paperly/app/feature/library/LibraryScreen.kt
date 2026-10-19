@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.Document
+import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.feature.common.EmptyState
 import com.paperly.app.feature.common.ErrorRetry
 import com.paperly.app.feature.common.LoadingPlaceholder
