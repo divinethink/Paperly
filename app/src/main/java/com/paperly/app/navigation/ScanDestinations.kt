@@ -26,7 +26,7 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
             actions = ScanPagesActions(
                 onOpenReader = { navController.navigate(Routes.reader(it)) },
                 onAddScan = { navController.navigate(Routes.scanEdit(it, add = true)) },
-                onEditPages = { navController.navigate(Routes.scanEdit(it)) },
+                onAddPictures = { navController.navigate(Routes.scanEdit(it, pick = true)) },
             ),
         )
     }
@@ -42,9 +42,16 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
                 type = NavType.BoolType
                 defaultValue = false
             },
+            navArgument("pick") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
         ),
     ) {
-        ScanEditScreen(onDone = { openId -> navController.showLibrary(openId) })
+        ScanEditScreen(
+            onDone = { openId -> navController.showLibrary(openId) },
+            onCancelAdd = { navController.popBackStack() }, // nothing added: back to the grid
+        )
     }
 }
 

@@ -53,6 +53,12 @@ data class ScanEditUi(
     val done: Boolean = false,
     /** Opened from the card menu "Add pages": the scanner starts once the pages are loaded. */
     val autoAdd: Boolean = false,
+    /** Opened from the grid's "Add pictures": the gallery picker starts once the pages are loaded. */
+    val autoPick: Boolean = false,
+    /** Opened to add pages: the old page must not show while the picker/scanner is up or its result is staged. */
+    val awaitingAdd: Boolean = false,
+    /** The picker/scanner was closed with nothing added: the screen goes back to where it came from. */
+    val cancelled: Boolean = false,
 ) {
     val page: ScanEditPage? get() = pages.getOrNull(current)
     val canDelete: Boolean get() = pages.canDeleteAt(current)
@@ -73,6 +79,7 @@ class ScanEditViewModel @Inject constructor(
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
     private val isNewScan: Boolean = savedStateHandle.get<Boolean>("new") == true
     private val addAtStart: Boolean = savedStateHandle.get<Boolean>("add") == true
+    private val pickAtStart: Boolean = savedStateHandle.get<Boolean>("pick") == true
 
     /** A fresh scan opens its document when the editor is left (saved or skipped); otherwise back to the Library. */
     val exitDocumentId: String? = documentId.takeIf { isNewScan }
@@ -89,7 +96,13 @@ class ScanEditViewModel @Inject constructor(
             if (pages == null) {
                 _state.value = ScanEditUi(loading = false, notEditable = true)
             } else {
-                _state.value = ScanEditUi(loading = false, pages = pages, autoAdd = addAtStart)
+                _state.value = ScanEditUi(
+                    loading = false,
+                    pages = pages,
+                    autoAdd = addAtStart,
+                    autoPick = pickAtStart,
+                    awaitingAdd = addAtStart || pickAtStart,
+                )
                 showPage(0)
                 if (isNewScan && pages.firstOrNull()?.locked == false) _state.update { it.copy(cropping = true) }
             }
@@ -145,7 +158,13 @@ class ScanEditViewModel @Inject constructor(
     /** The "Add pages" start is used up (also after a rotation). */
     fun consumeAutoAdd() = _state.update { it.copy(autoAdd = false) }
 
-    fun onAddUnavailable() = _state.update { it.copy(addFailed = true) }
+    /** The gallery picker start is used up. */
+    fun consumeAutoPick() = _state.update { it.copy(autoPick = false) }
+
+    fun onAddUnavailable() = _state.update { it.copy(addFailed = true, awaitingAdd = false) }
+
+    /** Picker/scanner closed without a result: only a screen opened just to add pages goes back. */
+    fun onAddCancelled() = _state.update { if (it.awaitingAdd) it.copy(awaitingAdd = false, cancelled = true) else it }
 
     fun dismissError() = _state.update { it.copy(failed = null, addFailed = false) }
 
@@ -166,18 +185,21 @@ class ScanEditViewModel @Inject constructor(
         showPage(next)
     }
 
-    /** S4: adds pictures (scanner pages or gallery picks) at the end of the scan. */
-    fun addPages(uris: List<String>) {
+    /**
+     * S4: adds pictures (scanner pages or gallery picks) at the end of the scan and shows the first new one.
+     * [crop] (gallery picks, which are not cropped yet) opens it in the crop step; "Next" then leads to the filters.
+     */
+    fun addPages(uris: List<String>, crop: Boolean) {
         if (uris.isEmpty() || _state.value.saving) return
         _state.update { it.copy(loading = true) }
         viewModelScope.launch {
             val added = repository.stageAdded(documentId, uris)
             if (added == null) {
-                _state.update { it.copy(loading = false, addFailed = true) }
+                _state.update { it.copy(loading = false, addFailed = true, awaitingAdd = false) }
             } else {
                 val first = _state.value.pages.size
-                _state.update { it.copy(pages = it.pages + added, dirty = true) }
-                showPage(first)
+                _state.update { it.copy(pages = it.pages + added, dirty = true, awaitingAdd = false) }
+                showPage(first, cropFirst = crop)
             }
         }
     }
@@ -204,10 +226,19 @@ class ScanEditViewModel @Inject constructor(
         }
     }
 
-    private fun showPage(index: Int) {
+    private fun showPage(index: Int, cropFirst: Boolean = false) {
         previewJob?.cancel()
         thumbKey = null
-        _state.update { it.copy(current = index, cropping = false, loading = true) }
+        _state.update {
+            // cropFirst: the crop frame must not flash over the previous page's image while the new one loads
+            it.copy(
+                current = index,
+                cropping = cropFirst,
+                loading = true,
+                source = if (cropFirst) null else it.source,
+                preview = if (cropFirst) null else it.preview,
+            )
+        }
         previewJob = viewModelScope.launch {
             val file = _state.value.page?.let { repository.pageFile(documentId, it) }
             val source = file?.let { decodeOrNull(it) }

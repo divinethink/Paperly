@@ -1,6 +1,7 @@
 package com.paperly.app.data.scanner
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import com.paperly.app.core.file.SAFE_DOCUMENT_ID
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -54,7 +55,7 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
         val dir = File(File(context.cacheDir, GALLERY_DIR), id)
         return try {
             dir.mkdirs()
-            uris.forEachIndexed { i, uri -> copy(Uri.parse(uri), File(dir, pageName(i))) }
+            uris.forEachIndexed { i, uri -> copyShrunk(Uri.parse(uri), File(dir, pageName(i))) }
             dir
         } catch (e: IOException) {
             dir.deleteRecursively()
@@ -79,7 +80,7 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
             dir.mkdirs()
             uris.map { uri ->
                 val name = "a${UUID.randomUUID()}.img"
-                copy(Uri.parse(uri), File(dir, name))
+                copyShrunk(Uri.parse(uri), File(dir, name))
                 name
             }
         } catch (e: IOException) {
@@ -137,6 +138,48 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
         input.use { source -> target.outputStream().buffered().use { source.copyTo(it) } }
     }
 
+    /**
+     * Gallery pictures are phone photos (several MB each). A copy longer than [KEEP_SIDE] px is scaled down and
+     * re-saved as JPEG (still above the largest output size, so no visible loss); anything else is copied as it is.
+     */
+    private fun copyShrunk(uri: Uri, target: File) {
+        val raw = File(target.parentFile, "${target.name}.raw")
+        try {
+            copy(uri, raw)
+            if (!shrink(raw, target)) raw.copyTo(target, overwrite = true)
+        } finally {
+            raw.delete()
+        }
+    }
+
+    /** false = not shrunk (already small, unreadable, or out of memory): the caller keeps the original bytes. */
+    private fun shrink(raw: File, target: File): Boolean = try {
+        val bitmap = ScanPageRenderer.decode(raw, KEEP_SIDE)
+        val longSide = maxOf(bitmap.width, bitmap.height)
+        if (longSide <= KEEP_SIDE) {
+            bitmap.recycle()
+            false
+        } else {
+            val ratio = KEEP_SIDE.toFloat() / longSide
+            val small = Bitmap.createScaledBitmap(
+                bitmap,
+                maxOf(1, (bitmap.width * ratio).toInt()),
+                maxOf(1, (bitmap.height * ratio).toInt()),
+                true,
+            )
+            if (small !== bitmap) bitmap.recycle()
+            try {
+                target.outputStream().buffered().use { small.compress(Bitmap.CompressFormat.JPEG, KEEP_QUALITY, it) }
+            } finally {
+                small.recycle()
+            }
+        }
+    } catch (ignored: IOException) {
+        false
+    } catch (ignored: OutOfMemoryError) {
+        false
+    }
+
     private fun deleteIfOwn(uri: Uri) {
         if (uri.scheme == "file") runCatching { uri.path?.let { File(it).delete() } }
     }
@@ -144,6 +187,8 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
     private companion object {
         const val GALLERY_DIR = "scan_gallery"
         const val ADD_DIR = "scan_add"
+        const val KEEP_SIDE = 2480 // = the largest output size's long side
+        const val KEEP_QUALITY = 90
         val STAGED_NAME = Regex("a[0-9a-f-]{36}\\.img")
     }
 }

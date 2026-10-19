@@ -81,11 +81,14 @@ object Routes {
     fun reader(documentId: String) = "reader/$documentId"
     const val SCAN_PAGES = "scan-pages/{documentId}"
     fun scanPages(documentId: String) = "scan-pages/$documentId"
-    const val SCAN_EDIT = "scan-edit/{documentId}?new={new}&add={add}"
+    const val SCAN_EDIT = "scan-edit/{documentId}?new={new}&add={add}&pick={pick}"
 
-    /** [isNew] = scan just saved (crop mode first, leaving opens the document); [add] = start "Add scan". */
-    fun scanEdit(documentId: String, isNew: Boolean = false, add: Boolean = false) =
-        "scan-edit/$documentId?new=$isNew&add=$add"
+    /**
+     * [isNew] = scan just saved (crop mode first, leaving opens the document); [add] = start "Add scan";
+     * [pick] = start the gallery picker ("Add pictures").
+     */
+    fun scanEdit(documentId: String, isNew: Boolean = false, add: Boolean = false, pick: Boolean = false) =
+        "scan-edit/$documentId?new=$isNew&add=$add&pick=$pick"
 
     /** One Library destination per tab (Scanned / PDF / EPUB): own back-stack entry, view model and saved state. */
     fun library(type: LibraryType) = LIBRARY_PREFIX + type.key

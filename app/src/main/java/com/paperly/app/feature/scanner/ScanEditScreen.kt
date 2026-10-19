@@ -38,12 +38,17 @@ import com.paperly.app.domain.scanner.cropReset
 
 /** S2 page editor: filter, 4-corner crop, rotate; Save rebuilds the PDF (original kept as a 7-day backup). */
 @Composable
-fun ScanEditScreen(onDone: (openDocumentId: String?) -> Unit, viewModel: ScanEditViewModel = hiltViewModel()) {
+fun ScanEditScreen(
+    onDone: (openDocumentId: String?) -> Unit,
+    onCancelAdd: () -> Unit,
+    viewModel: ScanEditViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var askDiscard by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf(false) }
     val leave = { onDone(viewModel.exitDocumentId) }
     LaunchedEffect(state.done) { if (state.done) leave() }
+    LaunchedEffect(state.cancelled) { if (state.cancelled) onCancelAdd() }
     BackHandler {
         when {
             state.saving -> Unit
@@ -93,6 +98,7 @@ private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
     val page = state.page
     val source = state.source
     val preview = state.preview
+    if (state.awaitingAdd) return // picker/scanner is (about to be) up: not the old page behind it
     when {
         page != null && state.cropping && source != null ->
             ScanCropOverlay(source, page.quad, viewModel::setQuad, Modifier.fillMaxSize())

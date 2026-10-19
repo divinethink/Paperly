@@ -23,7 +23,7 @@ import com.paperly.app.feature.library.rememberDocumentExport
 class ScanPagesActions(
     val onOpenReader: (documentId: String) -> Unit,
     val onAddScan: (documentId: String) -> Unit,
-    val onEditPages: (documentId: String) -> Unit,
+    val onAddPictures: (documentId: String) -> Unit,
 )
 
 /** Scanned document -> its pages (tap a page = open the Reader there). Back = Library. */
@@ -70,7 +70,7 @@ private fun ScanPagesReady(
         )
         PagesBottomBar(
             export,
-            onPictures = { actions.onEditPages(doc.id) },
+            onPictures = { actions.onAddPictures(doc.id) },
             onScan = { actions.onAddScan(doc.id) },
         )
     }

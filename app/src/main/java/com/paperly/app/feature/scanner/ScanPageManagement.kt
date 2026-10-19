@@ -37,17 +37,23 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
     val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val scanned = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            viewModel.addPages(scanned?.pages.orEmpty().map { it.imageUri.toString() })
+            viewModel.addPages(scanned?.pages.orEmpty().map { it.imageUri.toString() }, crop = false)
+        } else {
+            viewModel.onAddCancelled()
         }
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
-        viewModel.addPages(uris.map { it.toString() })
+        if (uris.isEmpty()) viewModel.onAddCancelled() else viewModel.addPages(uris.map { it.toString() }, crop = true)
     }
+    val pickPictures = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
     val busy = state.saving || state.loading
-    LaunchedEffect(state.autoAdd, busy) {
-        if (state.autoAdd && !busy) {
+    LaunchedEffect(state.autoAdd, state.autoPick, busy) {
+        if (!busy && state.autoAdd) {
             viewModel.consumeAutoAdd()
             startScan(context.findActivity(), scanner, keepPages = true, onUnavailable = viewModel::onAddUnavailable)
+        } else if (!busy && state.autoPick) {
+            viewModel.consumeAutoPick()
+            pickPictures()
         }
     }
     val copyText = rememberCopyText(viewModel)
@@ -63,9 +69,7 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ActionButton(R.string.scan_edit_add_gallery, !busy) {
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }
+            ActionButton(R.string.scan_edit_add_gallery, !busy, onClick = pickPictures)
             ActionButton(R.string.scan_text_copy, !busy, onClick = copyText)
             ActionButton(R.string.scan_edit_delete, !busy && state.canDelete, onClick = onDelete)
         }
