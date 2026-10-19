@@ -35,6 +35,21 @@ class ScanPageOpsTest {
         assertEquals(listOf(0, 2), pages(3).withoutAt(1).map { it.index })
     }
 
+    @Test fun severalPagesAreDeletedTogether() {
+        assertEquals(listOf(1, 3), pages(5).withoutAll(setOf(0, 2, 4)).map { it.index })
+    }
+
+    @Test fun deleteAllRefusesLockedEveryPageEmptyAndBadPositions() {
+        val p = pages(3, lockedAt = setOf(1))
+        assertFalse(p.canDeleteAll(setOf(0, 1)))
+        assertFalse(pages(3).canDeleteAll(setOf(0, 1, 2)))
+        assertFalse(pages(3).canDeleteAll(emptySet()))
+        assertFalse(pages(3).canDeleteAll(setOf(3)))
+        assertFalse(pages(3).canDeleteAll(setOf(-1)))
+        assertSame(p, p.withoutAll(setOf(0, 1)))
+        assertTrue(p.canDeleteAll(setOf(0, 2)))
+    }
+
     @Test fun structuralOnlyWhenOrderCountOrContentChanges() {
         assertFalse(pages(3).isStructural(3))
         assertTrue(pages(3).moved(0, 1).isStructural(3))

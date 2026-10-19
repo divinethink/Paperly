@@ -15,6 +15,13 @@ fun List<ScanEditPage>.canDeleteAt(position: Int): Boolean =
 fun List<ScanEditPage>.withoutAt(position: Int): List<ScanEditPage> =
     if (canDeleteAt(position)) filterIndexed { i, _ -> i != position } else this
 
+/** Several pages at once: every position exists and is unlocked, and at least one page stays. */
+fun List<ScanEditPage>.canDeleteAll(positions: Set<Int>): Boolean =
+    positions.isNotEmpty() && positions.size < size && positions.all { it in indices && !this[it].locked }
+
+fun List<ScanEditPage>.withoutAll(positions: Set<Int>): List<ScanEditPage> =
+    if (canDeleteAll(positions)) filterIndexed { i, _ -> i !in positions } else this
+
 /** True when order, count or content of pages changed (not only filters/crop/rotation of the same pages). */
 fun List<ScanEditPage>.isStructural(storedCount: Int): Boolean =
     size != storedCount || any { it.isAdded } || indices.any { this[it].index != it }

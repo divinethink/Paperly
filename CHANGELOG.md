@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-20b (Scan page grid: select pages, Delete, Share / Email / Print / Save for the chosen pages; no schema change)
+
+- Page grid/list: long-press a page to start selecting; then a tap ticks/unticks. The title bar shows "N selected" + Select all (back leaves selecting). Pages get a tick box; TalkBack says Selected / Not selected.
+- Selection bottom bar: Delete · Share · More (Send email, Print, Save to Gallery, Save to storage). Move/Copy are not there yet (step F).
+- Delete (after a confirmation): uses the page editor's safe rebuild (`ScanEditRepository.apply`: temp file, verify, backup kept 7 days, atomic replace), so notes/bookmarks of the other pages follow their pages. Nothing is deleted if a chosen page has highlights, you chose every page, the scan has no kept originals, or the page editor is off (a message says why). New `ScanPageSelectionViewModel`, `withoutAll`/`canDeleteAll` in `ScanPageOps`.
+- Share / Email / Gallery / Storage send the chosen pages as JPG pictures (file names keep the page number, e.g. `name-003.jpg`); Gallery saves to Pictures/Paperly (no permission needed, Android 10+); Storage = one page "save as", several = pick a folder. Print makes a PDF of only the chosen pages (`PdfPageSubset`, PdfBox) and opens the system print dialog. The document file is only read.
+- `PdfJpgRenderer.render(..., only)` / `ExportViewModel.renderJpgs(..., pages)`; exports now run one at a time (lock) because each run empties the image folder.
+- Not verified in the sandbox (no Android SDK/Gradle): build, ktlint, detekt, tests. Needs on-device check: select 2 of 5 pages and Delete (a highlighted page and "all pages" are refused); Share 1 page = 1 image, 3 pages = 3 images; Email app opens with the pictures; Print shows only the chosen pages; Gallery shows Pictures/Paperly; large font; TalkBack.
+
 ## 2026-10-20 (Scan: page-editor title, page sizes in the grid, Reader top-bar title/Crop/Delete; no schema change)
 
 - Page editor: the top bar says "Border adjustment" only in the crop step; the filter/page step says "Edit page".

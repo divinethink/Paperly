@@ -11,6 +11,22 @@
     <string name="scan_pages_error">This document could not be opened</string>
     <string name="scan_pages_view_grid">Grid view</string>
     <string name="scan_pages_view_list">List view</string>
+    <string name="scan_pages_select_all">Select all</string>
+    <string name="scan_pages_delete">Delete</string>
+    <string name="scan_pages_send_email">Send email</string>
+    <string name="scan_pages_save_gallery">Save to Gallery</string>
+    <string name="scan_pages_save_storage">Save to storage</string>
+    <string name="scan_page_state_selected">Selected</string>
+    <string name="scan_page_state_not_selected">Not selected</string>
+    <string name="scan_pages_delete_body">The selected pages are removed now. Their titles, notes and bookmarks go with them. Your current file is kept as a backup for 7 days.</string>
+    <string name="scan_pages_delete_not_editable">These pages cannot be deleted here: this scan has no kept originals, or the page editor is off.</string>
+    <string name="scan_pages_delete_blocked">Nothing was deleted: a chosen page has highlights, or you chose every page.</string>
+    <string name="scan_pages_delete_failed">The pages could not be deleted. Your document is unchanged.</string>
+    <string name="export_saved_gallery">Saved to Gallery (Pictures/Paperly)</string>
+    <plurals name="scan_pages_delete_title">
+        <item quantity="one">Delete %d page?</item>
+        <item quantity="other">Delete %d pages?</item>
+    </plurals>
     <string name="nav_pdf">PDF</string>
     <string name="nav_epub">EPUB</string>
     <string name="nav_settings">Settings</string>

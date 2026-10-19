@@ -108,7 +108,7 @@ internal fun PagesBottomBar(export: DocumentExport, onPictures: () -> Unit, onSc
 }
 
 @Composable
-private fun BarButton(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+internal fun BarButton(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
     Column(
         modifier.heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

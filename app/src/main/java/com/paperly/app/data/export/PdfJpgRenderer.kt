@@ -13,6 +13,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Renders every page of a PDF to its own JPG in the cache `exports/images/` folder (older files there are removed),
@@ -20,19 +22,24 @@ import javax.inject.Singleton
  */
 @Singleton
 class PdfJpgRenderer @Inject constructor(@ApplicationContext private val context: Context) {
+    private val lock = Mutex() // one export at a time: each run empties the folder first
 
-    /** The page files in page order, or null when anything failed (nothing is left behind then). */
-    suspend fun render(source: File, base: String): List<File>? {
+    /**
+     * The page files in page order, or null when anything failed (nothing is left behind then). [only] = 0-based
+     * pages to render (null = every page); file names keep the page's own number.
+     */
+    suspend fun render(source: File, base: String, only: Set<Int>? = null): List<File>? = lock.withLock {
         val dir = ExportFiles.imagesDir(context)
         dir.listFiles()?.forEach { it.delete() }
         val engine = PdfReaderEngine(context)
-        return try {
+        try {
             val pages = (engine.open(source) as? OpenResult.Success)?.pageCount ?: 0
+            val wanted = (0 until pages).filter { only == null || it in only }
             val files = ArrayList<File>()
-            for (index in 0 until pages) {
+            for (index in wanted) {
                 files += renderPage(engine, File(dir, ExportFiles.imageName(base, index, pages)), index) ?: break
             }
-            if (pages > 0 && files.size == pages) files else cleanUp(dir)
+            if (wanted.isNotEmpty() && files.size == wanted.size) files else cleanUp(dir)
         } catch (ignored: IOException) {
             cleanUp(dir)
         } catch (ignored: OutOfMemoryError) {

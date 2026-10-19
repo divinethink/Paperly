@@ -1,13 +1,18 @@
 package com.paperly.app.feature.scanner
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -18,6 +23,7 @@ import com.paperly.app.core.ui.PaperlyTopBar
 import com.paperly.app.feature.common.ErrorRetry
 import com.paperly.app.feature.common.LoadingPlaceholder
 import com.paperly.app.feature.library.rememberDocumentExport
+import com.paperly.app.feature.library.rememberPageExport
 
 /** Navigation callbacks of the page grid, grouped so the composables stay under the parameter-count limit. */
 class ScanPagesActions(
@@ -62,22 +68,62 @@ private fun ScanPagesReady(
     actions: ScanPagesActions,
 ) {
     val doc = ready.document
+    val selection: ScanPageSelectionViewModel = hiltViewModel()
+    val chosen by selection.selected.collectAsStateWithLifecycle()
+    val busy by selection.busy.collectAsStateWithLifecycle()
+    val selecting = chosen.isNotEmpty()
     val export = rememberDocumentExport(doc)
+    val pageExport = rememberPageExport(doc, chosen)
+    BackHandler(selecting) { selection.clear() }
+    NoticeEffect(selection)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        PaperlyTopBar(doc.title, onBack = onBack) {
-            ViewToggleButton(grid, viewModel::setGridView)
-            PagesMenuButton(export)
-        }
-        val onPage = { index: Int -> viewModel.openPage(index) { actions.onOpenReader(doc.id) } }
-        if (grid) {
-            ScanPageGrid(ready, viewModel, onPage, Modifier.weight(1f))
+        if (selecting) {
+            PagesSelectTopBar(chosen.size, onClose = selection::clear) { selection.selectAll(ready.pageCount) }
         } else {
-            ScanPageList(ready, viewModel, onPage, Modifier.weight(1f))
+            PaperlyTopBar(doc.title, onBack = onBack) {
+                ViewToggleButton(grid, viewModel::setGridView)
+                PagesMenuButton(export)
+            }
         }
-        PagesBottomBar(
-            export,
-            onPictures = { actions.onAddPictures(doc.id) },
-            onScan = { actions.onAddScan(doc.id) },
+        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        val taps = PageTaps(
+            onTap = { index ->
+                if (selecting) selection.toggle(index) else viewModel.openPage(index) { actions.onOpenReader(doc.id) }
+            },
+            onLongPress = selection::select,
         )
+        if (grid) {
+            ScanPageGrid(ready, viewModel, chosen, taps, Modifier.weight(1f))
+        } else {
+            ScanPageList(ready, viewModel, chosen, taps, Modifier.weight(1f))
+        }
+        if (selecting) {
+            PagesSelectBar(chosen.size, busy, pageExport) { selection.delete(viewModel::refresh) }
+        } else {
+            PagesBottomBar(
+                export,
+                onPictures = { actions.onAddPictures(doc.id) },
+                onScan = { actions.onAddScan(doc.id) },
+            )
+        }
+    }
+}
+
+/** Shows why a delete did nothing, once. */
+@Composable
+private fun NoticeEffect(selection: ScanPageSelectionViewModel) {
+    val notice by selection.notice.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val text = when (notice) {
+        PagesNotice.NOT_EDITABLE -> stringResource(R.string.scan_pages_delete_not_editable)
+        PagesNotice.BLOCKED -> stringResource(R.string.scan_pages_delete_blocked)
+        PagesNotice.FAILED -> stringResource(R.string.scan_pages_delete_failed)
+        null -> null
+    }
+    LaunchedEffect(notice) {
+        if (text != null) {
+            Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+            selection.dismissNotice()
+        }
     }
 }

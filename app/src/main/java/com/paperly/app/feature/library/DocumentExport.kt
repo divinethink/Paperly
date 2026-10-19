@@ -118,7 +118,9 @@ private fun rememberScanChoice(
             val share = action == ScanAction.SHARE
             when (format) {
                 ScanFormat.PDF -> ExportFiles.fileName(base, doc.type).let { if (share) sharePdf(it) else savePdf(it) }
-                ScanFormat.JPG -> ExportFiles.baseName(base).let { if (share) jpg.share(it) else jpg.save(it) }
+                ScanFormat.JPG -> ExportFiles.baseName(base).let {
+                    if (share) jpg.share(it, null) else jpg.save(it, null)
+                }
             }
         },
         onClose = { ask = null },
@@ -227,7 +229,7 @@ internal suspend fun saveTo(context: Context, source: File?, target: Uri): Int =
     if (source != null && copied == source.length()) R.string.export_saved else R.string.export_failed
 }
 
-private fun printFile(context: Context, source: File?, name: String) {
+internal fun printFile(context: Context, source: File?, name: String) {
     val manager = context.getSystemService(PrintManager::class.java)
     if (source == null || manager == null) {
         toast(context, R.string.export_failed)
