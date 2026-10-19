@@ -77,15 +77,25 @@ internal fun rememberDocumentExport(
     val isPdf = ExportFiles.isPdf(doc.type)
     val isScan = doc.type == SCAN_TYPE
     val sharePdf: (String) -> Unit = { shareName -> scope.launch { shareFile(context, fileOf(), shareName, mime) } }
-    // Scans: Share / Save a copy first ask PDF or JPG (JPG = the existing background image export).
+    // Scans: Share / Save a copy first ask PDF or JPG; JPG renders the pages and shares/saves them right away.
     var askScan by remember { mutableStateOf<ScanAction?>(null) }
+    val jpg = rememberJpgExport(doc.id, viewModel)
     ScanFormatPrompt(
         action = askScan,
         doc = doc,
         viewModel = viewModel,
-        onPdf = { action, base ->
-            val chosen = ExportFiles.fileName(base, doc.type)
-            if (action == ScanAction.SHARE) sharePdf(chosen) else saver.launch(chosen)
+        onChoose = { action, format, base ->
+            val share = action == ScanAction.SHARE
+            when (format) {
+                ScanFormat.PDF -> {
+                    val chosen = ExportFiles.fileName(base, doc.type)
+                    if (share) sharePdf(chosen) else saver.launch(chosen)
+                }
+                ScanFormat.JPG -> {
+                    val chosen = ExportFiles.baseName(base)
+                    if (share) jpg.share(chosen) else jpg.save(chosen)
+                }
+            }
         },
         onClose = { askScan = null },
     )
@@ -109,12 +119,14 @@ private const val SCAN_TYPE = "scanned-pdf"
 
 private enum class ScanAction { SHARE, SAVE }
 
+private enum class ScanFormat { PDF, JPG }
+
 @Composable
 private fun ScanFormatPrompt(
     action: ScanAction?,
     doc: Document,
     viewModel: ExportViewModel,
-    onPdf: (ScanAction, String) -> Unit,
+    onChoose: (ScanAction, ScanFormat, String) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -128,12 +140,11 @@ private fun ScanFormatPrompt(
         sizeText = size,
         onPdf = { name ->
             onClose()
-            onPdf(action, name)
+            onChoose(action, ScanFormat.PDF, name)
         },
         onJpg = { name ->
             onClose()
-            viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(name), false) }
-            toast(context, R.string.export_jpg_started)
+            onChoose(action, ScanFormat.JPG, name)
         },
         onDismiss = onClose,
     )

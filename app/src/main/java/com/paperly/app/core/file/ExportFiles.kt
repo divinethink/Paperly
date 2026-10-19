@@ -8,6 +8,7 @@ import java.io.IOException
 object ExportFiles {
     private const val DIR = "exports"
     private const val MAX_NAME = 80
+    private const val PAGE_DIGITS = 3
     private val unsafeChars = Regex("[\\\\/:*?\"<>|\\p{Cntrl}]")
 
     fun authority(context: Context): String = "${context.packageName}.fileprovider"
@@ -19,6 +20,10 @@ object ExportFiles {
     fun baseName(title: String): String = title.replace(unsafeChars, "_").trim().take(MAX_NAME).ifBlank { "document" }
 
     fun fileName(title: String, type: String): String = baseName(title) + if (isPdf(type)) ".pdf" else ".epub"
+
+    /** One page image: the plain name for a single page, else `name-001.jpg`, `name-002.jpg`, ... */
+    fun imageName(base: String, index: Int, total: Int): String =
+        if (total <= 1) "$base.jpg" else "$base-${(index + 1).toString().padStart(PAGE_DIGITS, '0')}.jpg"
 
     /** Image-export output folder (inside the FileProvider-exposed `exports/`; not wiped by document shares). */
     fun imagesDir(context: Context): File = File(context.cacheDir, "$DIR/images").apply { mkdirs() }

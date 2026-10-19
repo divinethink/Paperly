@@ -48,7 +48,7 @@
     <string name="export_choose_format">Choose format</string>
     <string name="export_file_name">File name</string>
     <string name="export_file_size">Current PDF size: %1$s</string>
-    <string name="export_jpg_started">Preparing JPG images. They will appear in the Library.</string>
+    <string name="export_jpg_preparing">Preparing JPG images…</string>
     <string name="export_format_png">PNG</string>
     <string name="export_images_progress">Exporting images %1$d / %2$d</string>
     <string name="export_images_ready">Images ready</string>

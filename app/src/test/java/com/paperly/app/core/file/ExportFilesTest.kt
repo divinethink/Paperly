@@ -18,6 +18,13 @@ class ExportFilesTest {
     }
 
     @Test
+    fun pageImageNamesAreNumberedOnlyForSeveralPages() {
+        assertEquals("Scan.jpg", ExportFiles.imageName("Scan", 0, 1))
+        assertEquals("Scan-001.jpg", ExportFiles.imageName("Scan", 0, 3))
+        assertEquals("Scan-012.jpg", ExportFiles.imageName("Scan", 11, 12))
+    }
+
+    @Test
     fun baseNameHasNoExtension() {
         assertEquals("Scan 1", ExportFiles.baseName(" Scan 1 "))
     }
