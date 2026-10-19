@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.LibraryType
@@ -173,6 +174,8 @@ private fun LibraryList(
         state.load == LibraryLoad.Loading -> LoadingPlaceholder()
         state.load == LibraryLoad.Failed -> ErrorRetry(stringResource(R.string.library_load_error), onRetry)
         state.documents.isEmpty() -> LibraryEmpty(state, onImport)
+        state.documents.all { it.type == DocumentType.SCANNED_PDF } ->
+            ScanDocumentList(state.documents, actions, batch, hiltViewModel())
         else -> DocumentList(state.documents, actions, batch, hiltViewModel())
     }
 }
@@ -234,6 +237,13 @@ private fun LibraryHeader(info: HeaderInfo, navigation: LibraryNavigation, onImp
                     },
                 )
                 if (info.isScanTab) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.scan_gallery)) },
+                        onClick = {
+                            menuOpen = false
+                            navigation.onScanGallery()
+                        },
+                    )
                     HorizontalDivider()
                     ScanQualityItems(onDismiss = { menuOpen = false })
                 }

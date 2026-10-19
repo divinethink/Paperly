@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +44,12 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
         viewModel.addPages(uris.map { it.toString() })
     }
     val busy = state.saving || state.loading
+    LaunchedEffect(state.autoAdd, busy) {
+        if (state.autoAdd && !busy) {
+            viewModel.consumeAutoAdd()
+            startScan(context.findActivity(), scanner, keepPages = true, onUnavailable = viewModel::onAddUnavailable)
+        }
+    }
     val copyText = rememberCopyText(viewModel)
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {

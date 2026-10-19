@@ -32,19 +32,20 @@ import com.paperly.app.domain.scanner.ScanEditResult
 
 /** S2 page editor: filter, 4-corner crop, rotate; Save rebuilds the PDF (original kept as a 7-day backup). */
 @Composable
-fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewModel()) {
+fun ScanEditScreen(onDone: (openDocumentId: String?) -> Unit, viewModel: ScanEditViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var askDiscard by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf(false) }
-    LaunchedEffect(state.done) { if (state.done) onDone() }
+    val leave = { onDone(viewModel.exitDocumentId) }
+    LaunchedEffect(state.done) { if (state.done) leave() }
     BackHandler {
         when {
             state.saving -> Unit
             state.dirty -> askDiscard = true
-            else -> onDone()
+            else -> leave()
         }
     }
-    if (askDiscard) DiscardDialog(onDiscard = onDone, onKeep = { askDiscard = false })
+    if (askDiscard) DiscardDialog(onDiscard = leave, onKeep = { askDiscard = false })
     if (askDelete) {
         DeleteDialog(
             onDelete = {
@@ -57,7 +58,7 @@ fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewMo
     if (state.addFailed) FailedDialog(null, viewModel::dismissError)
     state.failed?.let { FailedDialog(it, viewModel::dismissError) }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else onDone() }, onSave = viewModel::save)
+        EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else leave() }, onSave = viewModel::save)
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             EditCanvas(state, viewModel)
             if (state.loading || state.saving) CircularProgressIndicator()

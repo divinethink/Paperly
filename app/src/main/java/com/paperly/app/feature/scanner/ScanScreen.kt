@@ -3,6 +3,7 @@ package com.paperly.app.feature.scanner
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,52 +34,104 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.paperly.app.R
 
-/** P4: ML Kit Document Scanner (its own camera + gallery-import UI) -> PDF -> Library as "scanned-pdf". */
+/** Which picker the Scan screen opens by itself: the document scanner (Scan tab) or the gallery (Scanned ⋮ menu). */
+enum class ScanMode { Camera, Gallery }
+
+/**
+ * P4: opens ML Kit Document Scanner (or the gallery picker) at once; the result is saved to the Library as
+ * "scanned-pdf" and then [onSaved] says where to go (editor, Reader or Library). No result = [onCancel].
+ * The buttons stay as a fallback when the scanner cannot start.
+ */
 @Composable
-fun ScanScreen(onSaved: (editDocumentId: String?) -> Unit, viewModel: ScanViewModel = hiltViewModel()) {
+fun ScanScreen(
+    mode: ScanMode,
+    onSaved: (editDocumentId: String?, openDocumentId: String?) -> Unit,
+    onCancel: () -> Unit,
+    viewModel: ScanViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val editorEnabled by viewModel.editorEnabled.collectAsStateWithLifecycle()
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val scanned = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            val pages = scanned?.pages.orEmpty().map { it.imageUri.toString() }
-            scanned?.pdf?.let { viewModel.onScanned(it.uri.toString(), pages) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        onScanResult(it, viewModel, onCancel)
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) {
+        onGalleryResult(it, viewModel, onCancel)
+    }
+    val openScanner = {
+        viewModel.dismissError()
+        startScan(context.findActivity(), launcher, viewModel.editorEnabled.value, viewModel::onUnavailable)
+    }
+    val openGallery = {
+        viewModel.dismissError()
+        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    LaunchedEffect(Unit) {
+        viewModel.onScreenOpened() // a stuck "saving" from an earlier visit must not block
+        if (viewModel.launchGate.take(viewModel.state.value.saving)) {
+            when {
+                mode == ScanMode.Camera -> openScanner()
+                viewModel.editorEnabled.value -> openGallery()
+                else -> onCancel() // the gallery path needs the page editor
+            }
         }
     }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
-        viewModel.onGalleryPicked(uris.map { it.toString() })
-    }
-    LaunchedEffect(Unit) { viewModel.onScreenOpened() } // a stuck "saving" from an earlier visit must not block
     LaunchedEffect(state.saved) {
         if (state.saved) {
             val editId = state.editDocumentId
+            val openId = state.openDocumentId
             if (state.duplicate) Toast.makeText(context, R.string.scan_duplicate, Toast.LENGTH_LONG).show()
             viewModel.consumeSaved()
-            onSaved(editId)
+            onSaved(editId, openId)
         }
     }
+    ScanFallbackContent(state, editorEnabled, openScanner, openGallery)
+}
+
+/** The scanner closed: a result is saved, no result (back / failure) goes [onCancel] and re-arms the next start. */
+private fun onScanResult(result: ActivityResult, viewModel: ScanViewModel, onCancel: () -> Unit) {
+    val scanned = if (result.resultCode == Activity.RESULT_OK) {
+        GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+    } else {
+        null
+    }
+    val pdf = scanned?.pdf
+    if (scanned == null || pdf == null) {
+        viewModel.launchGate.arm()
+        onCancel()
+    } else {
+        viewModel.onScanned(pdf.uri.toString(), scanned.pages.orEmpty().map { it.imageUri.toString() })
+    }
+}
+
+private fun onGalleryResult(uris: List<Uri>, viewModel: ScanViewModel, onCancel: () -> Unit) {
+    if (uris.isEmpty()) {
+        viewModel.launchGate.arm()
+        onCancel()
+    } else {
+        viewModel.onGalleryPicked(uris.map { it.toString() })
+    }
+}
+
+/** What shows while the scanner starts or after it failed: a hint, the two buttons and the status. */
+@Composable
+private fun ScanFallbackContent(
+    state: ScanUiState,
+    editorEnabled: Boolean,
+    onScan: () -> Unit,
+    onGallery: () -> Unit,
+) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(stringResource(R.string.scan_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(
-            onClick = {
-                viewModel.dismissError()
-                startScan(context.findActivity(), launcher, editorEnabled, viewModel::onUnavailable)
-            },
-            enabled = !state.saving,
-        ) { Text(stringResource(R.string.scan_start)) }
+        Button(onClick = onScan, enabled = !state.saving) { Text(stringResource(R.string.scan_start)) }
         if (editorEnabled) {
-            OutlinedButton(
-                onClick = {
-                    viewModel.dismissError()
-                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                enabled = !state.saving,
-            ) { Text(stringResource(R.string.scan_gallery)) }
+            OutlinedButton(onClick = onGallery, enabled = !state.saving) {
+                Text(stringResource(R.string.scan_gallery))
+            }
         }
         if (state.saving) Text(stringResource(R.string.scan_saving))
         state.error?.let {

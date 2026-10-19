@@ -51,6 +51,8 @@ data class ScanEditUi(
     val failed: ScanEditResult? = null,
     val addFailed: Boolean = false,
     val done: Boolean = false,
+    /** Opened from the card menu "Add pages": the scanner starts once the pages are loaded. */
+    val autoAdd: Boolean = false,
 ) {
     val page: ScanEditPage? get() = pages.getOrNull(current)
     val canDelete: Boolean get() = pages.canDeleteAt(current)
@@ -69,6 +71,11 @@ class ScanEditViewModel @Inject constructor(
     private val outputSettings: ScanOutputSettings,
 ) : ViewModel() {
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
+    private val isNewScan: Boolean = savedStateHandle.get<Boolean>("new") == true
+    private val addAtStart: Boolean = savedStateHandle.get<Boolean>("add") == true
+
+    /** A fresh scan opens its document when the editor is left (saved or skipped); otherwise back to the Library. */
+    val exitDocumentId: String? = documentId.takeIf { isNewScan }
     private val _state = MutableStateFlow(ScanEditUi())
     val state: StateFlow<ScanEditUi> = _state.asStateFlow()
     private var sourceBitmap: Bitmap? = null
@@ -82,8 +89,9 @@ class ScanEditViewModel @Inject constructor(
             if (pages == null) {
                 _state.value = ScanEditUi(loading = false, notEditable = true)
             } else {
-                _state.value = ScanEditUi(loading = false, pages = pages)
+                _state.value = ScanEditUi(loading = false, pages = pages, autoAdd = addAtStart)
                 showPage(0)
+                if (isNewScan && pages.firstOrNull()?.locked == false) _state.update { it.copy(cropping = true) }
             }
         }
     }
@@ -133,6 +141,9 @@ class ScanEditViewModel @Inject constructor(
 
     /** Recognised text of the SAVED scan (null = nothing read yet, e.g. the Settings switch is OFF). */
     suspend fun recognisedText(): String? = ocr.text(documentId)
+
+    /** The "Add pages" start is used up (also after a rotation). */
+    fun consumeAutoAdd() = _state.update { it.copy(autoAdd = false) }
 
     fun onAddUnavailable() = _state.update { it.copy(addFailed = true) }
 

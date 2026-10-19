@@ -57,6 +57,9 @@ class ScanViewModel @Inject constructor(
     /** The save/import that is running now (null or finished = nothing is running). */
     private var work: Job? = null
 
+    /** Decides whether the Scan screen starts the scanner at once when it opens (no extra tap). */
+    val launchGate = ScanLaunchGate()
+
     init {
         // Unfinished-session recovery: a scan whose save never completed (process death) is re-imported once with
         // the default name and no folder.
@@ -73,21 +76,29 @@ class ScanViewModel @Inject constructor(
     /** Scan screen opened: clears anything an earlier visit left behind (e.g. a stuck "saving"). */
     fun onScreenOpened() = _state.update { it.onScreenEnter(workRunning = work?.isActive == true) }
 
-    fun onUnavailable() = _state.update { it.copy(error = ScanError.Unavailable) }
+    fun onUnavailable() {
+        launchGate.arm()
+        _state.update { it.copy(error = ScanError.Unavailable) }
+    }
 
     /** A new scan attempt starts: the old error message goes away. */
     fun dismissError() = _state.update { it.copy(error = null) }
 
-    fun consumeSaved() = _state.update { it.copy(saved = false, duplicate = false, editDocumentId = null) }
+    fun consumeSaved() {
+        launchGate.arm()
+        _state.update { it.copy(saved = false, duplicate = false, editDocumentId = null, openDocumentId = null) }
+    }
 
     /**
      * [pdfUri] = ML Kit's result PDF, [pageUris] = its page JPEGs (kept for the page editor; may be empty).
      * No name question: the scan is saved at once with a date-time name (rename later from the card menu).
-     * Double delivery is ignored while a save runs.
+     * With the page editor ON (and page pictures available) the editor opens next, in crop mode; otherwise the
+     * saved scan opens in the Reader. Double delivery is ignored while a save runs.
      */
     fun onScanned(pdfUri: String, pageUris: List<String> = emptyList()) {
         if (_state.value.saving) return
-        save(Saving(pdfUri, pageUris))
+        val editor = editorEnabled.value && pageUris.isNotEmpty()
+        save(Saving(pdfUri, pageUris, openEditor = editor, openDocument = true))
     }
 
     /** Gallery pictures: build the unedited PDF first, then the normal save; the editor opens after. */
@@ -109,6 +120,7 @@ class ScanViewModel @Inject constructor(
         val pdfUri: String,
         val pageUris: List<String> = emptyList(),
         val openEditor: Boolean = false,
+        val openDocument: Boolean = false,
         val folderId: String? = null,
     )
 
@@ -127,6 +139,7 @@ class ScanViewModel @Inject constructor(
                 currentCoroutineContext().ensureActive() // cancellation is not a save error
                 ScanUiState(error = ScanError.Save)
             }
+            if (!result.saved) launchGate.arm() // an error: leaving and coming back starts the scanner again
             _state.value = result
         }
     }
@@ -140,7 +153,7 @@ class ScanViewModel @Inject constructor(
                 if (job.pageUris.isNotEmpty()) editRepository.storeSources(result.documentId, job.pageUris)
                 ocr.schedule(result.documentId) // background text recognition when the Settings switch is ON
             }
-            return scanOutcome(result, job.openEditor)
+            return scanOutcome(result, job.openEditor, job.openDocument)
         } finally {
             // one attempt per pointer: no endless retry loop
             withContext(NonCancellable) { store.edit { it.remove(PENDING_KEY) } }

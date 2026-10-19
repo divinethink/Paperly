@@ -28,6 +28,9 @@
     <string name="doc_favorite_add">Add to favorites</string>
     <string name="doc_favorite_remove">Remove from favorites</string>
     <string name="doc_more">More options</string>
+    <string name="doc_add_pages">Add pages</string>
+    <string name="doc_menu_more">More</string>
+    <string name="doc_menu_back">Back</string>
     <string name="doc_rename">Rename</string>
     <string name="rename_title">Rename document</string>
     <string name="rename_label">Title</string>

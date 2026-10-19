@@ -54,9 +54,8 @@ import com.paperly.app.feature.library.LIBRARY_TYPE_ARG
 import com.paperly.app.feature.library.LibraryNavigation
 import com.paperly.app.feature.library.LibraryScreen
 import com.paperly.app.feature.reader.ReaderRoute
+import com.paperly.app.feature.scanner.LocalAddScanPages
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
-import com.paperly.app.feature.scanner.ScanEditScreen
-import com.paperly.app.feature.scanner.ScanScreen
 import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
@@ -68,13 +67,17 @@ private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE
 object Routes {
     private const val LIBRARY_PREFIX = "library_"
     const val SCAN = "scan"
+    const val SCAN_GALLERY = "scan-gallery"
     const val SETTINGS = "settings"
     const val TRASH = "trash"
     const val STORAGE = "storage"
     const val READER = "reader/{documentId}"
     fun reader(documentId: String) = "reader/$documentId"
-    const val SCAN_EDIT = "scan-edit/{documentId}"
-    fun scanEdit(documentId: String) = "scan-edit/$documentId"
+    const val SCAN_EDIT = "scan-edit/{documentId}?new={new}&add={add}"
+
+    /** [isNew] = scan just saved (crop mode first, leaving opens the document); [add] = start "Add scan". */
+    fun scanEdit(documentId: String, isNew: Boolean = false, add: Boolean = false) =
+        "scan-edit/$documentId?new=$isNew&add=$add"
 
     /** One Library destination per tab (Scanned / PDF / EPUB): own back-stack entry, view model and saved state. */
     fun library(type: LibraryType) = LIBRARY_PREFIX + type.key
@@ -90,7 +93,7 @@ private enum class TopLevel(val route: String, @StringRes val label: Int, val ic
     Settings(Routes.SETTINGS, R.string.nav_settings, Icons.Filled.Settings),
 }
 
-private fun NavHostController.navigateTopLevel(route: String) = navigate(route) {
+internal fun NavHostController.navigateTopLevel(route: String) = navigate(route) {
     popUpTo(graph.findStartDestination().id) { saveState = true }
     launchSingleTop = true
     restoreState = true
@@ -207,27 +210,21 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
                 },
             ),
         ) {
-            LibraryScreen(
-                LibraryNavigation(
-                    onOpenReader = { navController.navigate(Routes.reader(it)) },
-                    onOpenTrash = { navController.navigate(Routes.TRASH) },
-                    onOpenStorage = { navController.navigate(Routes.STORAGE) },
-                    onShowTab = { navController.navigateTopLevel(Routes.library(it)) },
-                ),
-            )
+            val addPages: (String) -> Unit = { navController.navigate(Routes.scanEdit(it, add = true)) }
+            CompositionLocalProvider(LocalAddScanPages provides addPages) {
+                LibraryScreen(
+                    LibraryNavigation(
+                        onOpenReader = { navController.navigate(Routes.reader(it)) },
+                        onOpenTrash = { navController.navigate(Routes.TRASH) },
+                        onOpenStorage = { navController.navigate(Routes.STORAGE) },
+                        onShowTab = { navController.navigateTopLevel(Routes.library(it)) },
+                        onScanGallery = { navController.navigate(Routes.SCAN_GALLERY) },
+                    ),
+                )
+            }
         }
     }
-    composable(Routes.SCAN) {
-        ScanScreen(
-            onSaved = { editId ->
-                if (editId != null) {
-                    navController.navigate(Routes.scanEdit(editId)) // gallery import: straight into the page editor
-                } else {
-                    navController.navigateTopLevel(Routes.library(LibraryType.SCAN))
-                }
-            },
-        )
-    }
+    scanDestinations(navController)
     composable(Routes.SETTINGS) { SettingsScreen() }
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
     composable(Routes.STORAGE) { StorageScreen(onBack = { navController.popBackStack() }) }
@@ -242,11 +239,5 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         CompositionLocalProvider(LocalOpenScanEditor provides openEditor) {
             ReaderRoute(onBack = { navController.popBackStack() })
         }
-    }
-    composable(
-        Routes.SCAN_EDIT,
-        arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
-    ) {
-        ScanEditScreen(onDone = { navController.navigateTopLevel(Routes.library(LibraryType.SCAN)) })
     }
 }

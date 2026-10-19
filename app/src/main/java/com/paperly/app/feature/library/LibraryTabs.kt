@@ -15,6 +15,7 @@ class LibraryNavigation(
     val onOpenTrash: () -> Unit,
     val onOpenStorage: () -> Unit,
     val onShowTab: (LibraryType) -> Unit,
+    val onScanGallery: () -> Unit,
 )
 
 @StringRes
