@@ -9,12 +9,27 @@ import androidx.navigation.navArgument
 import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.feature.scanner.ScanEditScreen
 import com.paperly.app.feature.scanner.ScanMode
+import com.paperly.app.feature.scanner.ScanPagesActions
+import com.paperly.app.feature.scanner.ScanPagesScreen
 import com.paperly.app.feature.scanner.ScanScreen
 
-/** Scan tab (scanner opens at once), gallery import (Scanned ⋮ menu) and the page editor. */
+/** Scan tab (scanner opens at once), gallery import (Scanned ⋮ menu), the page grid and the page editor. */
 internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) {
     composable(Routes.SCAN) { ScanRoute(navController, ScanMode.Camera) }
     composable(Routes.SCAN_GALLERY) { ScanRoute(navController, ScanMode.Gallery) }
+    composable(
+        Routes.SCAN_PAGES,
+        arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
+    ) {
+        ScanPagesScreen(
+            onBack = { navController.popBackStack() },
+            actions = ScanPagesActions(
+                onOpenReader = { navController.navigate(Routes.reader(it)) },
+                onAddScan = { navController.navigate(Routes.scanEdit(it, add = true)) },
+                onEditPages = { navController.navigate(Routes.scanEdit(it)) },
+            ),
+        )
+    }
     composable(
         Routes.SCAN_EDIT,
         arguments = listOf(

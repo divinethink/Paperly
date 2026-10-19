@@ -32,6 +32,11 @@ private const val ARTICLE_PATH = "M14,2H6c-1.1,0 -1.99,0.9 -1.99,2L4,20c0,1.1 0.
 
 private const val FOLDER_PATH =
     "M10,4H4c-1.1,0 -1.99,0.9 -1.99,2L2,18c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V8c0,-1.1 -0.9,-2 -2,-2h-8l-2,-2z"
+private const val IMAGE_PATH = "M21,19V5c0,-1.1 -0.9,-2 -2,-2H5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h14" +
+    "c1.1,0 2,-0.9 2,-2zM8.5,13.5l2.5,3.01L14.5,12l4.5,6H5l3.5,-4.5z"
+private const val CAMERA_PATH = "M12,12m-3.2,0a3.2,3.2 0 1,0 6.4,0a3.2,3.2 0 1,0 -6.4,0" +
+    "M9,2L7.17,4H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V6c0,-1.1 -0.9,-2 -2,-2h-3.17L15,2H9z" +
+    "M12,17c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5z"
 private const val BOOKMARK_PATH = "M17,3H7c-1.1,0 -1.99,0.9 -1.99,2L5,21l7,-3 7,3V5c0,-1.1 -0.9,-2 -2,-2z"
 
 private fun glyph(name: String, pathData: String): ImageVector =
@@ -55,3 +60,5 @@ val PrintGlyph: ImageVector by lazy { glyph("Print", PRINT_PATH) }
 val ArticleGlyph: ImageVector by lazy { glyph("Article", ARTICLE_PATH) }
 val FolderGlyph: ImageVector by lazy { glyph("Folder", FOLDER_PATH) }
 val BookmarkGlyph: ImageVector by lazy { glyph("Bookmark", BOOKMARK_PATH) }
+val GalleryGlyph: ImageVector by lazy { glyph("Gallery", IMAGE_PATH) }
+val CameraGlyph: ImageVector by lazy { glyph("Camera", CAMERA_PATH) }

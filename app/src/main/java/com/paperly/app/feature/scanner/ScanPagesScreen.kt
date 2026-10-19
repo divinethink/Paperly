@@ -1,0 +1,77 @@
+package com.paperly.app.feature.scanner
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.paperly.app.R
+import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.feature.common.ErrorRetry
+import com.paperly.app.feature.common.LoadingPlaceholder
+import com.paperly.app.feature.library.rememberDocumentExport
+
+/** Navigation callbacks of the page grid, grouped so the composables stay under the parameter-count limit. */
+class ScanPagesActions(
+    val onOpenReader: (documentId: String) -> Unit,
+    val onAddScan: (documentId: String) -> Unit,
+    val onEditPages: (documentId: String) -> Unit,
+)
+
+/** Scanned document -> its pages (tap a page = open the Reader there). Back = Library. */
+@Composable
+fun ScanPagesScreen(
+    onBack: () -> Unit,
+    actions: ScanPagesActions,
+    viewModel: ScanPagesViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.release() }
+    when (val ui = state) {
+        ScanPagesUi.Loading -> PagesStatus(onBack) { LoadingPlaceholder() }
+        ScanPagesUi.Failed ->
+            PagesStatus(onBack) { ErrorRetry(stringResource(R.string.scan_pages_error), viewModel::reload) }
+        is ScanPagesUi.Ready -> ScanPagesReady(ui, viewModel, onBack, actions)
+    }
+}
+
+@Composable
+private fun PagesStatus(onBack: () -> Unit, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        PaperlyTopBar("", onBack = onBack)
+        Box(Modifier.weight(1f)) { content() }
+    }
+}
+
+@Composable
+private fun ScanPagesReady(
+    ready: ScanPagesUi.Ready,
+    viewModel: ScanPagesViewModel,
+    onBack: () -> Unit,
+    actions: ScanPagesActions,
+) {
+    val doc = ready.document
+    val export = rememberDocumentExport(doc)
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        PaperlyTopBar(doc.title, onBack = onBack) { PagesMenuButton(export) }
+        ScanPageGrid(
+            ready,
+            viewModel,
+            onPage = { index -> viewModel.openPage(index) { actions.onOpenReader(doc.id) } },
+            modifier = Modifier.weight(1f),
+        )
+        PagesBottomBar(
+            export,
+            onPictures = { actions.onEditPages(doc.id) },
+            onScan = { actions.onAddScan(doc.id) },
+        )
+    }
+}

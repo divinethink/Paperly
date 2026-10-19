@@ -6,6 +6,9 @@
     <string name="nav_scan">Scan</string>
     <string name="nav_scanned">Scanned</string>
     <string name="scan_row_created">Created: %1$s</string>
+    <string name="scan_page_number">%1$02d</string>
+    <string name="scan_page_desc">Page %1$d</string>
+    <string name="scan_pages_error">This document could not be opened</string>
     <string name="nav_pdf">PDF</string>
     <string name="nav_epub">EPUB</string>
     <string name="nav_settings">Settings</string>

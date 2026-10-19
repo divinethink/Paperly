@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
 import com.paperly.app.feature.scanner.LocalAddScanPages
+import com.paperly.app.feature.scanner.LocalOpenScanPages
 
 private val RowCoverWidth = 72.dp
 private val RowCoverHeight = 96.dp
@@ -67,10 +68,11 @@ internal fun ScanDocumentList(
 private fun ScanDocumentRow(doc: Document, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
     var menuOpen by remember { mutableStateOf(false) }
     val export = rememberDocumentExport(doc)
+    val openPages = LocalOpenScanPages.current // a scanned document opens on its page grid
     Row(
         Modifier.fillMaxWidth().padding(vertical = 10.dp).combinedClickable(
             role = Role.Button,
-            onClick = { if (batch.active) batch.toggle(doc.id) else actions.onOpen(doc) },
+            onClick = { if (batch.active) batch.toggle(doc.id) else openPages(doc.id) },
             onLongClickLabel = stringResource(R.string.batch_select),
             onLongClick = { batch.toggle(doc.id) },
         ),

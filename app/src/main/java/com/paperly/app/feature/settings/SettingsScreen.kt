@@ -18,13 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.PaperlyTopBar
 import com.paperly.app.feature.reader.ReadingTimeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,24 +59,26 @@ fun SettingsScreen(
         onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
         onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
     )
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        Text(
-            stringResource(R.string.nav_settings),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 4.dp).semantics { heading() },
-        )
-        GroupLabel(R.string.settings_group_preferences)
-        ReadingCard(minutesToday, dynamicColor, appearance::setDynamicColor)
-        GroupLabel(R.string.settings_group_data)
-        SettingsCard { StorageCardContent(usage) }
-        SettingsCard { SyncSection() }
-        SettingsCard { BackupSection(backup.copy(busy = busy), actions) }
-        GroupLabel(R.string.settings_group_privacy)
-        SettingsCard { PrivacySection(busy = busy, onExport = onExport) }
-        GroupLabel(R.string.settings_group_danger, danger = true)
-        SettingsCard(danger = true) {
-            DeleteDataSection(state = del, viewModel = deleteViewModel, onExport = onExport, backupBusy = backup.busy)
+    Column(Modifier.fillMaxWidth()) {
+        PaperlyTopBar(stringResource(R.string.nav_settings))
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            GroupLabel(R.string.settings_group_preferences)
+            ReadingCard(minutesToday, dynamicColor, appearance::setDynamicColor)
+            GroupLabel(R.string.settings_group_data)
+            SettingsCard { StorageCardContent(usage) }
+            SettingsCard { SyncSection() }
+            SettingsCard { BackupSection(backup.copy(busy = busy), actions) }
+            GroupLabel(R.string.settings_group_privacy)
+            SettingsCard { PrivacySection(busy = busy, onExport = onExport) }
+            GroupLabel(R.string.settings_group_danger, danger = true)
+            SettingsCard(danger = true) {
+                DeleteDataSection(
+                    state = del,
+                    viewModel = deleteViewModel,
+                    onExport = onExport,
+                    backupBusy = backup.busy,
+                )
+            }
         }
     }
 }

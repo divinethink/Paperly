@@ -7,15 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,13 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.core.ui.topBarTextButtonColors
 import com.paperly.app.domain.document.Document
 import com.paperly.app.feature.common.LoadingPlaceholder
 import com.paperly.app.feature.common.documentMeta
@@ -85,7 +82,11 @@ fun TrashScreen(onBack: () -> Unit, viewModel: TrashViewModel = hiltViewModel())
                 Text(stringResource(R.string.trash_empty), style = MaterialTheme.typography.bodyLarge)
             }
         } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                Modifier.navigationBarsPadding(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 items(docs, key = { it.id }) { doc ->
                     TrashRow(doc, onRestore = { viewModel.restore(doc) }, onDelete = { confirm = Confirm.One(doc) })
                 }
@@ -96,19 +97,10 @@ fun TrashScreen(onBack: () -> Unit, viewModel: TrashViewModel = hiltViewModel())
 
 @Composable
 private fun TrashTopBar(onBack: () -> Unit, emptyEnabled: Boolean, onEmpty: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
+    PaperlyTopBar(stringResource(R.string.trash_title), onBack = onBack) {
+        TextButton(onClick = onEmpty, enabled = emptyEnabled, colors = topBarTextButtonColors()) {
+            Text(stringResource(R.string.trash_empty_action))
         }
-        Text(
-            stringResource(R.string.trash_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.weight(1f).semantics { heading() },
-        )
-        TextButton(onClick = onEmpty, enabled = emptyEnabled) { Text(stringResource(R.string.trash_empty_action)) }
     }
 }
 

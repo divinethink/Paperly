@@ -57,13 +57,17 @@ import com.paperly.app.feature.library.LibraryScreen
 import com.paperly.app.feature.reader.ReaderRoute
 import com.paperly.app.feature.scanner.LocalAddScanPages
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
+import com.paperly.app.feature.scanner.LocalOpenScanPages
 import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
 
 /** The Reader handles the system bars itself (edge-to-edge, bars float over the page). */
 private val NoInsets = WindowInsets(0)
-private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT)
+private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT, Routes.SCAN_PAGES)
+
+/** Full-screen routes whose teal bar paints the status bar (and which pad the navigation bar themselves). */
+private val SelfInsetRoutes = setOf(Routes.READER, Routes.SCAN_PAGES, Routes.TRASH, Routes.STORAGE)
 
 object Routes {
     private const val LIBRARY_PREFIX = "library_"
@@ -74,6 +78,8 @@ object Routes {
     const val STORAGE = "storage"
     const val READER = "reader/{documentId}"
     fun reader(documentId: String) = "reader/$documentId"
+    const val SCAN_PAGES = "scan-pages/{documentId}"
+    fun scanPages(documentId: String) = "scan-pages/$documentId"
     const val SCAN_EDIT = "scan-edit/{documentId}?new={new}&add={add}"
 
     /** [isNew] = scan just saved (crop mode first, leaving opens the document); [add] = start "Add scan". */
@@ -100,11 +106,11 @@ internal fun NavHostController.navigateTopLevel(route: String) = navigate(route)
     restoreState = true
 }
 
-/** Reader and (phone) Library draw under the status bar themselves (the teal header paints it). */
+/** Reader, the page grid, Trash/Storage and (phone) Library/Settings draw under the status bar themselves. */
 @Composable
 private fun rootInsets(route: String?, useRail: Boolean): WindowInsets {
-    val selfInsetting = route == Routes.READER || (Routes.isLibrary(route) && !useRail)
-    return if (selfInsetting) NoInsets else ScaffoldDefaults.contentWindowInsets
+    val phoneTealTab = !useRail && (Routes.isLibrary(route) || route == Routes.SETTINGS)
+    return if (route in SelfInsetRoutes || phoneTealTab) NoInsets else ScaffoldDefaults.contentWindowInsets
 }
 
 @Composable
@@ -141,6 +147,7 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
 
     ContinueReadingEffect(navController, currentRoute)
     QuickOpenEffect(navController)
+    TealStatusBarEffect(currentRoute)
 
     // Open-With/Share import is handled by Library: make sure it is on screen (whatever screen we were on).
     LaunchedEffect(hasIncomingImport, currentRoute) {
@@ -235,7 +242,8 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
             ),
         ) {
             val addPages: (String) -> Unit = { navController.navigate(Routes.scanEdit(it, add = true)) }
-            CompositionLocalProvider(LocalAddScanPages provides addPages) {
+            val openPages: (String) -> Unit = { navController.navigate(Routes.scanPages(it)) }
+            CompositionLocalProvider(LocalAddScanPages provides addPages, LocalOpenScanPages provides openPages) {
                 LibraryScreen(
                     LibraryNavigation(
                         onOpenReader = { navController.navigate(Routes.reader(it)) },
