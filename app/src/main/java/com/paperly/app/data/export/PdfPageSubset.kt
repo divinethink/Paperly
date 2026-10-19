@@ -30,20 +30,20 @@ class PdfPageSubset @Inject constructor(@ApplicationContext private val context:
 
     private fun copyPages(source: File, pages: Set<Int>, target: File): Boolean = try {
         PDFBoxResourceLoader.init(context)
-        PDDocument.load(source, MemoryUsageSetting.setupTempFileOnly()).use { doc ->
-            val keep = pages.filter { it in 0 until doc.numberOfPages }.toSet()
-            if (doc.isEncrypted || keep.isEmpty()) {
-                false
-            } else {
-                for (index in doc.numberOfPages - 1 downTo 0) if (index !in keep) doc.removePage(index)
-                doc.save(target)
-                target.length() > 0
-            }
-        }
+        PDDocument.load(source, MemoryUsageSetting.setupTempFileOnly()).use { doc -> saveOnly(doc, pages, target) }
     } catch (ignored: OutOfMemoryError) {
         false
     } catch (ignored: Exception) {
         false
+    }
+
+    /** Removes every page not in [pages] and saves the rest to [target]; false if nothing would be left. */
+    private fun saveOnly(doc: PDDocument, pages: Set<Int>, target: File): Boolean {
+        val keep = pages.filter { it in 0 until doc.numberOfPages }.toSet()
+        if (doc.isEncrypted || keep.isEmpty()) return false
+        (doc.numberOfPages - 1 downTo 0).filter { it !in keep }.forEach { doc.removePage(it) }
+        doc.save(target)
+        return target.length() > 0
     }
 
     private companion object {
