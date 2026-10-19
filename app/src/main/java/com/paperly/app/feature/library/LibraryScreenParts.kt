@@ -1,5 +1,6 @@
 package com.paperly.app.feature.library
 
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -8,7 +9,7 @@ import androidx.compose.ui.res.stringResource
 import com.paperly.app.R
 
 @Composable
-internal fun LibraryMenuItems(isScanTab: Boolean, navigation: LibraryNavigation, close: () -> Unit) {
+internal fun ColumnScope.LibraryMenuItems(isScanTab: Boolean, navigation: LibraryNavigation, close: () -> Unit) {
     DropdownMenuItem(
         text = { Text(stringResource(R.string.menu_trash)) },
         onClick = {
