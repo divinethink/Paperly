@@ -66,9 +66,7 @@ fun ScanEditScreen(
             onCancel = { askDelete = false },
         )
     }
-    if (state.addFailed) FailedDialog(null, viewModel::dismissError)
-    state.failed?.let { FailedDialog(it, viewModel::dismissError) }
-    if (state.deleteBlocked) BlockedDialog(viewModel::dismissDeleteBlocked)
+    ErrorDialogs(state, viewModel)
     var adjusting by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else leave() }, onSave = viewModel::save)
@@ -179,4 +177,12 @@ private fun BlockedDialog(onDismiss: () -> Unit) {
         text = { Text(stringResource(R.string.scan_edit_delete_blocked)) },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } },
     )
+}
+
+/** Error / info dialogs of the editor (kept out of [ScanEditScreen] to stay under the complexity limit). */
+@Composable
+private fun ErrorDialogs(state: ScanEditUi, viewModel: ScanEditViewModel) {
+    if (state.addFailed) FailedDialog(null, viewModel::dismissError)
+    state.failed?.let { FailedDialog(it, viewModel::dismissError) }
+    if (state.deleteBlocked) BlockedDialog(viewModel::dismissDeleteBlocked)
 }
