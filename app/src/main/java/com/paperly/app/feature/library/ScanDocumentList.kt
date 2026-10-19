@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +41,8 @@ import com.paperly.app.R
 import com.paperly.app.domain.document.Document
 import com.paperly.app.feature.scanner.LocalAddScanPages
 
-private val RowCoverWidth = 64.dp
-private val RowCoverHeight = 88.dp
+private val RowCoverWidth = 72.dp
+private val RowCoverHeight = 96.dp
 
 /** Scanned tab: one document per row (cover, name on up to two lines, date, size), so names are not cut off. */
 @Composable
@@ -52,12 +53,12 @@ internal fun ScanDocumentList(
     covers: CoverViewModel,
     onOpenFolder: (String) -> Unit,
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         items(state.scanFolders, key = { "folder:" + it.id }) { ScanFolderRow(it, onOpenFolder) }
-        items(state.documents, key = { it.id }) { doc -> ScanDocumentRow(doc, actions, batch, covers) }
+        items(state.documents, key = { it.id }) { doc ->
+            ScanDocumentRow(doc, actions, batch, covers)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
     }
 }
 
@@ -67,7 +68,7 @@ private fun ScanDocumentRow(doc: Document, actions: DocumentActions, batch: Batc
     var menuOpen by remember { mutableStateOf(false) }
     val export = rememberDocumentExport(doc)
     Row(
-        Modifier.fillMaxWidth().combinedClickable(
+        Modifier.fillMaxWidth().padding(vertical = 10.dp).combinedClickable(
             role = Role.Button,
             onClick = { if (batch.active) batch.toggle(doc.id) else actions.onOpen(doc) },
             onLongClickLabel = stringResource(R.string.batch_select),
@@ -81,7 +82,7 @@ private fun ScanDocumentRow(doc: Document, actions: DocumentActions, batch: Batc
                 doc,
                 covers,
                 Modifier.size(RowCoverWidth, RowCoverHeight),
-                cornerRadius = 10.dp,
+                cornerRadius = 2.dp,
                 letterStyle = MaterialTheme.typography.titleLarge,
             )
             if (doc.isFavorite) FavoriteBadge(Modifier.align(Alignment.TopEnd).padding(4.dp))
@@ -113,12 +114,12 @@ private fun ScanRowText(doc: Document, modifier: Modifier) {
         Text(
             doc.title,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            DateUtils.formatDateTime(context, doc.createdAt, flags),
+            stringResource(R.string.scan_row_created, DateUtils.formatDateTime(context, doc.createdAt, flags)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

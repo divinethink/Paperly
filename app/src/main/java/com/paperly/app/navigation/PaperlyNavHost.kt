@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -117,10 +118,19 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     }
 
     Scaffold(
-        contentWindowInsets = if (currentRoute == Routes.READER) NoInsets else ScaffoldDefaults.contentWindowInsets,
+        // Reader and (phone) Library draw under the status bar themselves (teal header paints it).
+        contentWindowInsets = if (currentRoute == Routes.READER || (Routes.isLibrary(currentRoute) && !useRail)) {
+            NoInsets
+        } else {
+            ScaffoldDefaults.contentWindowInsets
+        },
         bottomBar = {
             if (showNav && !useRail) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    val itemColors = barItemColors()
                     TopLevel.entries.forEach { item ->
                         val selected = currentRoute == item.route
                         val go = { navController.navigateTopLevel(item.route) }
@@ -132,6 +142,7 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
                                 onClick = go,
                                 icon = { Icon(item.icon, contentDescription = null) },
                                 label = { Text(stringResource(item.label)) },
+                                colors = itemColors,
                             )
                         }
                     }
@@ -163,6 +174,16 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     }
 }
 
+/** Teal bar: white labels/icons, selected item gets a light pill. */
+@Composable
+private fun barItemColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+    unselectedIconColor = MaterialTheme.colorScheme.onPrimary,
+    unselectedTextColor = MaterialTheme.colorScheme.onPrimary,
+    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+)
+
 /** The middle Scan destination: a round filled button instead of a plain nav item. */
 @Composable
 private fun RowScope.ScanNavItem(selected: Boolean, label: String, onClick: () -> Unit) {
@@ -173,8 +194,8 @@ private fun RowScope.ScanNavItem(selected: Boolean, label: String, onClick: () -
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            color = MaterialTheme.colorScheme.onPrimary,
+            contentColor = MaterialTheme.colorScheme.primary,
             shadowElevation = 4.dp,
             modifier = Modifier.size(52.dp),
         ) {

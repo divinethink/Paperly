@@ -5,6 +5,7 @@
     <string name="nav_library">Library</string>
     <string name="nav_scan">Scan</string>
     <string name="nav_scanned">Scanned</string>
+    <string name="scan_row_created">Created: %1$s</string>
     <string name="nav_pdf">PDF</string>
     <string name="nav_epub">EPUB</string>
     <string name="nav_settings">Settings</string>

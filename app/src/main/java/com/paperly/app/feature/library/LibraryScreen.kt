@@ -5,36 +5,35 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,7 +127,7 @@ fun LibraryScreen(
 
     Column(Modifier.fillMaxSize()) {
         if (batch.active) {
-            BatchBar(batch, state.documents, state.folders)
+            Box(Modifier.statusBarsPadding()) { BatchBar(batch, state.documents, state.folders) }
         } else {
             val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, isScanTab)
             val canAddFolder = isScanTab && state.folderPath.size < MAX_FOLDER_DEPTH
@@ -200,58 +199,48 @@ private fun LibraryHeader(
     onImport: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    Row(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+    // Notebloc-style teal title bar; the background also paints the status-bar area.
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+        Row(
+            Modifier.fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primary)
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
             Text(
-                info.title,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.semantics { heading() },
+                info.title + " (" + info.count + ")",
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).semantics { heading() },
             )
-            CountPill(info.count)
-        }
-        Button(onClick = onImport, enabled = !info.isImporting, modifier = Modifier.height(44.dp)) {
-            Icon(DownloadGlyph, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.library_import))
-        }
-        Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.library_more))
+            IconButton(onClick = onImport, enabled = !info.isImporting) {
+                Icon(
+                    DownloadGlyph,
+                    contentDescription = stringResource(R.string.library_import),
+                    modifier = Modifier.size(24.dp),
+                )
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                if (canAddFolder) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.folder_new)) },
-                        onClick = {
-                            menuOpen = false
-                            onNewFolder()
-                        },
-                    )
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.library_more))
                 }
-                LibraryMenuItems(info.isScanTab, navigation) { menuOpen = false }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    if (canAddFolder) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.folder_new)) },
+                            onClick = {
+                                menuOpen = false
+                                onNewFolder()
+                            },
+                        )
+                    }
+                    LibraryMenuItems(info.isScanTab, navigation) { menuOpen = false }
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun CountPill(count: Int) {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = Modifier.padding(start = 8.dp),
-    ) {
-        Text(
-            count.toString(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-        )
     }
 }
 
