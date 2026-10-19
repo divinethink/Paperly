@@ -26,11 +26,11 @@ import kotlinx.coroutines.withContext
 private const val JPEG_MIME = "image/jpeg"
 
 /** Scan "JPG" choice: pages are rendered, then shared or saved at once (no banner, nothing added to the Library). */
-internal class JpgExport(val share: (name: String) -> Unit, val save: (name: String) -> Unit)
+internal class ScanJpgExport(val share: (name: String) -> Unit, val save: (name: String) -> Unit)
 
 /** Share = the system share sheet with every page. Save = one page: "save as" file; several pages: a folder pick. */
 @Composable
-internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): JpgExport {
+internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): ScanJpgExport {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf<List<File>>(emptyList()) }
@@ -46,7 +46,7 @@ internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): 
         if (files == null) toast(context, R.string.export_failed)
         return files
     }
-    return JpgExport(
+    return ScanJpgExport(
         share = { name -> scope.launch { prepare(name)?.let { shareImages(context, it) } } },
         save = { name ->
             scope.launch {
