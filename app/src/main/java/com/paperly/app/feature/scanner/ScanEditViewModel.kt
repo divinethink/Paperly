@@ -59,6 +59,8 @@ data class ScanEditUi(
     val awaitingAdd: Boolean = false,
     /** The picker/scanner was closed with nothing added: the screen goes back to where it came from. */
     val cancelled: Boolean = false,
+    /** Opened to delete one page, but it carries highlights or is the last page: nothing was deleted. */
+    val deleteBlocked: Boolean = false,
 ) {
     val page: ScanEditPage? get() = pages.getOrNull(current)
     val canDelete: Boolean get() = pages.canDeleteAt(current)
@@ -80,6 +82,9 @@ class ScanEditViewModel @Inject constructor(
     private val isNewScan: Boolean = savedStateHandle.get<Boolean>("new") == true
     private val addAtStart: Boolean = savedStateHandle.get<Boolean>("add") == true
     private val pickAtStart: Boolean = savedStateHandle.get<Boolean>("pick") == true
+    private val startPage: Int = savedStateHandle.get<Int>("page") ?: -1 // opened from the Reader's top bar
+    private val cropAtStart: Boolean = savedStateHandle.get<Boolean>("crop") == true
+    private val deleteAtStart: Boolean = savedStateHandle.get<Boolean>("delete") == true
 
     /** A fresh scan opens its document when the editor is left (saved or skipped); otherwise back to the Library. */
     val exitDocumentId: String? = documentId.takeIf { isNewScan }
@@ -103,11 +108,32 @@ class ScanEditViewModel @Inject constructor(
                     autoPick = pickAtStart,
                     awaitingAdd = addAtStart || pickAtStart,
                 )
-                showPage(0)
-                if (isNewScan && pages.firstOrNull()?.locked == false) _state.update { it.copy(cropping = true) }
+                openAtStart(pages)
             }
         }
     }
+
+    /** First page shown: page 1, or the page the Reader's top bar asked for (crop step / delete at once). */
+    private fun openAtStart(pages: List<ScanEditPage>) {
+        val start = startPage.takeIf { it in pages.indices }
+        showPage(start ?: 0, cropFirst = cropAtStart && start != null && !pages[start].locked)
+        if (isNewScan && pages.firstOrNull()?.locked == false) _state.update { it.copy(cropping = true) }
+        if (deleteAtStart && start != null) removeAtStart(start)
+    }
+
+    /** Reader top-bar delete (already confirmed there): removes the page and saves; a locked/last page stays. */
+    private fun removeAtStart(index: Int) {
+        if (!_state.value.pages.canDeleteAt(index)) {
+            _state.update { it.copy(deleteBlocked = true) }
+            return
+        }
+        _state.update {
+            it.copy(pages = it.pages.withoutAt(index), current = index.coerceAtMost(it.pages.size - 2), dirty = true)
+        }
+        save()
+    }
+
+    fun dismissDeleteBlocked() = _state.update { it.copy(deleteBlocked = false) }
 
     fun goTo(index: Int) {
         if (index in _state.value.pages.indices && !_state.value.saving) showPage(index)

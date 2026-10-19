@@ -188,6 +188,7 @@
     <string name="scan_edit_pages">Edit pages</string>
     <string name="scan_bar_ocr">OCR</string>
     <string name="scan_edit_border_title">Border adjustment</string>
+    <string name="scan_edit_page_title">Edit page</string>
     <string name="scan_edit_processing">Processing…</string>
     <string name="scan_edit_move_earlier">Move earlier</string>
     <string name="scan_edit_move_later">Move later</string>
@@ -196,6 +197,10 @@
     <string name="scan_edit_delete">Delete page</string>
     <string name="scan_edit_delete_title">Delete this page?</string>
     <string name="scan_edit_delete_body">The page is removed when you tap Save. Its title, note and bookmark go with it. Your current file is kept as a backup for 7 days.</string>
+    <string name="scan_edit_delete_blocked">This page cannot be deleted: it has highlights, or it is the last page.</string>
+    <string name="scan_reader_crop">Crop this page</string>
+    <string name="scan_reader_delete">Delete this page</string>
+    <string name="scan_reader_delete_body">The page is removed now. Its title, note and bookmark go with it. Your current file is kept as a backup for 7 days.</string>
     <string name="scan_edit_error_add">Could not add the pictures. Your scan was not changed.</string>
     <string name="settings_scan_editor">Scan page editor</string>
     <string name="settings_scan_editor_hint">On by default. Keeps your scanned pages so you can crop, rotate and filter them after saving, and adds Import from gallery. Turn off to go back to the plain scanner.</string>

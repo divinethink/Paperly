@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperly.app.core.file.DocumentFileStore
+import com.paperly.app.data.scanner.ScanPageSizes
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.reader.OpenResult
@@ -43,12 +44,14 @@ private const val STOP_TIMEOUT_MS = 5_000L
  * nothing is written except the reading position when a page is tapped.
  */
 @HiltViewModel
+@Suppress("LongParameterList") // Hilt DI collaborators
 class ScanPagesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DocumentRepository,
     private val readerState: ReaderStateRepository,
     private val fileStore: DocumentFileStore,
     private val viewSettings: ScanPagesViewSettings,
+    private val pageSizeReader: ScanPageSizes,
     // Provider = lazy: the engine is created only when the grid is opened.
     private val engineProvider: Provider<ReaderEngine>,
 ) : ViewModel() {
@@ -61,6 +64,10 @@ class ScanPagesViewModel @Inject constructor(
     private val lock = Mutex() // one open/render/close at a time
     private var revision = 0
     private var firstResumeSeen = false
+    private val _pageSizes = MutableStateFlow<List<Long>>(emptyList())
+
+    /** Stored picture size of each page in bytes (read after the grid is shown); empty = not known (no sizes shown). */
+    val pageSizes: StateFlow<List<Long>> = _pageSizes.asStateFlow()
 
     /** true = thumbnail grid (default), false = list. */
     val gridView: StateFlow<Boolean> =
@@ -76,7 +83,10 @@ class ScanPagesViewModel @Inject constructor(
     }
 
     private fun launchLoad() {
-        viewModelScope.launch { _state.value = lock.withLock { load() } }
+        viewModelScope.launch {
+            _state.value = lock.withLock { load() }
+            fileStore.resolve(documentId)?.let { _pageSizes.value = pageSizeReader.read(it) }
+        }
     }
 
     /**

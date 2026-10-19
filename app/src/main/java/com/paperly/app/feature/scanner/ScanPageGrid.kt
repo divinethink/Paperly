@@ -2,6 +2,7 @@ package com.paperly.app.feature.scanner
 
 import android.graphics.Bitmap
 import android.text.format.DateUtils
+import android.text.format.Formatter
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,11 +31,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 
 private const val THUMB_WIDTH_PX = 360
@@ -48,6 +51,21 @@ internal fun rememberScanDate(createdAt: Long): String = remember(createdAt) {
     DateUtils.getRelativeTimeSpanString(createdAt, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS).toString()
 }
 
+/** What a page shows besides its number: the document's date and the page's stored picture size (null = unknown). */
+internal data class PageStamp(val date: String, val size: String?)
+
+/** Stamp of page [index] (0-based); sizes appear once they are read and only while they match the page count. */
+@Composable
+internal fun rememberPageStamp(ready: ScanPagesUi.Ready, viewModel: ScanPagesViewModel): (Int) -> PageStamp {
+    val date = rememberScanDate(ready.document.createdAt)
+    val sizes by viewModel.pageSizes.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    return { index ->
+        val bytes = sizes.takeIf { it.size == ready.pageCount }?.getOrNull(index)?.takeIf { it > 0L }
+        PageStamp(date, bytes?.let { Formatter.formatShortFileSize(context, it) })
+    }
+}
+
 /** Three-column page grid (Notebloc style): page thumbnail with a teal footer — page number left, date right. */
 @Composable
 internal fun ScanPageGrid(
@@ -56,7 +74,7 @@ internal fun ScanPageGrid(
     onPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val date = rememberScanDate(ready.document.createdAt)
+    val stampOf = rememberPageStamp(ready, viewModel)
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
         modifier = modifier,
@@ -65,7 +83,7 @@ internal fun ScanPageGrid(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(ready.pageCount, key = { it }) { index ->
-            PageCell(index, ready, date, viewModel) { onPage(index) }
+            PageCell(index, ready, stampOf(index), viewModel) { onPage(index) }
         }
     }
 }
@@ -74,7 +92,7 @@ internal fun ScanPageGrid(
 private fun PageCell(
     index: Int,
     ready: ScanPagesUi.Ready,
-    date: String,
+    stamp: PageStamp,
     viewModel: ScanPagesViewModel,
     onClick: () -> Unit,
 ) {
@@ -87,7 +105,7 @@ private fun PageCell(
             .clickable(role = Role.Button, onClick = onClick),
     ) {
         PageThumb(index, ready, viewModel, Modifier.fillMaxWidth())
-        PageFooter(index + 1, date)
+        PageFooter(index + 1, stamp)
     }
 }
 
@@ -111,7 +129,7 @@ internal fun PageThumb(index: Int, ready: ScanPagesUi.Ready, viewModel: ScanPage
 }
 
 @Composable
-private fun PageFooter(number: Int, date: String) {
+private fun PageFooter(number: Int, stamp: PageStamp) {
     val onBar = MaterialTheme.colorScheme.onPrimary
     Row(
         Modifier
@@ -127,6 +145,9 @@ private fun PageFooter(number: Int, date: String) {
             modifier = Modifier.border(1.dp, onBar).padding(horizontal = 4.dp, vertical = 1.dp),
         )
         Spacer(Modifier.weight(1f))
-        Text(date, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Column(horizontalAlignment = Alignment.End) {
+            Text(stamp.date, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            stamp.size?.let { Text(it, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+        }
     }
 }

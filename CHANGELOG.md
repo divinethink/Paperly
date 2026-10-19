@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-20 (Scan: page-editor title, page sizes in the grid, Reader top-bar title/Crop/Delete; no schema change)
+
+- Page editor: the top bar says "Border adjustment" only in the crop step; the filter/page step says "Edit page".
+- Page grid/list: each page also shows its stored picture size ("142 kB") under the date, read once with PdfBox (`ScanPageSizes`); no sizes are shown while unknown or if the PDF cannot be read. The size is the stored picture, so it is approximate.
+- Reader (scanned documents): the top bar shows the page title ("Page N" if none; tap = rename, same dialog as Note) and, when the page editor is available, Crop and Delete icons. Crop opens the editor on that page in the crop step; Delete asks, then the editor removes that page and saves at once (backup kept 7 days). A page with highlights, or the last page, is not deleted (message shown). Routes: `scan-edit/...&page=&crop=&delete=` (defaults keep every old call unchanged).
+- Not verified in the sandbox (no Gradle access): build, lint, tests, PdfBox size read. Needs on-device check: 16-page scan grid sizes; Reader top bar on a small phone with default and large font; Crop/Delete from Reader on a normal, a highlighted and a 1-page scan.
+
 ## 2026-10-18d (EPUB popups like PDF: 4 mark types + Thin/Medium/Thick; no schema change)
 
 - EPUB selection popup and tap popup now offer Highlight, Underline, Squiggly, Strikethrough, Note, Copy; the colour dot opens colours + Thin/Medium/Thick (closed by default, as in PDF). The tap popup shows colours, types and thickness for line marks.

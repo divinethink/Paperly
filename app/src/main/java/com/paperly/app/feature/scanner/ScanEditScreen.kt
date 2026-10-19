@@ -68,6 +68,7 @@ fun ScanEditScreen(
     }
     if (state.addFailed) FailedDialog(null, viewModel::dismissError)
     state.failed?.let { FailedDialog(it, viewModel::dismissError) }
+    if (state.deleteBlocked) BlockedDialog(viewModel::dismissDeleteBlocked)
     var adjusting by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else leave() }, onSave = viewModel::save)
@@ -84,9 +85,13 @@ fun ScanEditScreen(
     }
 }
 
+/** Crop step = "Border adjustment"; the filter / page step has its own title. */
+private fun editTitle(cropping: Boolean): Int =
+    if (cropping) R.string.scan_edit_border_title else R.string.scan_edit_page_title
+
 @Composable
 private fun EditTopBar(state: ScanEditUi, onClose: () -> Unit, onSave: () -> Unit) {
-    PaperlyTopBar(stringResource(R.string.scan_edit_border_title), onBack = { if (!state.saving) onClose() }) {
+    PaperlyTopBar(stringResource(editTitle(state.cropping)), onBack = { if (!state.saving) onClose() }) {
         TextButton(onClick = onSave, enabled = state.dirty && !state.saving, colors = topBarTextButtonColors()) {
             Text(stringResource(R.string.scan_save))
         }
@@ -162,6 +167,16 @@ private fun FailedDialog(result: ScanEditResult?, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         text = { Text(stringResource(message)) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } },
+    )
+}
+
+/** The Reader asked to delete a page that carries highlights or is the last page. */
+@Composable
+private fun BlockedDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = { Text(stringResource(R.string.scan_edit_delete_blocked)) },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } },
     )
 }

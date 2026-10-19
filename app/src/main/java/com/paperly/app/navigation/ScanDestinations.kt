@@ -46,6 +46,18 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
                 type = NavType.BoolType
                 defaultValue = false
             },
+            navArgument("page") {
+                type = NavType.IntType
+                defaultValue = -1
+            },
+            navArgument("crop") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            navArgument("delete") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
         ),
     ) {
         ScanEditScreen(

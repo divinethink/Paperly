@@ -57,7 +57,9 @@ import com.paperly.app.feature.library.LibraryScreen
 import com.paperly.app.feature.reader.ReaderRoute
 import com.paperly.app.feature.scanner.LocalAddScanPages
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
+import com.paperly.app.feature.scanner.LocalOpenScanEditorAt
 import com.paperly.app.feature.scanner.LocalOpenScanPages
+import com.paperly.app.feature.scanner.ScanEditStart
 import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
@@ -81,7 +83,8 @@ object Routes {
     fun reader(documentId: String) = "reader/$documentId"
     const val SCAN_PAGES = "scan-pages/{documentId}"
     fun scanPages(documentId: String) = "scan-pages/$documentId"
-    const val SCAN_EDIT = "scan-edit/{documentId}?new={new}&add={add}&pick={pick}"
+    const val SCAN_EDIT =
+        "scan-edit/{documentId}?new={new}&add={add}&pick={pick}&page={page}&crop={crop}&delete={delete}"
 
     /**
      * [isNew] = scan just saved (crop mode first, leaving opens the document); [add] = start "Add scan";
@@ -89,6 +92,10 @@ object Routes {
      */
     fun scanEdit(documentId: String, isNew: Boolean = false, add: Boolean = false, pick: Boolean = false) =
         "scan-edit/$documentId?new=$isNew&add=$add&pick=$pick"
+
+    /** The editor opened on [page] (0-based): [crop] starts in the crop step, [delete] removes the page at once. */
+    fun scanEditAt(documentId: String, page: Int, crop: Boolean = false, delete: Boolean = false) =
+        "scan-edit/$documentId?page=$page&crop=$crop&delete=$delete"
 
     /** One Library destination per tab (Scanned / PDF / EPUB): own back-stack entry, view model and saved state. */
     fun library(type: LibraryType) = LIBRARY_PREFIX + type.key
@@ -274,7 +281,12 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         val openEditor: (String) -> Unit = { id ->
             navController.navigate(Routes.scanEdit(id)) { popUpTo(Routes.READER) { inclusive = true } }
         }
-        CompositionLocalProvider(LocalOpenScanEditor provides openEditor) {
+        val openEditorAt: (String, Int, ScanEditStart) -> Unit = { id, page, start ->
+            val crop = start == ScanEditStart.CROP
+            val route = Routes.scanEditAt(id, page, crop = crop, delete = start == ScanEditStart.DELETE)
+            navController.navigate(route) { popUpTo(Routes.READER) { inclusive = true } }
+        }
+        CompositionLocalProvider(LocalOpenScanEditor provides openEditor, LocalOpenScanEditorAt provides openEditorAt) {
             ReaderRoute(onBack = { navController.popBackStack() })
         }
     }

@@ -32,14 +32,14 @@ internal fun ScanPageList(
     onPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val date = rememberScanDate(ready.document.createdAt)
+    val stampOf = rememberPageStamp(ready, viewModel)
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(ready.pageCount, key = { it }) { index ->
-            PageRow(index, ready, date, viewModel) { onPage(index) }
+            PageRow(index, ready, stampOf(index), viewModel) { onPage(index) }
         }
     }
 }
@@ -48,7 +48,7 @@ internal fun ScanPageList(
 private fun PageRow(
     index: Int,
     ready: ScanPagesUi.Ready,
-    date: String,
+    stamp: PageStamp,
     viewModel: ScanPagesViewModel,
     onClick: () -> Unit,
 ) {
@@ -66,7 +66,10 @@ private fun PageRow(
         PageThumb(index, ready, viewModel, Modifier.width(ListThumbWidth))
         Column {
             Text(label, style = MaterialTheme.typography.titleMedium)
-            Text(date, style = MaterialTheme.typography.bodySmall)
+            Text(
+                listOfNotNull(stamp.date, stamp.size).joinToString(", "),
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }

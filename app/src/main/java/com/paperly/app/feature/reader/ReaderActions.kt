@@ -52,11 +52,17 @@ internal class FitToggle(val fitHeight: Boolean, val onToggle: () -> Unit)
 internal fun ReaderTopBar(viewModel: ReaderViewModel, listState: LazyListState, fit: FitToggle, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val scanPages: ScanPageViewModel = hiltViewModel()
+    val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
         }
-        Spacer(Modifier.weight(1f))
+        if (isScan && state.pageCount > 0) {
+            ScanTitleAndTools(scanPages, listState.firstVisibleItemIndex)
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
         if (search.available) {
             IconButton(onClick = viewModel.search::toggle) {
                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.reader_search))
