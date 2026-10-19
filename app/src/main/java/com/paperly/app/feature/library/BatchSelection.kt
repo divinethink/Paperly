@@ -1,6 +1,7 @@
 package com.paperly.app.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -59,6 +60,7 @@ internal fun BatchBar(
 ) {
     var dialog by remember { mutableStateOf<BatchDialog?>(null) }
     val chosen = docs.filter { it.id in batch.selected }
+    val share = rememberBatchShare()
     BackHandler { batch.clear() }
     BatchDialogHost(
         dialog = dialog,
@@ -85,29 +87,25 @@ internal fun BatchBar(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 8.dp).semantics { heading() },
         )
-        val enabled = chosen.isNotEmpty()
-        TextButton(
-            onClick = {
-                viewModel.setFavorite(chosen, !chosen.all { it.isFavorite })
-                batch.clear()
-            },
-            enabled = enabled,
-        ) { Text(stringResource(R.string.batch_favorite)) }
-        TextButton(onClick = { dialog = BatchDialog.Move }, enabled = enabled) {
-            Text(stringResource(R.string.batch_move))
+        val on = chosen.isNotEmpty()
+        BatchButton(R.string.batch_share, on) { share(chosen) { batch.clear() } }
+        BatchButton(R.string.batch_favorite, on) {
+            viewModel.setFavorite(chosen, !chosen.all { it.isFavorite })
+            batch.clear()
         }
-        TextButton(onClick = { dialog = BatchDialog.Tags }, enabled = enabled) {
-            Text(stringResource(R.string.batch_tags))
+        BatchButton(R.string.batch_move, on) { dialog = BatchDialog.Move }
+        BatchButton(R.string.batch_tags, on) { dialog = BatchDialog.Tags }
+        BatchButton(R.string.batch_trash, on) {
+            viewModel.moveToTrash(chosen)
+            batch.clear()
         }
-        TextButton(
-            onClick = {
-                viewModel.moveToTrash(chosen)
-                batch.clear()
-            },
-            enabled = enabled,
-        ) { Text(stringResource(R.string.batch_trash)) }
         TextButton(onClick = { batch.clear() }) { Text(stringResource(R.string.batch_done)) }
     }
+}
+
+@Composable
+private fun BatchButton(@StringRes label: Int, enabled: Boolean, onClick: () -> Unit) {
+    TextButton(onClick = onClick, enabled = enabled) { Text(stringResource(label)) }
 }
 
 @Composable
