@@ -101,6 +101,7 @@ internal fun NavHostController.navigateTopLevel(route: String) = navigate(route)
 }
 
 /** Reader and (phone) Library draw under the status bar themselves (the teal header paints it). */
+@Composable
 private fun rootInsets(route: String?, useRail: Boolean): WindowInsets {
     val selfInsetting = route == Routes.READER || (Routes.isLibrary(route) && !useRail)
     return if (selfInsetting) NoInsets else ScaffoldDefaults.contentWindowInsets
