@@ -14,6 +14,7 @@ import com.paperly.app.domain.document.LibraryView
 import com.paperly.app.domain.document.LibraryViewStore
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.FolderRepository
+import com.paperly.app.domain.folder.pathTo
 import com.paperly.app.domain.folder.visibleIn
 import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.scanner.ScanOcrRepository
@@ -129,8 +130,10 @@ data class LibraryUiState(
     val query: String = "",
     val folders: List<Folder> = emptyList(),
     val selectedFolderId: String? = null,
-    /** Scanned tab, root view only: the folder rows shown above the documents (empty everywhere else). */
+    /** Scanned tab: the folder rows shown above the documents, i.e. the subfolders of the open folder. */
     val scanFolders: List<ScanFolderItem> = emptyList(),
+    /** Top-level folder first, the open folder last; empty at the root. */
+    val folderPath: List<Folder> = emptyList(),
     val view: LibraryView = LibraryView(),
     val load: LibraryLoad = LibraryLoad.Loading,
 )
@@ -191,12 +194,16 @@ class LibraryViewModel @Inject constructor(
             val tabFolders = folders.visibleIn(type.docType)
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> tabFolders.any { it.id == id } }
-            val scanRoot = type == LibraryType.SCAN && folderId == null && sel.query.isBlank() &&
-                sel.kind == LibraryFilter.All
+            val scanBrowse = type == LibraryType.SCAN && sel.query.isBlank() && sel.kind == LibraryFilter.All
             val shown = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits)
             LibraryUiState(
-                documents = if (scanRoot) shown.withoutFolder() else shown,
-                scanFolders = if (scanRoot) scanFolderItems(tabFolders, docs, type.docType) else emptyList(),
+                documents = if (scanBrowse && folderId == null) shown.withoutFolder() else shown,
+                scanFolders = if (scanBrowse) {
+                    scanFolderItems(tabFolders, docs, type.docType, folderId)
+                } else {
+                    emptyList()
+                },
+                folderPath = tabFolders.pathTo(folderId),
                 totalCount = docs.count { it.type == type.docType },
                 filter = sel.kind,
                 isImporting = t.importing,

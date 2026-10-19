@@ -92,7 +92,7 @@ class PaperlyMigrationTest {
             assertEquals("f1", db.documentDao().getById("d1")?.folderId)
             assertEquals(listOf("Work"), db.folderDao().observeFolders().first().map { it.name })
 
-            db.folderDao().deleteAndUnassign("f1")
+            db.folderDao().deleteAndLift("f1", null)
             assertEquals(null, db.documentDao().getById("d1")?.folderId)
             assertNotNull(db.documentDao().getById("d1"))
         } finally {

@@ -10,7 +10,8 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Folder table (Architecture §২.১). `parentFolderId` is reserved for nesting; unused in P1.
+ * Folder table (Architecture §২.১). `parentFolderId` = the folder it sits in (null = top level);
+ * the nesting limit lives in the domain layer.
  * `type` (v12) = the document type the folder belongs to (one Library tab); null = shown in every tab.
  */
 @Entity(tableName = "folders")
@@ -37,8 +38,9 @@ abstract class FolderDao {
     @Query("SELECT COUNT(*) FROM folders WHERE folderId = :id")
     abstract suspend fun countById(id: String): Int
 
-    @Query("UPDATE documents SET folderId = NULL WHERE folderId = :id")
-    abstract suspend fun unassignDocuments(id: String): Int
+    /** Moves every document of folder [id] to [newFolder] (null = "no folder"). */
+    @Query("UPDATE documents SET folderId = :newFolder WHERE folderId = :id")
+    abstract suspend fun moveDocuments(id: String, newFolder: String?): Int
 
     @Query("UPDATE folders SET name = :name WHERE folderId = :id")
     abstract suspend fun rename(id: String, name: String): Int
@@ -46,10 +48,26 @@ abstract class FolderDao {
     @Query("DELETE FROM folders WHERE folderId = :id")
     abstract suspend fun delete(id: String): Int
 
-    /** Documents are never deleted with their folder: they just return to "no folder", atomically. */
+    @Query("UPDATE folders SET parentFolderId = :newParent WHERE parentFolderId = :id")
+    abstract suspend fun reparentChildren(id: String, newParent: String?): Int
+
+    /**
+     * Nothing is deleted but the folder itself: its documents and subfolders move up to [parentId]
+     * (null = top level / "no folder"), atomically.
+     */
     @Transaction
-    open suspend fun deleteAndUnassign(id: String) {
-        unassignDocuments(id)
+    open suspend fun deleteAndLift(id: String, parentId: String?) {
+        moveDocuments(id, parentId)
+        reparentChildren(id, parentId)
         delete(id)
+    }
+
+    /** Removes [ids] (a folder and its subfolders). Documents are only un-assigned (callers trash them first). */
+    @Transaction
+    open suspend fun deleteSubtree(ids: List<String>) {
+        ids.forEach {
+            moveDocuments(it, null)
+            delete(it)
+        }
     }
 }

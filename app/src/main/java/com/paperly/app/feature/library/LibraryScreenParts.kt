@@ -58,11 +58,11 @@ internal fun folderUi(
     showDialog: (LibraryDialog) -> Unit,
 ) = FolderUi(
     onSelect = viewModel::selectFolder,
-    onNew = { showDialog(LibraryDialog.NewFolder) },
+    onNew = { showDialog(LibraryDialog.NewFolder(null)) },
     onRename = { state.openFolder()?.let { showDialog(LibraryDialog.RenameFolder(it)) } },
     onDelete = {
         deleteFolderAction(state, it, organize)?.let(showDialog)
-        if (!it) viewModel.selectFolder(null)
+        if (!it) viewModel.selectFolder(state.parentFolderId())
     },
     onScan = navigation.onScan,
     onGallery = navigation.onScanGallery,

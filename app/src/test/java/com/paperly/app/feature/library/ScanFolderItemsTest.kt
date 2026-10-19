@@ -21,6 +21,15 @@ class ScanFolderItemsTest {
         assertEquals(listOf(0, 0), scanFolderItems(folders, emptyList(), "scanned-pdf").map { it.count })
     }
 
+    @Test fun aFolderCountIncludesItsSubfoldersAndRowsAreOnlyTheDirectChildren() {
+        val nested = folders + Folder("f3", "2026", parentId = "f1")
+        val docs = listOf(doc("a", "f1"), doc("b", "f3"), doc("c", "f3"), doc("d", "f2"))
+        val top = scanFolderItems(nested, docs, "scanned-pdf")
+        assertEquals(listOf("Bills" to 3, "Study" to 1), top.map { it.name to it.count })
+        val inside = scanFolderItems(nested, docs, "scanned-pdf", "f1")
+        assertEquals(listOf("2026" to 2), inside.map { it.name to it.count })
+    }
+
     @Test fun rootListHidesDocumentsThatAreInAFolder() {
         val docs = listOf(doc("a", "f1"), doc("b"), doc("c", "gone"))
         assertEquals(listOf("b"), docs.withoutFolder().map { it.id })

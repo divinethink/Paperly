@@ -14,7 +14,7 @@ class ScanFolderTargetTest {
 
     private val folders = object : FolderRepository {
         override fun observeFolders(): Flow<List<Folder>> = emptyFlow()
-        override suspend fun createFolder(name: String, type: String?) = true
+        override suspend fun createFolder(name: String, type: String?, parentId: String?) = true
         override suspend fun renameFolder(id: String, name: String) = true
         override suspend fun deleteFolder(id: String) = Unit
         override suspend fun deleteFolderWithDocuments(id: String) = Unit

@@ -15,8 +15,8 @@ class OrganizeViewModel @Inject constructor(
     private val folders: FolderRepository,
 ) : ViewModel() {
 
-    fun createFolder(name: String, type: String?) {
-        viewModelScope.launch { folders.createFolder(name, type) }
+    fun createFolder(name: String, type: String?, parentId: String? = null) {
+        viewModelScope.launch { folders.createFolder(name, type, parentId) }
     }
 
     fun renameFolder(id: String, name: String) {

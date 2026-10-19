@@ -3,6 +3,7 @@ package com.paperly.app.feature.library
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 import com.paperly.app.core.ui.icons.FolderGlyph
+import com.paperly.app.domain.folder.FOLDER_PATH_SEPARATOR
 import com.paperly.app.domain.folder.Folder
 
 /** Folder actions of the Library screen, grouped so the composables stay under the parameter-count limit. */
@@ -53,9 +55,12 @@ internal class ListActions(
 
 internal fun LibraryUiState.openFolder(): Folder? = folders.firstOrNull { it.id == selectedFolderId }
 
+/** The folder one level up from the open one (null = top level). Back on the Scanned tab goes here. */
+internal fun LibraryUiState.parentFolderId(): String? = folderPath.getOrNull(folderPath.size - 2)?.id
+
 /**
- * PDF/EPUB tabs keep the folder chip row. The Scanned tab shows folders as rows in the list (root) and, inside a
- * folder, a bar with Back, the folder name and its menu, plus the "Scan here" buttons.
+ * PDF/EPUB tabs keep the folder chip row. The Scanned tab shows folders as rows in the list and, inside a
+ * folder, a bar with Back (one level up), the folder path and its menu, plus the "Scan here" buttons.
  */
 @Composable
 internal fun FolderSection(isScanTab: Boolean, state: LibraryUiState, ui: FolderUi) {
@@ -63,29 +68,22 @@ internal fun FolderSection(isScanTab: Boolean, state: LibraryUiState, ui: Folder
         FolderRow(state.folders, state.selectedFolderId, ui.onSelect, ui.onNew, ui.onDelete)
         return
     }
-    val folder = state.openFolder() ?: return
-    ScanFolderBar(folder.name, ui)
+    if (state.openFolder() == null) return
+    ScanFolderBar(state.folderPath, state.parentFolderId(), ui)
     ScanHereRow(ui.onScan, ui.onGallery)
 }
 
 @Composable
-private fun ScanFolderBar(name: String, ui: FolderUi) {
+private fun ScanFolderBar(path: List<Folder>, parentId: String?, ui: FolderUi) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = { ui.onSelect(null) }) {
+        IconButton(onClick = { ui.onSelect(parentId) }) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.folder_back))
         }
-        Text(
-            name,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        FolderTitle(path, Modifier.weight(1f))
         Box {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.folder_menu))
@@ -105,6 +103,31 @@ private fun ScanFolderBar(name: String, ui: FolderUi) {
                 }
             }
         }
+    }
+}
+
+/** Current folder name, with the folders above it ("Bills ›") in a small line when it is nested. */
+@Composable
+private fun FolderTitle(path: List<Folder>, modifier: Modifier) {
+    Column(modifier) {
+        if (path.size > 1) {
+            val above = path.dropLast(1).joinToString(FOLDER_PATH_SEPARATOR) { it.name } +
+                FOLDER_PATH_SEPARATOR.trimEnd()
+            Text(
+                above,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            path.lastOrNull()?.name.orEmpty(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

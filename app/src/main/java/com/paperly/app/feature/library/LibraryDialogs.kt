@@ -23,6 +23,7 @@ import com.paperly.app.domain.document.MAX_TITLE_LENGTH
 import com.paperly.app.domain.folder.Folder
 import com.paperly.app.domain.folder.MAX_FOLDER_NAME_LENGTH
 import com.paperly.app.domain.folder.normalizeFolderName
+import com.paperly.app.domain.folder.pathLabel
 
 @Composable
 internal fun RenameDialog(doc: Document, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
@@ -72,7 +73,8 @@ internal sealed interface LibraryDialog {
     data class Rename(val doc: Document) : LibraryDialog
     data class Move(val doc: Document) : LibraryDialog
     data class Tags(val doc: Document) : LibraryDialog
-    data object NewFolder : LibraryDialog
+    /** [parentId] = the open folder on the Scanned tab (null = top level, and on the PDF/EPUB tabs). */
+    data class NewFolder(val parentId: String?) : LibraryDialog
     data class RenameFolder(val folder: Folder) : LibraryDialog
     data class DeleteFolderWithDocs(val folder: Folder) : LibraryDialog
 }
@@ -127,14 +129,14 @@ internal fun LibraryDialogHost(
             name = dialog.folder.name,
             onConfirm = {
                 organize.deleteFolderWithDocuments(dialog.folder.id)
-                library.selectFolder(null)
+                library.selectFolder(dialog.folder.parentId) // an already-missing parent falls back to top level
                 onDismiss()
             },
             onDismiss = onDismiss,
         )
-        LibraryDialog.NewFolder -> NewFolderDialog(
+        is LibraryDialog.NewFolder -> NewFolderDialog(
             onConfirm = {
-                organize.createFolder(it, library.type.docType)
+                organize.createFolder(it, library.type.docType, dialog.parentId)
                 onDismiss()
             },
             onDismiss = onDismiss,
@@ -156,8 +158,9 @@ internal fun MoveFolderDialog(
         text = {
             Column(Modifier.fillMaxWidth()) {
                 if (folders.isEmpty()) Text(stringResource(R.string.move_no_folders), Modifier.padding(bottom = 8.dp))
+                // Full path ("Bills › 2026"), sorted so a folder is followed by the ones inside it.
                 val options = listOf<Pair<String?, String>>(null to stringResource(R.string.move_none)) +
-                    folders.map { it.id to it.name }
+                    folders.map { it.id to folders.pathLabel(it.id) }.sortedBy { it.second.lowercase() }
                 options.forEach { (id, name) ->
                     TextButton(onClick = { onPick(id) }, Modifier.fillMaxWidth()) {
                         Text(if (id == currentFolderId) "\u2713 $name" else name)

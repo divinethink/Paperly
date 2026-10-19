@@ -56,6 +56,7 @@ import com.paperly.app.core.model.DocumentType
 import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.LibraryType
+import com.paperly.app.domain.folder.MAX_FOLDER_DEPTH
 import com.paperly.app.feature.common.EmptyState
 import com.paperly.app.feature.common.ErrorRetry
 import com.paperly.app.feature.common.LoadingPlaceholder
@@ -118,8 +119,10 @@ fun LibraryScreen(
     state.duplicate?.let { DuplicateHost(it, viewModel, navigation) }
     dialog?.let { LibraryDialogHost(it, state.folders, viewModel, organize) { dialog = null } }
 
-    // Scanned tab: Back leaves the open folder first (then the usual back behaviour)
-    BackHandler(enabled = isScanTab && state.selectedFolderId != null) { viewModel.selectFolder(null) }
+    // Scanned tab: Back goes up one folder level first (then the usual back behaviour)
+    BackHandler(enabled = isScanTab && state.selectedFolderId != null) {
+        viewModel.selectFolder(state.parentFolderId())
+    }
     val folderUi = folderUi(state, viewModel, organize, navigation) { dialog = it }
     val listActions = ListActions({ picker.launch(ImportMimeTypes) }, viewModel::retry, viewModel::selectFolder)
 
@@ -128,8 +131,9 @@ fun LibraryScreen(
             BatchBar(batch, state.documents, state.folders)
         } else {
             val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, isScanTab)
-            val canAddFolder = isScanTab && state.selectedFolderId == null
-            LibraryHeader(header, navigation, canAddFolder, { dialog = LibraryDialog.NewFolder }) {
+            val canAddFolder = isScanTab && state.folderPath.size < MAX_FOLDER_DEPTH
+            val newFolder = { dialog = LibraryDialog.NewFolder(state.selectedFolderId) }
+            LibraryHeader(header, navigation, canAddFolder, newFolder) {
                 picker.launch(ImportMimeTypes)
             }
         }
