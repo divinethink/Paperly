@@ -153,7 +153,7 @@ internal fun startScan(
     }
     val builder = GmsDocumentScannerOptions.Builder()
         .setGalleryImportAllowed(true)
-        .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+        .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_BASE)
     // S2: the page JPEGs are kept (with the PDF) so pages can be edited after saving; flag OFF = PDF only, as before
     val options = if (keepPages) {
         builder.setResultFormats(
