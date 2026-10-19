@@ -67,7 +67,8 @@ private val NoInsets = WindowInsets(0)
 private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT, Routes.SCAN_PAGES)
 
 /** Full-screen routes whose teal bar paints the status bar (and which pad the navigation bar themselves). */
-private val SelfInsetRoutes = setOf(Routes.READER, Routes.SCAN_PAGES, Routes.TRASH, Routes.STORAGE)
+private val SelfInsetRoutes =
+    setOf(Routes.READER, Routes.SCAN_PAGES, Routes.SCAN_EDIT, Routes.TRASH, Routes.STORAGE)
 
 object Routes {
     private const val LIBRARY_PREFIX = "library_"

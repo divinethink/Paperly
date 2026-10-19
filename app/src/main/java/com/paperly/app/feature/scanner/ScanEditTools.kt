@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
@@ -53,8 +54,6 @@ import com.paperly.app.domain.scanner.SCAN_FILTER_CHOICES
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.adjustReset
-import com.paperly.app.domain.scanner.cropReset
-import com.paperly.app.domain.scanner.rotated
 import com.paperly.app.domain.scanner.withBrightness
 import com.paperly.app.domain.scanner.withContrast
 import com.paperly.app.domain.scanner.withFilter
@@ -94,7 +93,7 @@ internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEdi
         BwToggle(page.filter == ScanFilter.BW, viewModel::toggleBw)
     }
     if (state.pages.size > 1) {
-        TextButton(onClick = viewModel::applyFilterToAll, enabled = !state.saving) {
+        TextButton(onClick = viewModel::applyFilterToAll, enabled = !state.saving, colors = actionTextColors()) {
             Text(stringResource(R.string.scan_filter_apply_all))
         }
     }
@@ -103,7 +102,7 @@ internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEdi
 /** Black-and-white on/off; turning it off returns to the filter the page had before. */
 @Composable
 private fun BwToggle(selected: Boolean, onToggle: () -> Unit) {
-    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    val color = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant
     Box(
         Modifier.size(BW_SIZE)
             .border(if (selected) ThumbBorderSelected else ThumbBorder, color, CircleShape)
@@ -114,7 +113,7 @@ private fun BwToggle(selected: Boolean, onToggle: () -> Unit) {
         Text(
             stringResource(R.string.scan_filter_bw),
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            color = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -127,7 +126,7 @@ private fun FilterThumb(
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(ThumbCorner)
-    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    val color = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant
     Column(
         Modifier.width(ThumbWidth).selectable(selected, role = Role.RadioButton, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -143,7 +142,7 @@ private fun FilterThumb(
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            color = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -160,28 +159,20 @@ internal fun filterLabel(filter: ScanFilter): Int = when (filter) {
     ScanFilter.PHOTO -> R.string.scan_filter_photo
 }
 
-/** Previous / rotate / crop / reset / next as icon buttons (each has a spoken label). */
+/** Previous page, "Page N of M", next page (rotate / crop / reset / adjust are in the bottom bar). */
 @Composable
-internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel, onAdjust: () -> Unit) {
-    val page = state.page ?: return
+internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel) {
     val hasNext = state.current < state.pages.size - 1
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         ToolButton(ScanEditIcons.Previous, R.string.scan_edit_prev, state.current > 0) {
             viewModel.goTo(state.current - 1)
         }
-        ToolButton(ScanEditIcons.Rotate, R.string.scan_edit_rotate, !page.locked) {
-            viewModel.edit(ScanEditPage::rotated)
-        }
-        ToolButton(
-            if (state.cropping) ScanEditIcons.Done else ScanEditIcons.Crop,
-            if (state.cropping) R.string.scan_edit_crop_done else R.string.scan_edit_crop,
-            !page.locked,
-            viewModel::toggleCrop,
+        Text(
+            stringResource(R.string.scan_edit_page_of, state.current + 1, state.pages.size.coerceAtLeast(1)),
+            Modifier.weight(1f),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleSmall,
         )
-        ToolButton(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {
-            viewModel.edit(ScanEditPage::cropReset)
-        }
-        ToolButton(ScanEditIcons.Adjust, R.string.scan_adjust, true, onAdjust)
         ToolButton(ScanEditIcons.Next, R.string.scan_edit_next, hasNext) { viewModel.goTo(state.current + 1) }
     }
 }
@@ -199,6 +190,7 @@ internal fun AdjustPanel(page: ScanEditPage, viewModel: ScanEditViewModel) {
         TextButton(
             onClick = { viewModel.edit(ScanEditPage::adjustReset) },
             enabled = page.brightness != 0 || page.contrast != 0,
+            colors = actionTextColors(),
         ) { Text(stringResource(R.string.scan_adjust_reset)) }
     }
 }
@@ -228,7 +220,7 @@ internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(PAGE_CHIP_GAP)) {
         state.pages.forEachIndexed { index, _ ->
             val selected = index == state.current
-            val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+            val color = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outlineVariant
             val label = stringResource(R.string.scan_edit_page_number, index + 1)
             Box(
                 Modifier.size(PAGE_CHIP_SIZE)
@@ -257,7 +249,7 @@ internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
                 Text(
                     (index + 1).toString(),
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    color = if (selected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -266,7 +258,7 @@ internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
 }
 
 @Composable
-private fun ToolButton(icon: ImageVector, label: Int, enabled: Boolean, onClick: () -> Unit) {
+internal fun ToolButton(icon: ImageVector, label: Int, enabled: Boolean, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = enabled) { Icon(icon, stringResource(label)) }
 }
 

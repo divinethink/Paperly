@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,6 +42,7 @@ import com.paperly.app.feature.scanner.LocalOpenScanEditor
 
 private const val MENU_RADIUS = 24
 private const val THEME_BLOCK_WIDTH = 328
+private const val UNMARKED_ALPHA = 0.6f
 
 /** What the top bar needs to flip Fit-width / Fit-height. */
 internal class FitToggle(val fitHeight: Boolean, val onToggle: () -> Unit)
@@ -86,7 +87,11 @@ private fun BookmarkAndAnnotate(viewModel: ReaderViewModel, page: Int) {
             contentDescription = stringResource(
                 if (bookmarked) R.string.reader_bookmark_remove else R.string.reader_bookmark_add,
             ),
-            tint = if (bookmarked) MaterialTheme.colorScheme.primary else Color.Gray,
+            tint = if (bookmarked) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                LocalContentColor.current.copy(alpha = UNMARKED_ALPHA)
+            },
         )
     }
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()

@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalLayoutApi::class)
-
 package com.paperly.app.feature.reader
 
 import android.graphics.Bitmap
@@ -8,16 +6,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -68,7 +62,6 @@ import kotlin.math.ceil
 
 private const val RENDER_WIDTH_FACTOR = 1.5f
 private const val MAX_RENDER_WIDTH_PX = 2048
-private const val BAR_ALPHA = 0.94f
 internal val TOP_BAR_HEIGHT = 56.dp
 
 /** Full-screen Reader (not in bottom-nav). P2-D: scrolling PDF pages, zoom, fit modes, themes; EPUB P3. */
@@ -93,9 +86,18 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     LaunchedEffect(search.jump) { search.jump?.let { listState.animateScrollToItem(it.page) } }
     val palette = readerPalette(theme, isSystemInDarkTheme())
     val leave = rememberQuickExit(viewModel, state.document, onBack)
-    MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = palette.content)) {
-        Surface(Modifier.fillMaxSize(), color = palette.background, contentColor = palette.content) {
-            ReaderContent(state, viewModel, listState, palette.pageFilter, leave)
+    val scanPages: ScanPageViewModel = hiltViewModel()
+    val isScan by scanPages.isScan.collectAsStateWithLifecycle()
+    if (isScan) {
+        // Scanned documents: black page background and the app's teal bars (the reading themes stay for PDF/EPUB).
+        Surface(Modifier.fillMaxSize(), color = Color.Black, contentColor = Color.White) {
+            ReaderContent(state, viewModel, listState, null, leave)
+        }
+    } else {
+        MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = palette.content)) {
+            Surface(Modifier.fillMaxSize(), color = palette.background, contentColor = palette.content) {
+                ReaderContent(state, viewModel, listState, palette.pageFilter, leave)
+            }
         }
     }
 }
@@ -175,16 +177,10 @@ private fun ReaderContent(
             }
         }
         if (showBars) {
-            Surface(
-                Modifier.align(Alignment.TopStart).fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = BAR_ALPHA),
-            ) {
-                Column(Modifier.windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)) {
-                    ReaderTopBar(viewModel, listState, FitToggle(fitHeight) { fitHeight = !fitHeight }, onBack)
-                    if (search.open) SearchBar(viewModel.search, search)
-                    PdfAnnotateBars(viewModel.annotations, annotate) { editor = it }
-                }
+            ReaderTopSurface(viewModel, listState, FitToggle(fitHeight) { fitHeight = !fitHeight }, onBack) {
+                editor = it
             }
+            ScanReaderBottomBar(state.document, listState.firstVisibleItemIndex)
         }
     }
     AnnotationEditorHost(editor, viewModel.annotations) { editor = null }

@@ -75,7 +75,13 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
 /** Equal-width text button (3 per row): the label never runs off the screen edge. */
 @Composable
 private fun RowScope.ActionButton(label: Int, enabled: Boolean, onClick: () -> Unit) {
-    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.weight(1f), contentPadding = ButtonPadding) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.weight(1f),
+        contentPadding = ButtonPadding,
+        colors = actionTextColors(),
+    ) {
         Text(
             stringResource(label),
             textAlign = TextAlign.Center,

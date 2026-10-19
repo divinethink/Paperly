@@ -182,6 +182,9 @@
     <string name="scan_edit_error_save">Could not save the edited pages. Your scan was not changed.</string>
     <string name="scan_edit_error_memory">Not enough memory for this size. Try Small or Medium. Your scan was not changed.</string>
     <string name="scan_edit_pages">Edit pages</string>
+    <string name="scan_bar_ocr">OCR</string>
+    <string name="scan_edit_border_title">Border adjustment</string>
+    <string name="scan_edit_processing">Processing…</string>
     <string name="scan_edit_move_earlier">Move earlier</string>
     <string name="scan_edit_move_later">Move later</string>
     <string name="scan_edit_add_scan">Add scan</string>

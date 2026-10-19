@@ -2,15 +2,15 @@ package com.paperly.app.feature.scanner
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.core.ui.topBarTextButtonColors
 import com.paperly.app.domain.scanner.ScanEditResult
 
 /** S2 page editor: filter, 4-corner crop, rotate; Save rebuilds the PDF (original kept as a 7-day backup). */
@@ -57,30 +59,26 @@ fun ScanEditScreen(onDone: (openDocumentId: String?) -> Unit, viewModel: ScanEdi
     }
     if (state.addFailed) FailedDialog(null, viewModel::dismissError)
     state.failed?.let { FailedDialog(it, viewModel::dismissError) }
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    var adjusting by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else leave() }, onSave = viewModel::save)
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             EditCanvas(state, viewModel)
-            if (state.loading || state.saving) CircularProgressIndicator()
+            if (state.loading || state.saving) ProcessingCard()
         }
         if (state.notEditable) {
-            Text(stringResource(R.string.scan_edit_unavailable), Modifier.padding(16.dp))
+            Text(stringResource(R.string.scan_edit_unavailable), Modifier.padding(16.dp).navigationBarsPadding())
         } else {
-            EditControls(state, viewModel, onDelete = { askDelete = true })
+            EditControls(state, viewModel, adjusting, onDelete = { askDelete = true })
+            EditBottomBar(state, viewModel) { adjusting = !adjusting }
         }
     }
 }
 
 @Composable
 private fun EditTopBar(state: ScanEditUi, onClose: () -> Unit, onSave: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onClose, enabled = !state.saving) { Text(stringResource(android.R.string.cancel)) }
-        Text(
-            stringResource(R.string.scan_edit_page_of, state.current + 1, state.pages.size.coerceAtLeast(1)),
-            Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        TextButton(onClick = onSave, enabled = state.dirty && !state.saving) {
+    PaperlyTopBar(stringResource(R.string.scan_edit_border_title), onBack = { if (!state.saving) onClose() }) {
+        TextButton(onClick = onSave, enabled = state.dirty && !state.saving, colors = topBarTextButtonColors()) {
             Text(stringResource(R.string.scan_save))
         }
     }
@@ -105,14 +103,13 @@ private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
 }
 
 @Composable
-private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDelete: () -> Unit) {
+private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjusting: Boolean, onDelete: () -> Unit) {
     val page = state.page ?: return
-    var adjusting by remember { mutableStateOf(false) }
-    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
         FilterRow(state, page, viewModel)
         if (adjusting) AdjustPanel(page, viewModel)
-        ToolRow(state, viewModel) { adjusting = !adjusting }
+        ToolRow(state, viewModel)
         if (state.pages.size > 1) PageStrip(state, viewModel)
         PageManagementRow(state, viewModel, onDelete)
     }

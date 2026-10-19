@@ -64,3 +64,6 @@ val NeutralMuted = Color(0xFF616161)
 val NeutralSurface = Color(0xFFF3F5F6)
 val NeutralOutline = Color(0xFFBDBDBD)
 val NeutralDivider = Color(0xFFE0E0E0)
+
+// Notebloc-style editor: green crop handles; brown text actions / selected filter border (Theme `tertiary`).
+val CropGreen = Color(0xFF4CAF50)

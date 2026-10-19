@@ -2,7 +2,6 @@ package com.paperly.app.feature.scanner
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -29,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.paperly.app.core.ui.theme.CropGreen
 import com.paperly.app.domain.scanner.ScanPoint
 import com.paperly.app.domain.scanner.ScanQuad
 
@@ -96,7 +96,7 @@ fun ScanCropOverlay(
     var active by remember { mutableIntStateOf(-1) }
     val latest by rememberUpdatedState(quad)
     val hitRadius = with(LocalDensity.current) { HIT_RADIUS.toPx() }
-    val line = MaterialTheme.colorScheme.primary
+    val line = CropGreen
     Canvas(
         modifier
             .onSizeChanged { box = it }
@@ -151,10 +151,18 @@ private fun DrawScope.drawCropFrame(
     drawPath(frame, line, style = Stroke(width = FRAME_STROKE.toPx()))
     val cornerRadius = CORNER_HANDLE.toPx()
     val midRadius = MID_HANDLE.toPx()
+    val stroke = Stroke(width = HANDLE_STROKE.toPx())
     for (h in 0 until HANDLES) {
-        val radius = if (h < CORNER_COUNT) cornerRadius else midRadius
-        drawCircle(Color.White, radius, at(handlePoint(quad, h)))
-        drawCircle(line, radius, at(handlePoint(quad, h)), style = Stroke(width = HANDLE_STROKE.toPx()))
+        val centre = at(handlePoint(quad, h))
+        if (h < CORNER_COUNT) {
+            drawCircle(Color.White, cornerRadius, centre)
+            drawCircle(line, cornerRadius, centre, style = stroke)
+        } else {
+            val corner = centre - Offset(midRadius, midRadius)
+            val square = Size(midRadius * 2, midRadius * 2)
+            drawRect(Color.White, corner, square)
+            drawRect(line, corner, square, style = stroke)
+        }
     }
     if (active >= 0) drawCropLoupe(image, f, at(handlePoint(quad, active)), line)
 }
