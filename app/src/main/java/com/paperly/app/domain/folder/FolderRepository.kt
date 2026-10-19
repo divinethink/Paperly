@@ -11,6 +11,9 @@ interface FolderRepository {
     /** False if the name is blank. [type] = document type of the tab it is created in. */
     suspend fun createFolder(name: String, type: String? = null): Boolean
 
+    /** False if the name is blank or the folder no longer exists. */
+    suspend fun renameFolder(id: String, name: String): Boolean
+
     /** Documents inside are kept and become "no folder". */
     suspend fun deleteFolder(id: String)
 

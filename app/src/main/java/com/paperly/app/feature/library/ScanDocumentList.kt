@@ -46,16 +46,18 @@ private val RowCoverHeight = 88.dp
 /** Scanned tab: one document per row (cover, name on up to two lines, date, size), so names are not cut off. */
 @Composable
 internal fun ScanDocumentList(
-    docs: List<Document>,
+    state: LibraryUiState,
     actions: DocumentActions,
     batch: BatchState,
     covers: CoverViewModel,
+    onOpenFolder: (String) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(docs, key = { it.id }) { doc -> ScanDocumentRow(doc, actions, batch, covers) }
+        items(state.scanFolders, key = { "folder:" + it.id }) { ScanFolderRow(it, onOpenFolder) }
+        items(state.documents, key = { it.id }) { doc -> ScanDocumentRow(doc, actions, batch, covers) }
     }
 }
 

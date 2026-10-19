@@ -9,7 +9,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.document.ImportResult
-import com.paperly.app.domain.folder.FolderRepository
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditorSettings
 import com.paperly.app.domain.scanner.ScanOcrRepository
@@ -41,7 +40,7 @@ private val PENDING_KEY = stringPreferencesKey("pending_scan_uri")
 @HiltViewModel
 class ScanViewModel @Inject constructor(
     private val repository: DocumentRepository,
-    private val folderRepository: FolderRepository,
+    private val folderTarget: ScanFolderTarget,
     private val store: DataStore<Preferences>,
     private val editRepository: ScanEditRepository,
     private val ocr: ScanOcrRepository,
@@ -98,7 +97,7 @@ class ScanViewModel @Inject constructor(
     fun onScanned(pdfUri: String, pageUris: List<String> = emptyList()) {
         if (_state.value.saving) return
         val editor = editorEnabled.value && pageUris.isNotEmpty()
-        save(Saving(pdfUri, pageUris, openEditor = editor, openDocument = true))
+        save(Saving(pdfUri, pageUris, openEditor = editor, openDocument = true, folderId = folderTarget.folderId))
     }
 
     /** Gallery pictures: build the unedited PDF first, then the normal save; the editor opens after. */
@@ -109,7 +108,7 @@ class ScanViewModel @Inject constructor(
             if (staged == null) {
                 ScanUiState(error = ScanError.Save)
             } else {
-                persist(Saving(staged.pdfUri, staged.pageUris, openEditor = true))
+                persist(Saving(staged.pdfUri, staged.pageUris, openEditor = true, folderId = folderTarget.folderId))
             }
         }
     }
@@ -149,7 +148,7 @@ class ScanViewModel @Inject constructor(
         try {
             val result = repository.importScan(job.pdfUri, defaultTitle())
             if (result is ImportResult.Success) {
-                if (job.folderId != null) folderRepository.moveDocument(result.documentId, job.folderId)
+                folderTarget.moveInto(result.documentId, job.folderId)
                 if (job.pageUris.isNotEmpty()) editRepository.storeSources(result.documentId, job.pageUris)
                 ocr.schedule(result.documentId) // background text recognition when the Settings switch is ON
             }

@@ -111,6 +111,9 @@
     <string name="search_hint">Search title or tag</string>
     <string name="search_empty">No matching documents</string>
     <string name="folder_all">All folders</string>
+    <string name="folder_rename">Rename folder</string>
+    <string name="folder_back">Back to all documents</string>
+    <string name="folder_menu">Folder menu</string>
     <string name="folder_new">New folder</string>
     <string name="folder_delete">Delete folder</string>
     <string name="folder_delete_with_docs">Delete folder + documents</string>
@@ -137,6 +140,8 @@
     <string name="scan_duplicate">This scan is already in your Library.</string>
     <string name="scan_saving">Saving scan…</string>
     <string name="scan_error_unavailable">Scanner is not available on this device (Google Play services needed).</string>
+    <string name="scan_here">Scan here</string>
+    <string name="scan_here_gallery">Gallery here</string>
     <string name="scan_gallery">Import from gallery</string>
     <string name="scan_edit_unavailable">The pages of this scan were not kept, so they cannot be edited.</string>
     <string name="scan_edit_page_of">Page %1$d of %2$d</string>

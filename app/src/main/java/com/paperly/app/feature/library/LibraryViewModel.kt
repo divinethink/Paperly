@@ -18,6 +18,7 @@ import com.paperly.app.domain.folder.visibleIn
 import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.trash.TrashRepository
+import com.paperly.app.feature.scanner.ScanFolderTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -128,6 +129,8 @@ data class LibraryUiState(
     val query: String = "",
     val folders: List<Folder> = emptyList(),
     val selectedFolderId: String? = null,
+    /** Scanned tab, root view only: the folder rows shown above the documents (empty everywhere else). */
+    val scanFolders: List<ScanFolderItem> = emptyList(),
     val view: LibraryView = LibraryView(),
     val load: LibraryLoad = LibraryLoad.Loading,
 )
@@ -143,6 +146,7 @@ class LibraryViewModel @Inject constructor(
     viewStore: LibraryViewStore,
     readerState: ReaderStateRepository,
     scanOcr: ScanOcrRepository,
+    private val scanFolder: ScanFolderTarget,
 ) : ViewModel() {
 
     /** Each Library tab shows exactly one document type; the persisted type filter no longer applies. */
@@ -187,8 +191,12 @@ class LibraryViewModel @Inject constructor(
             val tabFolders = folders.visibleIn(type.docType)
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> tabFolders.any { it.id == id } }
+            val scanRoot = type == LibraryType.SCAN && folderId == null && sel.query.isBlank() &&
+                sel.kind == LibraryFilter.All
+            val shown = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits)
             LibraryUiState(
-                documents = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits),
+                documents = if (scanRoot) shown.withoutFolder() else shown,
+                scanFolders = if (scanRoot) scanFolderItems(tabFolders, docs, type.docType) else emptyList(),
                 totalCount = docs.count { it.type == type.docType },
                 filter = sel.kind,
                 isImporting = t.importing,
@@ -286,6 +294,7 @@ class LibraryViewModel @Inject constructor(
 
     fun selectFolder(id: String?) {
         selection.update { it.copy(folderId = id) }
+        if (type == LibraryType.SCAN) scanFolder.select(id) // new scans go into the open folder
     }
 
     fun toggleFavorite(doc: Document) {

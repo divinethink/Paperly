@@ -1,5 +1,6 @@
 package com.paperly.app.feature.library
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -27,7 +28,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -96,6 +96,7 @@ fun LibraryScreen(
     var dialog by remember { mutableStateOf<LibraryDialog?>(null) }
     val batch = rememberBatchState()
     val libraryTitle = stringResource(viewModel.type.nameRes())
+    val isScanTab = viewModel.type == LibraryType.SCAN
     val context = LocalContext.current
     LibraryTabEffects(viewModel, navigation.onShowTab)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -114,43 +115,34 @@ fun LibraryScreen(
         onTrash = viewModel::moveToTrash,
     )
 
-    state.duplicate?.let { dup ->
-        DuplicateDialog(
-            prompt = dup,
-            onSkip = viewModel::dismissDuplicate,
-            onKeepBoth = viewModel::keepBoth,
-            onOpenExisting = {
-                viewModel.dismissDuplicate()
-                navigation.onOpenReader(dup.existingId)
-            },
-        )
-    }
+    state.duplicate?.let { DuplicateHost(it, viewModel, navigation) }
     dialog?.let { LibraryDialogHost(it, state.folders, viewModel, organize) { dialog = null } }
+
+    // Scanned tab: Back leaves the open folder first (then the usual back behaviour)
+    BackHandler(enabled = isScanTab && state.selectedFolderId != null) { viewModel.selectFolder(null) }
+    val folderUi = folderUi(state, viewModel, organize, navigation) { dialog = it }
+    val listActions = ListActions({ picker.launch(ImportMimeTypes) }, viewModel::retry, viewModel::selectFolder)
 
     Column(Modifier.fillMaxSize()) {
         if (batch.active) {
             BatchBar(batch, state.documents, state.folders)
         } else {
-            val isScanTab = viewModel.type == LibraryType.SCAN
             val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, isScanTab)
-            LibraryHeader(header, navigation) { picker.launch(ImportMimeTypes) }
+            val canAddFolder = isScanTab && state.selectedFolderId == null
+            LibraryHeader(header, navigation, canAddFolder, { dialog = LibraryDialog.NewFolder }) {
+                picker.launch(ImportMimeTypes)
+            }
         }
         SearchRow(state.query, viewModel::setQuery, state.view)
         FilterRow(state.filter, viewModel::setFilter)
-        FolderRow(
-            folders = state.folders,
-            selectedId = state.selectedFolderId,
-            onSelect = viewModel::selectFolder,
-            onNew = { dialog = LibraryDialog.NewFolder },
-            onDelete = { deleteFolderAction(state, it, organize)?.let { d -> dialog = d } },
-        )
+        FolderSection(isScanTab, state, folderUi)
         // "Continue reading" is a reading shortcut: not shown on the Scanned tab
         if (viewModel.type != LibraryType.SCAN) {
             ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
         }
         ImageExportStatus()
         DocxConversionStatus(navigation.onOpenReader)
-        LibraryList(state, actions, batch, { picker.launch(ImportMimeTypes) }, viewModel::retry)
+        LibraryList(state, actions, batch, listActions)
     }
 }
 
@@ -159,8 +151,7 @@ private fun LibraryList(
     state: LibraryUiState,
     actions: DocumentActions,
     batch: BatchState,
-    onImport: () -> Unit,
-    onRetry: () -> Unit,
+    listActions: ListActions,
 ) {
     if (state.isImporting) LinearProgressIndicator(Modifier.fillMaxWidth())
     state.error?.let { err ->
@@ -172,10 +163,11 @@ private fun LibraryList(
     }
     when {
         state.load == LibraryLoad.Loading -> LoadingPlaceholder()
-        state.load == LibraryLoad.Failed -> ErrorRetry(stringResource(R.string.library_load_error), onRetry)
-        state.documents.isEmpty() -> LibraryEmpty(state, onImport)
+        state.load == LibraryLoad.Failed ->
+            ErrorRetry(stringResource(R.string.library_load_error), listActions.onRetry)
+        state.documents.isEmpty() && state.scanFolders.isEmpty() -> LibraryEmpty(state, listActions.onImport)
         state.documents.all { it.type == DocumentType.SCANNED_PDF } ->
-            ScanDocumentList(state.documents, actions, batch, hiltViewModel())
+            ScanDocumentList(state, actions, batch, hiltViewModel(), listActions.onOpenFolder)
         else -> DocumentList(state.documents, actions, batch, hiltViewModel())
     }
 }
@@ -196,7 +188,13 @@ private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
 private class HeaderInfo(val title: String, val count: Int, val isImporting: Boolean, val isScanTab: Boolean)
 
 @Composable
-private fun LibraryHeader(info: HeaderInfo, navigation: LibraryNavigation, onImport: () -> Unit) {
+private fun LibraryHeader(
+    info: HeaderInfo,
+    navigation: LibraryNavigation,
+    canAddFolder: Boolean,
+    onNewFolder: () -> Unit,
+    onImport: () -> Unit,
+) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
@@ -222,31 +220,16 @@ private fun LibraryHeader(info: HeaderInfo, navigation: LibraryNavigation, onImp
                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.library_more))
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.menu_trash)) },
-                    onClick = {
-                        menuOpen = false
-                        navigation.onOpenTrash()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.menu_storage)) },
-                    onClick = {
-                        menuOpen = false
-                        navigation.onOpenStorage()
-                    },
-                )
-                if (info.isScanTab) {
+                if (canAddFolder) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.scan_gallery)) },
+                        text = { Text(stringResource(R.string.folder_new)) },
                         onClick = {
                             menuOpen = false
-                            navigation.onScanGallery()
+                            onNewFolder()
                         },
                     )
-                    HorizontalDivider()
-                    ScanQualityItems(onDismiss = { menuOpen = false })
                 }
+                LibraryMenuItems(info.isScanTab, navigation) { menuOpen = false }
             }
         }
     }

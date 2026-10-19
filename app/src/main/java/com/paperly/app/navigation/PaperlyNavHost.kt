@@ -219,6 +219,7 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
                         onOpenStorage = { navController.navigate(Routes.STORAGE) },
                         onShowTab = { navController.navigateTopLevel(Routes.library(it)) },
                         onScanGallery = { navController.navigate(Routes.SCAN_GALLERY) },
+                        onScan = { navController.navigateTopLevel(Routes.SCAN) },
                     ),
                 )
             }

@@ -36,6 +36,11 @@ class FolderRepositoryImpl @Inject constructor(
         return folderDao.insert(entity) != -1L
     }
 
+    override suspend fun renameFolder(id: String, name: String): Boolean {
+        val clean = normalizeFolderName(name) ?: return false
+        return folderDao.rename(id, clean) > 0
+    }
+
     override suspend fun deleteFolder(id: String) {
         val affected = documentDao.getIdsByFolder(id) // read first: afterwards they are no longer in the folder
         folderDao.deleteAndUnassign(id)

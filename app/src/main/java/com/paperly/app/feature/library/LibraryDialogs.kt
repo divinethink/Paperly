@@ -73,6 +73,7 @@ internal sealed interface LibraryDialog {
     data class Move(val doc: Document) : LibraryDialog
     data class Tags(val doc: Document) : LibraryDialog
     data object NewFolder : LibraryDialog
+    data class RenameFolder(val folder: Folder) : LibraryDialog
     data class DeleteFolderWithDocs(val folder: Folder) : LibraryDialog
 }
 
@@ -138,6 +139,7 @@ internal fun LibraryDialogHost(
             },
             onDismiss = onDismiss,
         )
+        is LibraryDialog.RenameFolder -> RenameFolderDialog(dialog.folder, organize, onDismiss)
     }
 }
 
@@ -203,11 +205,31 @@ internal fun TagsDialog(
 }
 
 @Composable
-private fun NewFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf("") }
+private fun RenameFolderDialog(folder: Folder, organize: OrganizeViewModel, onDismiss: () -> Unit) {
+    NewFolderDialog(
+        onConfirm = {
+            organize.renameFolder(folder.id, it)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+        initial = folder.name,
+        title = R.string.folder_rename,
+        confirm = R.string.rename_confirm,
+    )
+}
+
+@Composable
+private fun NewFolderDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    initial: String = "",
+    @StringRes title: Int = R.string.folder_new,
+    @StringRes confirm: Int = R.string.folder_create,
+) {
+    var text by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.folder_new)) },
+        title = { Text(stringResource(title)) },
         text = {
             OutlinedTextField(
                 value = text,
@@ -218,7 +240,7 @@ private fun NewFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) 
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(text) }, enabled = normalizeFolderName(text) != null) {
-                Text(stringResource(R.string.folder_create))
+                Text(stringResource(confirm))
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },

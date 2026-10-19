@@ -40,6 +40,9 @@ abstract class FolderDao {
     @Query("UPDATE documents SET folderId = NULL WHERE folderId = :id")
     abstract suspend fun unassignDocuments(id: String): Int
 
+    @Query("UPDATE folders SET name = :name WHERE folderId = :id")
+    abstract suspend fun rename(id: String, name: String): Int
+
     @Query("DELETE FROM folders WHERE folderId = :id")
     abstract suspend fun delete(id: String): Int
 

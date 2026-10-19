@@ -19,6 +19,10 @@ class OrganizeViewModel @Inject constructor(
         viewModelScope.launch { folders.createFolder(name, type) }
     }
 
+    fun renameFolder(id: String, name: String) {
+        viewModelScope.launch { folders.renameFolder(id, name) }
+    }
+
     fun deleteFolder(id: String) {
         viewModelScope.launch { folders.deleteFolder(id) }
     }
