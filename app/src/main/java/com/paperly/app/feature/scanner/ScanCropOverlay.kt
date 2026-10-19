@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.paperly.app.core.ui.theme.CropGreen
 import com.paperly.app.domain.scanner.ScanPoint
 import com.paperly.app.domain.scanner.ScanQuad
+import kotlin.math.hypot
 
 private const val HANDLES = 8 // 0..3 corners, 4..7 edge midpoints (edge i-4 runs corner i-4 -> corner i-3)
 private const val CORNER_COUNT = 4
@@ -70,18 +71,34 @@ private fun handlePoint(quad: ScanQuad, handle: Int): ScanPoint {
 private fun moved(p: ScanPoint, dx: Float, dy: Float) =
     ScanPoint((p.x + dx).coerceIn(0f, 1f), (p.y + dy).coerceIn(0f, 1f))
 
-/** Corner handles move one corner; edge handles move both corners of that edge. */
-private fun moveHandle(quad: ScanQuad, handle: Int, dx: Float, dy: Float): ScanQuad {
+/**
+ * Corner handles move one corner freely; edge handles slide that edge straight (parallel to itself), so a
+ * rectangular crop stays rectangular. [drag] is a fraction of the image, [size] the image size in pixels.
+ */
+private fun moveHandle(quad: ScanQuad, handle: Int, drag: Offset, size: Size): ScanQuad {
     val p = quad.points.toMutableList()
     if (handle < CORNER_COUNT) {
-        p[handle] = moved(p[handle], dx, dy)
+        p[handle] = moved(p[handle], drag.x, drag.y)
     } else {
         val i = handle - CORNER_COUNT
         val j = (i + 1) % CORNER_COUNT
-        p[i] = moved(p[i], dx, dy)
-        p[j] = moved(p[j], dx, dy)
+        val straight = straightDrag(p[i], p[j], drag, size)
+        p[i] = moved(p[i], straight.x, straight.y)
+        p[j] = moved(p[j], straight.x, straight.y)
     }
     return ScanQuad.of(p)
+}
+
+/** The part of [drag] that is perpendicular to the edge a-b (measured in pixels), as image fractions again. */
+private fun straightDrag(a: ScanPoint, b: ScanPoint, drag: Offset, size: Size): Offset {
+    val ex = (b.x - a.x) * size.width
+    val ey = (b.y - a.y) * size.height
+    val length = hypot(ex, ey)
+    if (length == 0f) return Offset.Zero
+    val nx = -ey / length
+    val ny = ex / length
+    val along = drag.x * size.width * nx + drag.y * size.height * ny
+    return Offset(along * nx / size.width, along * ny / size.height)
 }
 
 /** The page image with a draggable 4-corner crop frame. Moves that would make the frame invalid are ignored. */
@@ -116,7 +133,8 @@ fun ScanCropOverlay(
                     change.consume()
                     val f = fit(box, image)
                     if (active >= 0 && f.width > 0f && f.height > 0f) {
-                        onChange(moveHandle(latest, active, drag.x / f.width, drag.y / f.height))
+                        val moveBy = Offset(drag.x / f.width, drag.y / f.height)
+                        onChange(moveHandle(latest, active, moveBy, Size(f.width, f.height)))
                     }
                 }
             },

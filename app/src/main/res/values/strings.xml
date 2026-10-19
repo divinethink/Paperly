@@ -156,6 +156,8 @@
     <string name="scan_edit_rotate">Rotate</string>
     <string name="scan_edit_crop">Crop</string>
     <string name="scan_edit_crop_done">Done</string>
+    <string name="scan_edit_full_image">Full image</string>
+    <string name="scan_edit_crop_next">Next</string>
     <string name="scan_edit_reset">Reset</string>
     <string name="scan_filter_original">Original</string>
     <string name="scan_filter_color">Color</string>

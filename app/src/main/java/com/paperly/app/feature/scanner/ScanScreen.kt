@@ -70,7 +70,10 @@ fun ScanScreen(
         viewModel.onScreenOpened() // a stuck "saving" from an earlier visit must not block
         if (viewModel.launchGate.take(viewModel.state.value.saving)) {
             when {
-                mode == ScanMode.Camera -> openScanner()
+                mode == ScanMode.Camera -> {
+                    // editor ON: the buttons below let the user pick camera or gallery (gallery opens the crop)
+                    if (!viewModel.editorEnabled.value) openScanner()
+                }
                 viewModel.editorEnabled.value -> openGallery()
                 else -> onCancel() // the gallery path needs the page editor
             }

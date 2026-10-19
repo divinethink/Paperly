@@ -6,11 +6,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,7 +32,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.PaperlyTopBar
 import com.paperly.app.core.ui.topBarTextButtonColors
+import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditResult
+import com.paperly.app.domain.scanner.cropReset
 
 /** S2 page editor: filter, 4-corner crop, rotate; Save rebuilds the PDF (original kept as a 7-day backup). */
 @Composable
@@ -107,11 +111,26 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjust
     val page = state.page ?: return
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
-        FilterRow(state, page, viewModel)
-        if (adjusting) AdjustPanel(page, viewModel)
-        ToolRow(state, viewModel)
-        if (state.pages.size > 1) PageStrip(state, viewModel)
-        PageManagementRow(state, viewModel, onDelete)
+        if (state.cropping) {
+            CropStepRow(viewModel)
+        } else {
+            FilterRow(state, page, viewModel)
+            if (adjusting) AdjustPanel(page, viewModel)
+            ToolRow(state, viewModel)
+            if (state.pages.size > 1) PageStrip(state, viewModel)
+            PageManagementRow(state, viewModel, onDelete)
+        }
+    }
+}
+
+/** Step 1 (crop): only "Full image" and "Next" - the filters and B/W come on the next step, on the cropped page. */
+@Composable
+private fun CropStepRow(viewModel: ScanEditViewModel) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        TextButton(onClick = { viewModel.edit(ScanEditPage::cropReset) }, colors = actionTextColors()) {
+            Text(stringResource(R.string.scan_edit_full_image))
+        }
+        Button(onClick = viewModel::toggleCrop) { Text(stringResource(R.string.scan_edit_crop_next)) }
     }
 }
 
