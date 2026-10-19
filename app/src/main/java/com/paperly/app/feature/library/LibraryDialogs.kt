@@ -73,8 +73,10 @@ internal sealed interface LibraryDialog {
     data class Rename(val doc: Document) : LibraryDialog
     data class Move(val doc: Document) : LibraryDialog
     data class Tags(val doc: Document) : LibraryDialog
+
     /** [parentId] = the open folder on the Scanned tab (null = top level, and on the PDF/EPUB tabs). */
     data class NewFolder(val parentId: String?) : LibraryDialog
+
     data class RenameFolder(val folder: Folder) : LibraryDialog
     data class DeleteFolderWithDocs(val folder: Folder) : LibraryDialog
 }
