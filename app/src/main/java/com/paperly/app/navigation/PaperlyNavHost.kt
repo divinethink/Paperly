@@ -100,6 +100,37 @@ internal fun NavHostController.navigateTopLevel(route: String) = navigate(route)
     restoreState = true
 }
 
+/** Reader and (phone) Library draw under the status bar themselves (the teal header paints it). */
+private fun rootInsets(route: String?, useRail: Boolean): WindowInsets {
+    val selfInsetting = route == Routes.READER || (Routes.isLibrary(route) && !useRail)
+    return if (selfInsetting) NoInsets else ScaffoldDefaults.contentWindowInsets
+}
+
+@Composable
+private fun PaperlyBottomBar(currentRoute: String?, navController: NavHostController) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+    ) {
+        val itemColors = barItemColors()
+        TopLevel.entries.forEach { item ->
+            val selected = currentRoute == item.route
+            val go = { navController.navigateTopLevel(item.route) }
+            if (item == TopLevel.Scan) {
+                ScanNavItem(selected, stringResource(item.label), go)
+            } else {
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = go,
+                    icon = { Icon(item.icon, contentDescription = null) },
+                    label = { Text(stringResource(item.label)) },
+                    colors = itemColors,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     val navController = rememberNavController()
@@ -118,37 +149,8 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     }
 
     Scaffold(
-        // Reader and (phone) Library draw under the status bar themselves (teal header paints it).
-        contentWindowInsets = if (currentRoute == Routes.READER || (Routes.isLibrary(currentRoute) && !useRail)) {
-            NoInsets
-        } else {
-            ScaffoldDefaults.contentWindowInsets
-        },
-        bottomBar = {
-            if (showNav && !useRail) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    val itemColors = barItemColors()
-                    TopLevel.entries.forEach { item ->
-                        val selected = currentRoute == item.route
-                        val go = { navController.navigateTopLevel(item.route) }
-                        if (item == TopLevel.Scan) {
-                            ScanNavItem(selected, stringResource(item.label), go)
-                        } else {
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = go,
-                                icon = { Icon(item.icon, contentDescription = null) },
-                                label = { Text(stringResource(item.label)) },
-                                colors = itemColors,
-                            )
-                        }
-                    }
-                }
-            }
-        },
+        contentWindowInsets = rootInsets(currentRoute, useRail),
+        bottomBar = { if (showNav && !useRail) PaperlyBottomBar(currentRoute, navController) },
     ) { padding ->
         Row(Modifier.padding(padding).consumeWindowInsets(padding)) {
             if (showNav && useRail) {
