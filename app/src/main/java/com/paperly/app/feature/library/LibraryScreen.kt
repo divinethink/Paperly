@@ -200,10 +200,10 @@ private fun LibraryHeader(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     // Notebloc-style teal title bar; the background also paints the status-bar area.
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Row(
             Modifier.fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
+                .background(MaterialTheme.colorScheme.background)
                 .statusBarsPadding()
                 .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

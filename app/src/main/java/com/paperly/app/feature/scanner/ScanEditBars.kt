@@ -36,9 +36,9 @@ internal fun actionTextColors() = ButtonDefaults.textButtonColors(contentColor =
 @Composable
 internal fun EditBottomBar(state: ScanEditUi, viewModel: ScanEditViewModel, onAdjust: () -> Unit) {
     val page = state.page ?: return
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Row(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary).navigationBarsPadding(),
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).navigationBarsPadding(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             ToolButton(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {

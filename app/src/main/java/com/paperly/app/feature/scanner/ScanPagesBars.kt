@@ -77,9 +77,9 @@ private fun PagesMenu(expanded: Boolean, export: DocumentExport, onDismiss: () -
 @Composable
 internal fun PagesBottomBar(export: DocumentExport, onPictures: () -> Unit, onScan: () -> Unit) {
     var more by remember { mutableStateOf(false) }
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Row(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary).navigationBarsPadding(),
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).navigationBarsPadding(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             val item = Modifier.weight(1f)

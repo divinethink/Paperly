@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -55,7 +56,7 @@ import com.paperly.app.feature.library.rememberDocumentExport
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
 
 private const val BAR_ALPHA = 0.94f
-private const val SELECTED_ALPHA = 0.25f
+private const val LIGHT_BAR_LUMINANCE = 0.5f
 
 /**
  * Floating top bar of the Reader (with the search / annotate bars). Scanned documents get the Notebloc teal bar;
@@ -74,23 +75,13 @@ internal fun BoxScope.ReaderTopSurface(
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     val colors = MaterialTheme.colorScheme
-    val barColor = if (isScan) colors.primary else colors.surface.copy(alpha = BAR_ALPHA)
-    // On the teal bar the "selected" tints (bookmark star, annotate toggle) use the bar's own on-colour.
-    val scheme = if (isScan) {
-        colors.copy(
-            primary = colors.onPrimary,
-            primaryContainer = colors.onPrimary.copy(alpha = SELECTED_ALPHA),
-            onPrimaryContainer = colors.onPrimary,
-        )
-    } else {
-        colors
-    }
-    if (isScan) LightStatusBarIcons()
-    MaterialTheme(colorScheme = scheme) {
+    val barColor = if (isScan) colors.surfaceContainer else colors.surface.copy(alpha = BAR_ALPHA)
+    if (isScan) BarStatusBarIcons(colors.surfaceContainer.luminance() > LIGHT_BAR_LUMINANCE)
+    MaterialTheme(colorScheme = colors) {
         Surface(
             Modifier.align(Alignment.TopStart).fillMaxWidth(),
             color = barColor,
-            contentColor = if (isScan) colors.onPrimary else contentColorFor(barColor),
+            contentColor = if (isScan) colors.onSurface else contentColorFor(barColor),
         ) {
             Column(Modifier.windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)) {
                 ReaderTopBar(viewModel, listState, fit, onBack)
@@ -101,15 +92,15 @@ internal fun BoxScope.ReaderTopSurface(
     }
 }
 
-/** White system-bar icons while the teal bar is under the status bar; the previous setting comes back on leaving. */
+/** System-bar icons that contrast with the cream bar under the status bar; the previous setting comes back on leaving. */
 @Composable
-private fun LightStatusBarIcons() {
+private fun BarStatusBarIcons(barIsLight: Boolean) {
     val view = LocalView.current
     val window = LocalActivity.current?.window
     DisposableEffect(window, view) {
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
         val previous = controller?.isAppearanceLightStatusBars
-        controller?.isAppearanceLightStatusBars = false
+        controller?.isAppearanceLightStatusBars = barIsLight
         onDispose { if (previous != null) controller.isAppearanceLightStatusBars = previous }
     }
 }
@@ -125,11 +116,11 @@ internal fun BoxScope.ScanReaderBottomBar(doc: Document?, page: Int) {
     var noting by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(false) }
     if (noting) ScanPageEditor(page, scanPages) { noting = false }
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Row(
             Modifier.align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
                 .navigationBarsPadding(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {

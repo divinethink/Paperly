@@ -38,11 +38,11 @@ fun PaperlyTopBar(
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Row(
             modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
+                .background(MaterialTheme.colorScheme.background)
                 .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -73,6 +73,6 @@ fun PaperlyTopBar(
 /** A text button that stays readable on the teal bar (the default primary colour would vanish). */
 @Composable
 fun topBarTextButtonColors() = ButtonDefaults.textButtonColors(
-    contentColor = MaterialTheme.colorScheme.onPrimary,
-    disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = DISABLED_ALPHA),
+    contentColor = MaterialTheme.colorScheme.primary,
+    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA),
 )

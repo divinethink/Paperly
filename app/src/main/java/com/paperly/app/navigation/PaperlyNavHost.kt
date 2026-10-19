@@ -117,8 +117,8 @@ private fun rootInsets(route: String?, useRail: Boolean): WindowInsets {
 @Composable
 private fun PaperlyBottomBar(currentRoute: String?, navController: NavHostController) {
     NavigationBar(
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         val itemColors = barItemColors()
         TopLevel.entries.forEach { item ->
@@ -185,13 +185,13 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
     }
 }
 
-/** Teal bar: white labels/icons, selected item gets a light pill. */
+/** Cream bar: muted labels/icons, selected item gets a tint pill. */
 @Composable
 private fun barItemColors() = NavigationBarItemDefaults.colors(
     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-    selectedTextColor = MaterialTheme.colorScheme.onPrimary,
-    unselectedIconColor = MaterialTheme.colorScheme.onPrimary,
-    unselectedTextColor = MaterialTheme.colorScheme.onPrimary,
+    selectedTextColor = MaterialTheme.colorScheme.primary,
+    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
 )
 
@@ -205,8 +205,8 @@ private fun RowScope.ScanNavItem(selected: Boolean, label: String, onClick: () -
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.onPrimary,
-            contentColor = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
             shadowElevation = 4.dp,
             modifier = Modifier.size(52.dp),
         ) {

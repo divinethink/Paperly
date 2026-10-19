@@ -52,18 +52,5 @@ val DividerDark = Color(0xFF3A3632)
 val DangerDark = Color(0xFFF2B8B0)
 val TrashGreen = Color(0xFF5E6B3F)
 
-// Notebloc-style look (light): teal bars, white pages, neutral grey text/dividers.
-// Teal 800 keeps white-on-bar text at >=4.5:1 (AA).
-val Teal = Color(0xFF00838F)
-val TealContainer = Color(0xFFCDEFF3)
-val OnTealContainer = Color(0xFF00363D)
-val TealOnDark = Color(0xFF4DD0E1)
-val TealContainerDark = Color(0xFF004F58)
-val NeutralText = Color(0xFF212121)
-val NeutralMuted = Color(0xFF616161)
-val NeutralSurface = Color(0xFFF3F5F6)
-val NeutralOutline = Color(0xFFBDBDBD)
-val NeutralDivider = Color(0xFFE0E0E0)
-
 // Notebloc-style editor: green crop handles; brown text actions / selected filter border (Theme `tertiary`).
 val CropGreen = Color(0xFF4CAF50)

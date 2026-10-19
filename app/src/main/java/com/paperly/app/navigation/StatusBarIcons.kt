@@ -30,7 +30,7 @@ private tailrec fun Context.findWindow(): Window? = when (this) {
 internal fun TealStatusBarEffect(route: String?) {
     val view = LocalView.current
     val teal = usesTealBar(route)
-    val barIsLight = MaterialTheme.colorScheme.primary.luminance() > LIGHT_BAR_LUMINANCE
+    val barIsLight = MaterialTheme.colorScheme.background.luminance() > LIGHT_BAR_LUMINANCE
     DisposableEffect(teal, barIsLight) {
         val window = if (teal) view.context.findWindow() else null
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
