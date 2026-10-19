@@ -15,7 +15,10 @@ class ScanTitleTest {
     @Test fun capsLength() = assertEquals(MAX_TITLE_LENGTH, scanTitle("a".repeat(MAX_TITLE_LENGTH + 50), "x").length)
 
     @Test fun newScanTitleIsScanPlusDateAndTime() {
-        val at = Calendar.getInstance().apply { clear(); set(2026, Calendar.OCTOBER, 20, 14, 5) }.time
+        val calendar = Calendar.getInstance()
+        calendar.clear()
+        calendar.set(2026, Calendar.OCTOBER, 20, 14, 5)
+        val at = calendar.time
         assertEquals("Scan 2026-10-20 14-05", newScanTitle(at))
     }
 }
