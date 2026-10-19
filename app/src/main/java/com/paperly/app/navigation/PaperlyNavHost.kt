@@ -101,10 +101,11 @@ private enum class TopLevel(val route: String, @StringRes val label: Int, val ic
     Settings(Routes.SETTINGS, R.string.nav_settings, Icons.Filled.Settings),
 }
 
+/** Scan is a one-shot flow (scanner -> editor -> Reader): never restore its old stack, or a stale document reopens. */
 internal fun NavHostController.navigateTopLevel(route: String) = navigate(route) {
     popUpTo(graph.findStartDestination().id) { saveState = true }
     launchSingleTop = true
-    restoreState = true
+    restoreState = route != Routes.SCAN && route != Routes.SCAN_GALLERY
 }
 
 /** Reader, the page grid, Trash/Storage and (phone) Library/Settings draw under the status bar themselves. */
