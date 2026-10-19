@@ -5,12 +5,14 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.print.PrintManager
+import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -74,18 +76,21 @@ internal fun rememberDocumentExport(
     }
     val isPdf = ExportFiles.isPdf(doc.type)
     val isScan = doc.type == SCAN_TYPE
-    val sharePdf: () -> Unit = { scope.launch { shareFile(context, fileOf(), name, mime) } }
+    val sharePdf: (String) -> Unit = { shareName -> scope.launch { shareFile(context, fileOf(), shareName, mime) } }
     // Scans: Share / Save a copy first ask PDF or JPG (JPG = the existing background image export).
     var askScan by remember { mutableStateOf<ScanAction?>(null) }
     ScanFormatPrompt(
         action = askScan,
         doc = doc,
         viewModel = viewModel,
-        onPdf = { if (it == ScanAction.SHARE) sharePdf() else saver.launch(name) },
+        onPdf = { action, base ->
+            val chosen = ExportFiles.fileName(base, doc.type)
+            if (action == ScanAction.SHARE) sharePdf(chosen) else saver.launch(chosen)
+        },
         onClose = { askScan = null },
     )
     return DocumentExport(
-        share = { if (isScan) askScan = ScanAction.SHARE else sharePdf() },
+        share = { if (isScan) askScan = ScanAction.SHARE else sharePdf(name) },
         saveCopy = { if (isScan) askScan = ScanAction.SAVE else saver.launch(name) },
         print = if (isPdf) {
             { scope.launch { printFile(context, fileOf(), name) } }
@@ -109,34 +114,55 @@ private fun ScanFormatPrompt(
     action: ScanAction?,
     doc: Document,
     viewModel: ExportViewModel,
-    onPdf: (ScanAction) -> Unit,
+    onPdf: (ScanAction, String) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val size = remember(doc.id, action != null) {
+        val length = if (action == null) null else viewModel.file(doc.id)?.length()
+        length?.let { Formatter.formatShortFileSize(context, it) }
+    }
     if (action == null) return
     ScanFormatDialog(
-        onPdf = {
+        initialName = ExportFiles.baseName(doc.title),
+        sizeText = size,
+        onPdf = { name ->
             onClose()
-            onPdf(action)
+            onPdf(action, name)
         },
-        onJpg = {
+        onJpg = { name ->
             onClose()
-            viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(doc.title), false) }
+            viewModel.file(doc.id)?.let { enqueueImageExport(context, it, ExportFiles.baseName(name), false) }
             toast(context, R.string.export_jpg_started)
         },
         onDismiss = onClose,
     )
 }
 
+/** PDF or JPG, with an editable file name (made safe by [ExportFiles.baseName]) and the current PDF size. */
 @Composable
-private fun ScanFormatDialog(onPdf: () -> Unit, onJpg: () -> Unit, onDismiss: () -> Unit) {
+private fun ScanFormatDialog(
+    initialName: String,
+    sizeText: String?,
+    onPdf: (String) -> Unit,
+    onJpg: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.export_choose_format)) },
         text = {
             Column {
-                TextButton(onClick = onPdf) { Text(stringResource(R.string.export_format_pdf)) }
-                TextButton(onClick = onJpg) { Text(stringResource(R.string.export_format_jpg)) }
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.export_file_name)) },
+                    singleLine = true,
+                )
+                if (sizeText != null) Text(stringResource(R.string.export_file_size, sizeText))
+                TextButton(onClick = { onPdf(name) }) { Text(stringResource(R.string.export_format_pdf)) }
+                TextButton(onClick = { onJpg(name) }) { Text(stringResource(R.string.export_format_jpg)) }
             }
         },
         confirmButton = {},

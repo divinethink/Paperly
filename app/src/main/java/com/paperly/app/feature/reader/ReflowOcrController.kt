@@ -32,4 +32,16 @@ class ReflowOcrController(
 
     /** Text of one page; null = could not be read. */
     suspend fun pageText(index: Int): String? = engine()?.let { ocr.pageText(documentId, it, index) }
+
+    /**
+     * Text of page [index] for the "Copy" action of a page without a text layer. Fetches the recognition data first
+     * when it is missing ([onDownloading] tells the owner). Null = data not available or nothing could be read.
+     */
+    suspend fun copyPageText(index: Int, onDownloading: () -> Unit): String? {
+        val ready = ocr.modelReady.value || run {
+            onDownloading()
+            ocr.downloadModel()
+        }
+        return if (ready) pageText(index)?.trim()?.takeIf { it.isNotEmpty() } else null
+    }
 }

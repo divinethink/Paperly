@@ -126,6 +126,7 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDele
         FilterRow(state, page, viewModel)
         if (adjusting) AdjustPanel(page, viewModel)
         ToolRow(state, viewModel) { adjusting = !adjusting }
+        if (state.pages.size > 1) PageStrip(state, viewModel)
         PageManagementRow(state, viewModel, onDelete)
     }
 }

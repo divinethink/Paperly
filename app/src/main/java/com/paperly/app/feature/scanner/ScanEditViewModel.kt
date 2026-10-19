@@ -11,6 +11,7 @@ import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditResult
 import com.paperly.app.domain.scanner.ScanFilter
+import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.scanner.ScanOutputSize
 import com.paperly.app.domain.scanner.ScanQuad
 import com.paperly.app.domain.scanner.canDeleteAt
@@ -60,6 +61,7 @@ private const val THUMB_SIDE = 160
 class ScanEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ScanEditRepository,
+    private val ocr: ScanOcrRepository,
 ) : ViewModel() {
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
     private val _state = MutableStateFlow(ScanEditUi())
@@ -114,6 +116,9 @@ class ScanEditViewModel @Inject constructor(
         _state.update { it.copy(cropping = !it.cropping) }
         if (state.cropping) refreshPreview() // leaving the crop view: show the flattened result
     }
+
+    /** Recognised text of the SAVED scan (null = nothing read yet, e.g. the Settings switch is OFF). */
+    suspend fun recognisedText(): String? = ocr.text(documentId)
 
     fun onAddUnavailable() = _state.update { it.copy(addFailed = true) }
 

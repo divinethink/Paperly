@@ -1,5 +1,8 @@
 package com.paperly.app.feature.reader
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
@@ -17,10 +20,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,6 +33,7 @@ import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
+import kotlinx.coroutines.launch
 
 private const val QUICK_HEIGHT = 0.03f // about one text line, as a fraction of the page height
 private const val QUICK_WIDTH = 0.4f // starting length of the box, as a fraction of the page width
@@ -152,7 +158,9 @@ internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (Annota
     val annotate by controller.annotateMode.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val style by controller.style.collectAsStateWithLifecycle()
-    if (pending == null || annotate || reflow) return
+    val page = pending?.page ?: return
+    if (annotate || reflow) return
+    val copyPage = rememberOcrCopy(viewModel)
     Surface(
         modifier = Modifier.align(Alignment.TopCenter)
             .padding(top = QuickTopPadding, start = QuickSidePadding, end = QuickSidePadding),
@@ -168,6 +176,7 @@ internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (Annota
                             Text(stringResource(label))
                         }
                     }
+                    TextButton(onClick = { copyPage(page) }) { Text(stringResource(R.string.reader_ocr_copy)) }
                 }
                 TextButton(onClick = controller::cancelPending) { Text(stringResource(R.string.action_cancel)) }
             }
@@ -177,6 +186,27 @@ internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (Annota
                         controller.setStyle(style.copy(color = color))
                     }
                 }
+            }
+        }
+    }
+}
+
+/** "Copy" for a page without a text layer: reads the page by OCR (the same engine as Reflow) and copies its text. */
+@Composable
+private fun rememberOcrCopy(viewModel: ReaderViewModel): (Int) -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    return { page ->
+        scope.launch {
+            val text = viewModel.reflowOcr.copyPageText(page) {
+                Toast.makeText(context, R.string.reader_ocr_downloading, Toast.LENGTH_SHORT).show()
+            }
+            if (text == null) {
+                Toast.makeText(context, R.string.reader_ocr_copy_failed, Toast.LENGTH_LONG).show()
+            } else {
+                val clip = ClipData.newPlainText("page", text)
+                context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
+                Toast.makeText(context, R.string.reader_ocr_copied, Toast.LENGTH_SHORT).show()
             }
         }
     }

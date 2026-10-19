@@ -2,6 +2,8 @@ package com.paperly.app.feature.scanner
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,9 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,6 +26,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,7 +36,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,6 +56,7 @@ import com.paperly.app.domain.scanner.rotated
 import com.paperly.app.domain.scanner.withBrightness
 import com.paperly.app.domain.scanner.withContrast
 import com.paperly.app.domain.scanner.withFilter
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val ThumbWidth = 72.dp
@@ -55,6 +64,8 @@ private val ThumbHeight = 92.dp
 private val ThumbCorner = 8.dp
 private val ThumbBorder = 1.dp
 private val ThumbBorderSelected = 2.dp
+private val PAGE_CHIP_SIZE = 40.dp
+private val PAGE_CHIP_GAP = 6.dp
 private val ADJUST_LABEL_WIDTH = 88.dp
 private val ADJUST_VALUE_WIDTH = 36.dp
 
@@ -174,6 +185,54 @@ private fun AdjustSlider(label: Int, value: Int, range: IntRange, onChange: (Int
         )
         Text(value.toString(), Modifier.width(ADJUST_VALUE_WIDTH), style = MaterialTheme.typography.bodySmall)
     }
+}
+
+/**
+ * Page numbers: tap = open that page; press and hold, then drag sideways = move the page (one place per chip width).
+ * Same rules as the "Move earlier / later" buttons, which stay as the non-drag way.
+ */
+@Composable
+internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
+    val step = with(LocalDensity.current) { (PAGE_CHIP_SIZE + PAGE_CHIP_GAP).toPx() }
+    val current by rememberUpdatedState(state.current)
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(PAGE_CHIP_GAP)) {
+        state.pages.forEachIndexed { index, _ ->
+            val selected = index == state.current
+            val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+            val label = stringResource(R.string.scan_edit_page_number, index + 1)
+            Box(
+                Modifier.size(PAGE_CHIP_SIZE)
+                    .border(if (selected) ThumbBorderSelected else ThumbBorder, color, CircleShape)
+                    .clickable(role = Role.Button, onClickLabel = label) { viewModel.goTo(index) }
+                    .pointerInput(index) {
+                        var carried = 0f
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                carried = 0f
+                                if (index != current) viewModel.goTo(index)
+                            },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                carried += drag.x
+                                while (abs(carried) >= step) {
+                                    val direction = if (carried > 0f) 1 else -1
+                                    viewModel.move(direction)
+                                    carried -= direction * step
+                                }
+                            },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    (index + 1).toString(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+    Text(stringResource(R.string.scan_edit_reorder_hint), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable

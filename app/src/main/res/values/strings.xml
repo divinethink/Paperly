@@ -46,6 +46,8 @@
     <string name="export_format_jpg">JPG</string>
     <string name="export_format_pdf">PDF</string>
     <string name="export_choose_format">Choose format</string>
+    <string name="export_file_name">File name</string>
+    <string name="export_file_size">Current PDF size: %1$s</string>
     <string name="export_jpg_started">Preparing JPG images. They will appear in the Library.</string>
     <string name="export_format_png">PNG</string>
     <string name="export_images_progress">Exporting images %1$d / %2$d</string>
@@ -159,6 +161,8 @@
     <string name="scan_adjust_brightness">Brightness</string>
     <string name="scan_adjust_contrast">Contrast</string>
     <string name="scan_adjust_reset">Reset adjustments</string>
+    <string name="scan_edit_reorder_hint">Press and hold a page number, then drag it to move the page.</string>
+    <string name="scan_edit_page_number">Page %1$d</string>
     <string name="scan_size_title">File size</string>
     <string name="scan_size_hint">Smaller files are lower quality. Your current file is kept as a backup for 7 days.</string>
     <string name="scan_size_small">Small</string>
@@ -333,6 +337,9 @@
     <string name="reader_ocr_needs_model">This document has no usable text layer, so Reflow view reads the page images. A one-time download of the text-recognition data (about 5 MB) is needed.</string>
     <string name="reader_ocr_download">Download</string>
     <string name="reader_ocr_downloading">Downloading…</string>
+    <string name="reader_ocr_copy">Copy page text</string>
+    <string name="reader_ocr_copied">Page text copied</string>
+    <string name="reader_ocr_copy_failed">Could not read the text of this page. The text-recognition data may be missing; check your connection and try again.</string>
     <string name="reader_ocr_download_failed">Download failed. Check your internet connection and try again.</string>
     <string name="reader_ocr_reading">Reading page…</string>
     <string name="epub_font">Font</string>
