@@ -39,6 +39,12 @@ import com.paperly.app.R
 
 private const val THUMB_WIDTH_PX = 360
 
+/** "Today" / "Yesterday" / a short date; one value for the whole document (pages have no date of their own). */
+@Composable
+internal fun rememberScanDate(createdAt: Long): String = remember(createdAt) {
+    DateUtils.getRelativeTimeSpanString(createdAt, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS).toString()
+}
+
 /** Two-column page grid (Notebloc style): page thumbnail with a teal footer — page number left, date right. */
 @Composable
 internal fun ScanPageGrid(
@@ -47,14 +53,7 @@ internal fun ScanPageGrid(
     onPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // "Today" / "Yesterday" / a short date; one value for the whole document (pages have no size/date of their own)
-    val date = remember(ready.document.createdAt) {
-        DateUtils.getRelativeTimeSpanString(
-            ready.document.createdAt,
-            System.currentTimeMillis(),
-            DateUtils.DAY_IN_MILLIS,
-        ).toString()
-    }
+    val date = rememberScanDate(ready.document.createdAt)
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = modifier,
@@ -63,13 +62,19 @@ internal fun ScanPageGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(ready.pageCount, key = { it }) { index ->
-            PageCell(index, ready.aspect, date, viewModel) { onPage(index) }
+            PageCell(index, ready, date, viewModel) { onPage(index) }
         }
     }
 }
 
 @Composable
-private fun PageCell(index: Int, aspect: Float, date: String, viewModel: ScanPagesViewModel, onClick: () -> Unit) {
+private fun PageCell(
+    index: Int,
+    ready: ScanPagesUi.Ready,
+    date: String,
+    viewModel: ScanPagesViewModel,
+    onClick: () -> Unit,
+) {
     val label = stringResource(R.string.scan_page_desc, index + 1)
     Column(
         Modifier
@@ -78,17 +83,18 @@ private fun PageCell(index: Int, aspect: Float, date: String, viewModel: ScanPag
             .semantics(mergeDescendants = true) { contentDescription = label }
             .clickable(role = Role.Button, onClick = onClick),
     ) {
-        PageThumb(index, aspect, viewModel)
+        PageThumb(index, ready, viewModel, Modifier.fillMaxWidth())
         PageFooter(index + 1, date)
     }
 }
 
+/** Page thumbnail; reloaded when the document was read again ([ScanPagesUi.Ready.revision]). */
 @Composable
-private fun PageThumb(index: Int, aspect: Float, viewModel: ScanPagesViewModel) {
-    var bitmap by remember(index) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(index) { bitmap = viewModel.thumbnail(index, THUMB_WIDTH_PX) }
+internal fun PageThumb(index: Int, ready: ScanPagesUi.Ready, viewModel: ScanPagesViewModel, modifier: Modifier) {
+    var bitmap by remember(index, ready.revision) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(index, ready.revision) { bitmap = viewModel.thumbnail(index, THUMB_WIDTH_PX) }
     // The grey box is the loading skeleton.
-    Box(Modifier.fillMaxWidth().aspectRatio(aspect).background(MaterialTheme.colorScheme.surfaceVariant)) {
+    Box(modifier.aspectRatio(ready.aspect).background(MaterialTheme.colorScheme.surfaceVariant)) {
         bitmap?.let {
             Image(
                 it.asImageBitmap(),

@@ -34,8 +34,19 @@ import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 import com.paperly.app.core.ui.icons.CameraGlyph
 import com.paperly.app.core.ui.icons.GalleryGlyph
+import com.paperly.app.core.ui.icons.GridGlyph
+import com.paperly.app.core.ui.icons.ListGlyph
 import com.paperly.app.core.ui.icons.ShareGlyph
 import com.paperly.app.feature.library.DocumentExport
+
+/** Title-bar button that switches the page view; it shows the view you would switch TO. */
+@Composable
+internal fun ViewToggleButton(grid: Boolean, onChange: (Boolean) -> Unit) {
+    IconButton(onClick = { onChange(!grid) }) {
+        val label = if (grid) R.string.scan_pages_view_list else R.string.scan_pages_view_grid
+        Icon(if (grid) ListGlyph else GridGlyph, contentDescription = stringResource(label))
+    }
+}
 
 /** The ⋮ button of the title bar; opens [PagesMenu]. */
 @Composable
@@ -71,7 +82,7 @@ private fun PagesMenu(expanded: Boolean, export: DocumentExport, onDismiss: () -
 }
 
 /**
- * Bottom teal bar: Add pictures (opens the page editor, which has the picker) · Add scan · Share · More.
+ * Bottom teal bar: Add pictures (gallery picker) · Add scan (camera) · Share · More.
  * It paints under the system navigation bar itself.
  */
 @Composable

@@ -34,12 +34,14 @@ fun ScanPagesScreen(
     viewModel: ScanPagesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val grid by viewModel.gridView.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.release() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     when (val ui = state) {
         ScanPagesUi.Loading -> PagesStatus(onBack) { LoadingPlaceholder() }
         ScanPagesUi.Failed ->
             PagesStatus(onBack) { ErrorRetry(stringResource(R.string.scan_pages_error), viewModel::reload) }
-        is ScanPagesUi.Ready -> ScanPagesReady(ui, viewModel, onBack, actions)
+        is ScanPagesUi.Ready -> ScanPagesReady(ui, grid, viewModel, onBack, actions)
     }
 }
 
@@ -54,6 +56,7 @@ private fun PagesStatus(onBack: () -> Unit, content: @Composable () -> Unit) {
 @Composable
 private fun ScanPagesReady(
     ready: ScanPagesUi.Ready,
+    grid: Boolean,
     viewModel: ScanPagesViewModel,
     onBack: () -> Unit,
     actions: ScanPagesActions,
@@ -61,13 +64,16 @@ private fun ScanPagesReady(
     val doc = ready.document
     val export = rememberDocumentExport(doc)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        PaperlyTopBar(doc.title, onBack = onBack) { PagesMenuButton(export) }
-        ScanPageGrid(
-            ready,
-            viewModel,
-            onPage = { index -> viewModel.openPage(index) { actions.onOpenReader(doc.id) } },
-            modifier = Modifier.weight(1f),
-        )
+        PaperlyTopBar(doc.title, onBack = onBack) {
+            ViewToggleButton(grid, viewModel::setGridView)
+            PagesMenuButton(export)
+        }
+        val onPage = { index: Int -> viewModel.openPage(index) { actions.onOpenReader(doc.id) } }
+        if (grid) {
+            ScanPageGrid(ready, viewModel, onPage, Modifier.weight(1f))
+        } else {
+            ScanPageList(ready, viewModel, onPage, Modifier.weight(1f))
+        }
         PagesBottomBar(
             export,
             onPictures = { actions.onAddPictures(doc.id) },

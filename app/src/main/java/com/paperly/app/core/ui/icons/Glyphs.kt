@@ -39,6 +39,11 @@ private const val CAMERA_PATH = "M12,12m-3.2,0a3.2,3.2 0 1,0 6.4,0a3.2,3.2 0 1,0
     "M12,17c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5z"
 private const val BOOKMARK_PATH = "M17,3H7c-1.1,0 -1.99,0.9 -1.99,2L5,21l7,-3 7,3V5c0,-1.1 -0.9,-2 -2,-2z"
 
+private const val GRID_PATH = "M3,3v8h8V3H3zM9,9H5V5h4V9zM3,13v8h8v-8H3zM9,19H5v-4h4V19zM13,3v8h8V3H13z" +
+    "M19,9h-4V5h4V9zM13,13v8h8v-8H13zM19,19h-4v-4h4V19z"
+private const val LIST_PATH = "M3,14h4v-4H3V14zM3,19h4v-4H3V19zM3,9h4V5H3V9zM8,14h13v-4H8V14z" +
+    "M8,19h13v-4H8V19zM8,5v4h13V5H8z"
+
 private fun glyph(name: String, pathData: String): ImageVector =
     ImageVector.Builder(
         name = name,
@@ -62,3 +67,5 @@ val FolderGlyph: ImageVector by lazy { glyph("Folder", FOLDER_PATH) }
 val BookmarkGlyph: ImageVector by lazy { glyph("Bookmark", BOOKMARK_PATH) }
 val GalleryGlyph: ImageVector by lazy { glyph("Gallery", IMAGE_PATH) }
 val CameraGlyph: ImageVector by lazy { glyph("Camera", CAMERA_PATH) }
+val GridGlyph: ImageVector by lazy { glyph("Grid", GRID_PATH) }
+val ListGlyph: ImageVector by lazy { glyph("List", LIST_PATH) }

@@ -49,7 +49,10 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
         ),
     ) {
         ScanEditScreen(
-            onDone = { openId -> navController.showLibrary(openId) },
+            // a new scan opens its page grid (Notebloc style); an edit goes back to where it was started
+            onDone = { openId ->
+                if (openId != null) navController.showLibrary(openId) else navController.popBackStack()
+            },
             onCancelAdd = { navController.popBackStack() }, // nothing added: back to the grid
         )
     }
@@ -70,8 +73,8 @@ private fun ScanRoute(navController: NavHostController, mode: ScanMode) {
     )
 }
 
-/** Back to the Scanned tab; [openDocumentId] (a new scan) then opens in the Reader on top of it. */
+/** Back to the Scanned tab; [openDocumentId] (a new scan) then opens its page grid on top of it. */
 private fun NavHostController.showLibrary(openDocumentId: String?) {
     navigateTopLevel(Routes.library(LibraryType.SCAN))
-    if (openDocumentId != null) navigate(Routes.reader(openDocumentId))
+    if (openDocumentId != null) navigate(Routes.scanPages(openDocumentId))
 }

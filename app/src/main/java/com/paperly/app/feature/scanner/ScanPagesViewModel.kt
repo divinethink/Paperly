@@ -10,13 +10,16 @@ import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderStateRepository
+import com.paperly.app.domain.scanner.ScanPagesViewSettings
 import com.paperly.app.feature.reader.PageBitmapCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,14 +28,15 @@ sealed interface ScanPagesUi {
     data object Loading : ScanPagesUi
     data object Failed : ScanPagesUi
 
-    /** [aspect] = width / height of page 1; the thumbnail boxes use it. */
-    data class Ready(val document: Document, val pageCount: Int, val aspect: Float) : ScanPagesUi
+    /** [aspect] = width / height of page 1; the thumbnail boxes use it. [revision] changes on every (re)load. */
+    data class Ready(val document: Document, val pageCount: Int, val aspect: Float, val revision: Int) : ScanPagesUi
 }
 
 private class OpenedPdf(val engine: ReaderEngine, val pageCount: Int)
 
 private const val DEFAULT_ASPECT = 0.7f
 private const val CACHE_KB = 24 * 1024
+private const val STOP_TIMEOUT_MS = 5_000L
 
 /**
  * Page grid of one scanned document. Read-only: thumbnails come from the document's PDF (what the Reader shows),
@@ -44,6 +48,7 @@ class ScanPagesViewModel @Inject constructor(
     private val repository: DocumentRepository,
     private val readerState: ReaderStateRepository,
     private val fileStore: DocumentFileStore,
+    private val viewSettings: ScanPagesViewSettings,
     // Provider = lazy: the engine is created only when the grid is opened.
     private val engineProvider: Provider<ReaderEngine>,
 ) : ViewModel() {
@@ -54,6 +59,12 @@ class ScanPagesViewModel @Inject constructor(
     private var engine: ReaderEngine? = null
     private val cache = PageBitmapCache(CACHE_KB)
     private val lock = Mutex() // one open/render/close at a time
+    private var revision = 0
+    private var firstResumeSeen = false
+
+    /** true = thumbnail grid (default), false = list. */
+    val gridView: StateFlow<Boolean> =
+        viewSettings.grid.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
 
     init {
         reload()
@@ -61,7 +72,28 @@ class ScanPagesViewModel @Inject constructor(
 
     fun reload() {
         _state.value = ScanPagesUi.Loading
+        launchLoad()
+    }
+
+    private fun launchLoad() {
         viewModelScope.launch { _state.value = lock.withLock { load() } }
+    }
+
+    /**
+     * The screen came back (editor, Reader, scanner closed): read the document again so added/moved/deleted pages
+     * show at once. The first call is the screen's own start (init already loads) and is skipped.
+     */
+    fun refresh() {
+        if (!firstResumeSeen) {
+            firstResumeSeen = true
+            return
+        }
+        cache.clear()
+        launchLoad() // the old grid stays on screen meanwhile
+    }
+
+    fun setGridView(grid: Boolean) {
+        viewModelScope.launch { viewSettings.setGrid(grid) }
     }
 
     private suspend fun load(): ScanPagesUi {
@@ -69,7 +101,7 @@ class ScanPagesViewModel @Inject constructor(
         val opened = openEngine() ?: return ScanPagesUi.Failed
         engine?.close()
         engine = opened.engine
-        return ScanPagesUi.Ready(document, opened.pageCount, opened.engine.pageAspect(0) ?: DEFAULT_ASPECT)
+        return ScanPagesUi.Ready(document, opened.pageCount, opened.engine.pageAspect(0) ?: DEFAULT_ASPECT, ++revision)
     }
 
     /** A fresh engine on the document file; null (engine closed again) if it cannot be opened. */
@@ -86,15 +118,13 @@ class ScanPagesViewModel @Inject constructor(
         return if (pages < 1) null else OpenedPdf(pdf, pages)
     }
 
-    private suspend fun liveEngine(): ReaderEngine? =
-        engine ?: openEngine()?.also { engine = it.engine }?.engine
-
     /** Thumbnail of page [index] (0-based), at most [widthPx] wide; null if it cannot be drawn. */
     suspend fun thumbnail(index: Int, widthPx: Int): Bitmap? {
         cache.get(index, widthPx)?.let { return it }
         return lock.withLock {
             cache.get(index, widthPx)
-                ?: liveEngine()?.renderPage(index, widthPx)?.also { cache.put(index, widthPx, it) }
+                ?: (engine ?: openEngine()?.also { engine = it.engine }?.engine) // reopened after release()
+                    ?.renderPage(index, widthPx)?.also { cache.put(index, widthPx, it) }
         }
     }
 

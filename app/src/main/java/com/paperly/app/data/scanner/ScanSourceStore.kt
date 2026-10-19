@@ -154,30 +154,36 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
 
     /** false = not shrunk (already small, unreadable, or out of memory): the caller keeps the original bytes. */
     private fun shrink(raw: File, target: File): Boolean = try {
-        val bitmap = ScanPageRenderer.decode(raw, KEEP_SIDE)
-        val longSide = maxOf(bitmap.width, bitmap.height)
-        if (longSide <= KEEP_SIDE) {
-            bitmap.recycle()
-            false
-        } else {
-            val ratio = KEEP_SIDE.toFloat() / longSide
-            val small = Bitmap.createScaledBitmap(
-                bitmap,
-                maxOf(1, (bitmap.width * ratio).toInt()),
-                maxOf(1, (bitmap.height * ratio).toInt()),
-                true,
-            )
-            if (small !== bitmap) bitmap.recycle()
-            try {
-                target.outputStream().buffered().use { small.compress(Bitmap.CompressFormat.JPEG, KEEP_QUALITY, it) }
-            } finally {
-                small.recycle()
-            }
-        }
+        val small = scaledDown(ScanPageRenderer.decode(raw, KEEP_SIDE))
+        small != null && saveJpeg(small, target)
     } catch (ignored: IOException) {
         false
     } catch (ignored: OutOfMemoryError) {
         false
+    }
+
+    /** [bitmap] scaled to [KEEP_SIDE] on its long side; null (and [bitmap] recycled) when it is not longer. */
+    private fun scaledDown(bitmap: Bitmap): Bitmap? {
+        val longSide = maxOf(bitmap.width, bitmap.height)
+        if (longSide <= KEEP_SIDE) {
+            bitmap.recycle()
+            return null
+        }
+        val ratio = KEEP_SIDE.toFloat() / longSide
+        val small = Bitmap.createScaledBitmap(
+            bitmap,
+            maxOf(1, (bitmap.width * ratio).toInt()),
+            maxOf(1, (bitmap.height * ratio).toInt()),
+            true,
+        )
+        if (small !== bitmap) bitmap.recycle()
+        return small
+    }
+
+    private fun saveJpeg(bitmap: Bitmap, target: File): Boolean = try {
+        target.outputStream().buffered().use { bitmap.compress(Bitmap.CompressFormat.JPEG, KEEP_QUALITY, it) }
+    } finally {
+        bitmap.recycle()
     }
 
     private fun deleteIfOwn(uri: Uri) {
