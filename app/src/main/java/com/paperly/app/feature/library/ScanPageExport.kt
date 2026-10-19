@@ -9,15 +9,6 @@ import com.paperly.app.core.file.ExportFiles
 import com.paperly.app.domain.document.Document
 import kotlinx.coroutines.launch
 
-/** What the page grid can do with the pages the user ticked (JPG pictures, except [print] = a PDF of those pages). */
-internal class PageExport(
-    val share: () -> Unit,
-    val email: () -> Unit,
-    val print: () -> Unit,
-    val gallery: () -> Unit,
-    val storage: () -> Unit,
-)
-
 /** Export actions for [chosen] (0-based pages) of the scanned document [doc]; the document itself is only read. */
 @Composable
 internal fun rememberPageExport(doc: Document, chosen: Set<Int>): PageExport {
