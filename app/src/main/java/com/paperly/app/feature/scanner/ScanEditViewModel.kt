@@ -7,15 +7,18 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperly.app.data.scanner.ScanPageRenderer
+import com.paperly.app.domain.scanner.SCAN_FILTER_CHOICES
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditResult
 import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanOcrRepository
-import com.paperly.app.domain.scanner.ScanOutputSize
+import com.paperly.app.domain.scanner.ScanOutputSettings
 import com.paperly.app.domain.scanner.ScanQuad
 import com.paperly.app.domain.scanner.canDeleteAt
 import com.paperly.app.domain.scanner.moved
+import com.paperly.app.domain.scanner.toggledBw
+import com.paperly.app.domain.scanner.withFilter
 import com.paperly.app.domain.scanner.withFilterAll
 import com.paperly.app.domain.scanner.withQuad
 import com.paperly.app.domain.scanner.withoutAt
@@ -28,6 +31,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +66,7 @@ class ScanEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ScanEditRepository,
     private val ocr: ScanOcrRepository,
+    private val outputSettings: ScanOutputSettings,
 ) : ViewModel() {
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
     private val _state = MutableStateFlow(ScanEditUi())
@@ -69,6 +74,7 @@ class ScanEditViewModel @Inject constructor(
     private var sourceBitmap: Bitmap? = null
     private var previewJob: Job? = null
     private var thumbKey: ThumbKey? = null
+    private val filterBeforeBw = HashMap<String, ScanFilter>() // per page (source index / added name), not saved
 
     init {
         viewModelScope.launch {
@@ -93,6 +99,14 @@ class ScanEditViewModel @Inject constructor(
         if (changed == page) return
         _state.update { it.withPage(changed) }
         refreshPreview()
+    }
+
+    /** B/W button: on = BW (the page remembers its old filter), off = that filter again. */
+    fun toggleBw() {
+        val page = _state.value.page ?: return
+        val key = page.added ?: page.index.toString()
+        if (page.filter != ScanFilter.BW) filterBeforeBw[key] = page.filter
+        edit { it.withFilter(toggledBw(it.filter, filterBeforeBw[key])) }
     }
 
     /** "Apply to all": the shown page's filter goes onto every page (nothing is written until Save). */
@@ -161,11 +175,13 @@ class ScanEditViewModel @Inject constructor(
         repository.discardStaged(documentId) // pictures staged for adding but never saved
     }
 
-    fun save(size: ScanOutputSize) {
+    /** Saves with the size chosen once in the Scanned tab's menu (no question each time). */
+    fun save() {
         val state = _state.value
         if (state.saving) return
         _state.update { it.copy(saving = true, failed = null) }
         viewModelScope.launch {
+            val size = outputSettings.size.first()
             val result = repository.apply(documentId, state.pages, size)
             _state.update {
                 if (result == ScanEditResult.SAVED) {
@@ -216,7 +232,7 @@ class ScanEditViewModel @Inject constructor(
         if (key == thumbKey) return
         val thumbs = withContext(Dispatchers.Default) {
             try {
-                ScanFilter.entries.associateWith {
+                SCAN_FILTER_CHOICES.associateWith {
                     val look = page.copy(filter = it, brightness = 0, contrast = 0)
                     ScanPageRenderer.render(source, look, THUMB_SIDE).asImageBitmap()
                 }

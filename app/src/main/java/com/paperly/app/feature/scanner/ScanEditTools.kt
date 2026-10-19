@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ import com.paperly.app.domain.scanner.MAX_BRIGHTNESS
 import com.paperly.app.domain.scanner.MAX_CONTRAST
 import com.paperly.app.domain.scanner.MIN_BRIGHTNESS
 import com.paperly.app.domain.scanner.MIN_CONTRAST
+import com.paperly.app.domain.scanner.SCAN_FILTER_CHOICES
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.adjustReset
@@ -59,8 +61,9 @@ import com.paperly.app.domain.scanner.withFilter
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private val ThumbWidth = 72.dp
-private val ThumbHeight = 92.dp
+private val ThumbWidth = 56.dp
+private val ThumbHeight = 72.dp
+private val BW_SIZE = 48.dp
 private val ThumbCorner = 8.dp
 private val ThumbBorder = 1.dp
 private val ThumbBorderSelected = 2.dp
@@ -69,11 +72,18 @@ private val PAGE_CHIP_GAP = 6.dp
 private val ADJUST_LABEL_WIDTH = 88.dp
 private val ADJUST_VALUE_WIDTH = 36.dp
 
-/** Filter picker: a small preview of every filter on this page; "Apply to all" copies the choice to all pages. */
+/**
+ * Filter picker: Original / Photo / Docs / Auto previews plus a separate B/W toggle; "Apply to all" copies the
+ * choice to all pages.
+ */
 @Composable
 internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEditViewModel) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ScanFilter.entries.forEach { filter ->
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SCAN_FILTER_CHOICES.forEach { filter ->
             FilterThumb(
                 label = stringResource(filterLabel(filter)),
                 thumb = state.thumbs[filter],
@@ -81,11 +91,31 @@ internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEdi
                 onClick = { viewModel.edit { it.withFilter(filter) } },
             )
         }
+        BwToggle(page.filter == ScanFilter.BW, viewModel::toggleBw)
     }
     if (state.pages.size > 1) {
         TextButton(onClick = viewModel::applyFilterToAll, enabled = !state.saving) {
             Text(stringResource(R.string.scan_filter_apply_all))
         }
+    }
+}
+
+/** Black-and-white on/off; turning it off returns to the filter the page had before. */
+@Composable
+private fun BwToggle(selected: Boolean, onToggle: () -> Unit) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    Box(
+        Modifier.size(BW_SIZE)
+            .border(if (selected) ThumbBorderSelected else ThumbBorder, color, CircleShape)
+            .clip(CircleShape)
+            .toggleable(value = selected, role = Role.Switch, onValueChange = { onToggle() }),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(R.string.scan_filter_bw),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

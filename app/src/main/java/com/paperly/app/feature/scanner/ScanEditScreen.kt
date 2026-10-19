@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,19 +24,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.scanner.ScanEditResult
-import com.paperly.app.domain.scanner.ScanOutputSize
 
 /** S2 page editor: filter, 4-corner crop, rotate; Save rebuilds the PDF (original kept as a 7-day backup). */
 @Composable
 fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var askSize by remember { mutableStateOf(false) }
     var askDiscard by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf(false) }
     LaunchedEffect(state.done) { if (state.done) onDone() }
@@ -48,15 +43,6 @@ fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewMo
             state.dirty -> askDiscard = true
             else -> onDone()
         }
-    }
-    if (askSize) {
-        SizeDialog(
-            onPick = {
-                askSize = false
-                viewModel.save(it)
-            },
-            onCancel = { askSize = false },
-        )
     }
     if (askDiscard) DiscardDialog(onDiscard = onDone, onKeep = { askDiscard = false })
     if (askDelete) {
@@ -71,7 +57,7 @@ fun ScanEditScreen(onDone: () -> Unit, viewModel: ScanEditViewModel = hiltViewMo
     if (state.addFailed) FailedDialog(null, viewModel::dismissError)
     state.failed?.let { FailedDialog(it, viewModel::dismissError) }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else onDone() }, onSave = { askSize = true })
+        EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else onDone() }, onSave = viewModel::save)
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             EditCanvas(state, viewModel)
             if (state.loading || state.saving) CircularProgressIndicator()
@@ -129,38 +115,6 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, onDele
         if (state.pages.size > 1) PageStrip(state, viewModel)
         PageManagementRow(state, viewModel, onDelete)
     }
-}
-
-private fun sizeLabel(size: ScanOutputSize): Int = when (size) {
-    ScanOutputSize.SMALL -> R.string.scan_size_small
-    ScanOutputSize.MEDIUM -> R.string.scan_size_medium
-    ScanOutputSize.LARGE -> R.string.scan_size_large
-}
-
-@Composable
-private fun SizeDialog(onPick: (ScanOutputSize) -> Unit, onCancel: () -> Unit) {
-    var chosen by remember { mutableStateOf(ScanOutputSize.MEDIUM) }
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.scan_size_title)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.scan_size_hint), style = MaterialTheme.typography.bodySmall)
-                ScanOutputSize.entries.forEach { size ->
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .selectable(chosen == size, role = Role.RadioButton, onClick = { chosen = size }),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = chosen == size, onClick = null)
-                        Text(stringResource(sizeLabel(size)), Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { onPick(chosen) }) { Text(stringResource(R.string.scan_save)) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) } },
-    )
 }
 
 @Composable

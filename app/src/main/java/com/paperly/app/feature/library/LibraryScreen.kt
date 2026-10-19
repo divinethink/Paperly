@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -128,9 +129,9 @@ fun LibraryScreen(
         if (batch.active) {
             BatchBar(batch, state.documents, state.folders)
         } else {
-            LibraryHeader(libraryTitle, state.totalCount, state.isImporting, navigation) {
-                picker.launch(ImportMimeTypes)
-            }
+            val isScanTab = viewModel.type == LibraryType.SCAN
+            val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, isScanTab)
+            LibraryHeader(header, navigation) { picker.launch(ImportMimeTypes) }
         }
         SearchRow(state.query, viewModel::setQuery, state.view)
         FilterRow(state.filter, viewModel::setFilter)
@@ -141,7 +142,10 @@ fun LibraryScreen(
             onNew = { dialog = LibraryDialog.NewFolder },
             onDelete = { deleteFolderAction(state, it, organize)?.let { d -> dialog = d } },
         )
-        ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
+        // "Continue reading" is a reading shortcut: not shown on the Scanned tab
+        if (viewModel.type != LibraryType.SCAN) {
+            ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
+        }
         ImageExportStatus()
         DocxConversionStatus(navigation.onOpenReader)
         LibraryList(state, actions, batch, { picker.launch(ImportMimeTypes) }, viewModel::retry)
@@ -184,14 +188,11 @@ private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
     EmptyState(stringResource(emptyRes), cta, onImport)
 }
 
+/** What the header shows, grouped so [LibraryHeader] stays under the parameter-count limit. */
+private class HeaderInfo(val title: String, val count: Int, val isImporting: Boolean, val isScanTab: Boolean)
+
 @Composable
-private fun LibraryHeader(
-    title: String,
-    count: Int,
-    isImporting: Boolean,
-    navigation: LibraryNavigation,
-    onImport: () -> Unit,
-) {
+private fun LibraryHeader(info: HeaderInfo, navigation: LibraryNavigation, onImport: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
@@ -200,14 +201,14 @@ private fun LibraryHeader(
     ) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                title,
+                info.title,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() },
             )
-            CountPill(count)
+            CountPill(info.count)
         }
-        Button(onClick = onImport, enabled = !isImporting, modifier = Modifier.height(44.dp)) {
+        Button(onClick = onImport, enabled = !info.isImporting, modifier = Modifier.height(44.dp)) {
             Icon(DownloadGlyph, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.library_import))
@@ -231,6 +232,10 @@ private fun LibraryHeader(
                         navigation.onOpenStorage()
                     },
                 )
+                if (info.isScanTab) {
+                    HorizontalDivider()
+                    ScanQualityItems(onDismiss = { menuOpen = false })
+                }
             }
         }
     }

@@ -16,6 +16,17 @@ enum class ScanFilter {
     }
 }
 
+/**
+ * Filters shown as thumbnails. B/W is a separate toggle button; COLOR/GRAY stay in the enum (older pages keep
+ * their look) but are no longer offered.
+ */
+val SCAN_FILTER_CHOICES: List<ScanFilter> =
+    listOf(ScanFilter.ORIGINAL, ScanFilter.PHOTO, ScanFilter.DOCS, ScanFilter.AUTO)
+
+/** B/W button: not B/W -> BW; already B/W -> back to the filter it replaced ([before]), else ORIGINAL. */
+fun toggledBw(current: ScanFilter, before: ScanFilter?): ScanFilter =
+    if (current == ScanFilter.BW) before?.takeIf { it != ScanFilter.BW } ?: ScanFilter.ORIGINAL else ScanFilter.BW
+
 /** Output size of a rebuilt PDF: longest page side in pixels and JPEG quality. */
 enum class ScanOutputSize(val maxSide: Int, val jpegQuality: Int) {
     SMALL(SMALL_SIDE, SMALL_QUALITY),

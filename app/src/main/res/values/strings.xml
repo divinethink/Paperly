@@ -130,12 +130,8 @@
     <string name="scan_page_title">Page %1$d</string>
     <string name="scan_page_name">Title</string>
     <string name="scan_page_note">Note</string>
-    <string name="scan_name_title">Name this scan</string>
-    <string name="scan_name_label">Name</string>
-    <string name="scan_folder_label">Folder</string>
-    <string name="scan_folder_none">No folder</string>
     <string name="scan_save">Save</string>
-    <string name="scan_save_as_is">Save as is</string>
+    <string name="scan_duplicate">This scan is already in your Library.</string>
     <string name="scan_saving">Saving scan…</string>
     <string name="scan_error_unavailable">Scanner is not available on this device (Google Play services needed).</string>
     <string name="scan_gallery">Import from gallery</string>
@@ -163,8 +159,7 @@
     <string name="scan_adjust_reset">Reset adjustments</string>
     <string name="scan_edit_reorder_hint">Press and hold a page number, then drag it to move the page.</string>
     <string name="scan_edit_page_number">Page %1$d</string>
-    <string name="scan_size_title">File size</string>
-    <string name="scan_size_hint">Smaller files are lower quality. Your current file is kept as a backup for 7 days.</string>
+    <string name="scan_quality_label">Scan quality</string>
     <string name="scan_size_small">Small</string>
     <string name="scan_size_medium">Medium</string>
     <string name="scan_size_large">Large (best quality)</string>

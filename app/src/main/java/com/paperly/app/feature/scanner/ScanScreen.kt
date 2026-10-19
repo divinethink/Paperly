@@ -3,6 +3,7 @@ package com.paperly.app.feature.scanner
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
@@ -36,7 +37,6 @@ import com.paperly.app.R
 @Composable
 fun ScanScreen(onSaved: (editDocumentId: String?) -> Unit, viewModel: ScanViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val folders by viewModel.folders.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val editorEnabled by viewModel.editorEnabled.collectAsStateWithLifecycle()
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -49,20 +49,14 @@ fun ScanScreen(onSaved: (editDocumentId: String?) -> Unit, viewModel: ScanViewMo
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
         viewModel.onGalleryPicked(uris.map { it.toString() })
     }
+    LaunchedEffect(Unit) { viewModel.onScreenOpened() } // a stuck "saving" from an earlier visit must not block
     LaunchedEffect(state.saved) {
         if (state.saved) {
             val editId = state.editDocumentId
+            if (state.duplicate) Toast.makeText(context, R.string.scan_duplicate, Toast.LENGTH_LONG).show()
             viewModel.consumeSaved()
             onSaved(editId)
         }
-    }
-    if (state.naming) {
-        ScanNameDialog(
-            defaultTitle = state.defaultTitle,
-            folders = folders,
-            onSave = viewModel::confirmName,
-            onSaveAsIs = { viewModel.confirmName("", null) },
-        )
     }
     Column(
         Modifier.fillMaxSize().padding(24.dp),
@@ -71,12 +65,18 @@ fun ScanScreen(onSaved: (editDocumentId: String?) -> Unit, viewModel: ScanViewMo
     ) {
         Text(stringResource(R.string.scan_hint), style = MaterialTheme.typography.bodyMedium)
         Button(
-            onClick = { startScan(context.findActivity(), launcher, editorEnabled, viewModel::onUnavailable) },
+            onClick = {
+                viewModel.dismissError()
+                startScan(context.findActivity(), launcher, editorEnabled, viewModel::onUnavailable)
+            },
             enabled = !state.saving,
         ) { Text(stringResource(R.string.scan_start)) }
         if (editorEnabled) {
             OutlinedButton(
-                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onClick = {
+                    viewModel.dismissError()
+                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
                 enabled = !state.saving,
             ) { Text(stringResource(R.string.scan_gallery)) }
         }

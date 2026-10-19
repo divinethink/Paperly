@@ -15,6 +15,7 @@ import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditRepository
 import com.paperly.app.domain.scanner.ScanEditResult
 import com.paperly.app.domain.scanner.ScanFilter
+import com.paperly.app.domain.scanner.ScanOutputSettings
 import com.paperly.app.domain.scanner.ScanOutputSize
 import com.paperly.app.domain.scanner.ScanQuad
 import com.paperly.app.domain.scanner.StagedScan
@@ -34,6 +35,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -52,6 +54,7 @@ class ScanEditRepositoryImpl @Inject constructor(
     private val replacer: ScanPdfReplacer,
     private val builder: ScanPdfBuilder,
     private val highlightSync: PdfHighlightFileSync,
+    private val outputSettings: ScanOutputSettings,
 ) : ScanEditRepository {
     private val lock = Mutex()
 
@@ -183,8 +186,9 @@ class ScanEditRepositoryImpl @Inject constructor(
         val dir = if (uris.isEmpty()) null else sources.stage(uris, id)
         if (dir == null) return@withContext null
         val pdf = sources.galleryPdf(id)
+        val size = outputSettings.size.first()
         val staged = try {
-            builder.build(pdf, uris.indices.map { ScanEditPage(index = it) }, ScanOutputSize.MEDIUM) {
+            builder.build(pdf, uris.indices.map { ScanEditPage(index = it) }, size) {
                 File(dir, sources.pageName(it.index))
             }
             val pageUris = uris.indices.map { Uri.fromFile(File(dir, sources.pageName(it))).toString() }
