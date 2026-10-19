@@ -92,7 +92,7 @@ internal fun BoxScope.ReaderTopSurface(
     }
 }
 
-/** System-bar icons that contrast with the cream bar under the status bar; the previous setting comes back on leaving. */
+/** Status-bar icons that contrast with the cream bar; the previous setting returns on leaving. */
 @Composable
 private fun BarStatusBarIcons(barIsLight: Boolean) {
     val view = LocalView.current
