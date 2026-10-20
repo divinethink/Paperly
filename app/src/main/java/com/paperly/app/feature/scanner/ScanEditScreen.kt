@@ -17,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,14 +89,6 @@ fun ScanEditScreen(
             EditBottomBar(state, viewModel) { adjusting = !adjusting }
         }
     }
-}
-
-/** Leaves the screen when the editor says so: saved, nothing added, or the new scan was thrown away. */
-@Composable
-private fun EditExitEffects(state: ScanEditUi, onDone: () -> Unit, onCancelAdd: () -> Unit, onDiscarded: () -> Unit) {
-    LaunchedEffect(state.done) { if (state.done) onDone() }
-    LaunchedEffect(state.cancelled) { if (state.cancelled) onCancelAdd() }
-    LaunchedEffect(state.discarded) { if (state.discarded) onDiscarded() }
 }
 
 /** Crop step = "Border adjustment"; the filter / page step has its own title. */

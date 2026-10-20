@@ -55,7 +55,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.paperly.app.R
 
-private enum class FlashChoice { Off, Auto, On, Light }
+private enum class FlashChoice { Off, Auto, On }
 
 private const val GRID_DIVISIONS = 3
 private const val GRID_ALPHA = 0.5f
@@ -202,16 +202,14 @@ private fun flashLabel(choice: FlashChoice): Int = when (choice) {
     FlashChoice.Off -> R.string.scan_camera_flash_off
     FlashChoice.Auto -> R.string.scan_camera_flash_auto
     FlashChoice.On -> R.string.scan_camera_flash_on
-    FlashChoice.Light -> R.string.scan_camera_flash_torch
 }
 
 private fun applyFlash(controller: LifecycleCameraController, choice: FlashChoice) {
     controller.imageCaptureFlashMode = when (choice) {
         FlashChoice.Auto -> ImageCapture.FLASH_MODE_AUTO
         FlashChoice.On -> ImageCapture.FLASH_MODE_ON
-        else -> ImageCapture.FLASH_MODE_OFF
+        FlashChoice.Off -> ImageCapture.FLASH_MODE_OFF
     }
-    controller.enableTorch(choice == FlashChoice.Light)
 }
 
 /** Takes one picture into the single temp file; any failure (camera not ready, disk) goes to [onFailed]. */
