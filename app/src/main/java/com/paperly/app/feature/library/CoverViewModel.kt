@@ -12,4 +12,6 @@ class CoverViewModel @Inject constructor(private val covers: CoverRepository) : 
     suspend fun load(id: String, type: String): Bitmap? = covers.cover(id, type)
 
     suspend fun author(id: String, type: String): String? = covers.author(id, type)
+
+    suspend fun pageCount(id: String): Int? = covers.pageCount(id)
 }

@@ -35,6 +35,7 @@ class CoverRepositoryImpl @Inject constructor(
     private val gate = Semaphore(2) // bound concurrent decodes while scrolling
     private val dir by lazy { File(context.cacheDir, "covers").apply { mkdirs() } }
     private val authors = LruCache<String, String>(AUTHOR_CACHE_ENTRIES) // "" = book has no author
+    private val pages = LruCache<String, Int>(PAGE_COUNT_ENTRIES) // key = id + source mtime
     private val authorDir by lazy { File(context.cacheDir, "authors").apply { mkdirs() } }
 
     override suspend fun cover(documentId: String, type: String): Bitmap? = withContext(Dispatchers.IO) {
@@ -50,6 +51,12 @@ class CoverRepositoryImpl @Inject constructor(
     override suspend fun author(documentId: String, type: String): String? = withContext(Dispatchers.IO) {
         val src = files.resolve(documentId)?.takeIf { it.isFile && type == EPUB_TYPE }
         src?.let { authorOf(documentId, it) }?.ifEmpty { null }
+    }
+
+    override suspend fun pageCount(documentId: String): Int? = withContext(Dispatchers.IO) {
+        val src = files.resolve(documentId)?.takeIf { it.isFile } ?: return@withContext null
+        val key = "$documentId-${src.lastModified()}"
+        pages.get(key) ?: gate.withPermit { countPdfPages(src) }?.also { pages.put(key, it) }
     }
 
     /** Cache key = id + source mtime (like covers). Any failure => "" (no author). */
@@ -124,6 +131,7 @@ class CoverRepositoryImpl @Inject constructor(
     }
 
     private companion object {
+        const val PAGE_COUNT_ENTRIES = 256
         const val EPUB_TYPE = "epub"
         const val AUTHOR_CACHE_ENTRIES = 256
         const val WIDTH_PX = 360
@@ -132,4 +140,18 @@ class CoverRepositoryImpl @Inject constructor(
         const val JPEG_QUALITY = 85
         const val MEMORY_BYTES = 16 * 1024 * 1024
     }
+}
+
+/** Page count straight from the PDF; any failure (encrypted, broken file) => null. Read-only. */
+private fun countPdfPages(src: File): Int? = try {
+    ParcelFileDescriptor.open(src, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+        val r = PdfRenderer(fd)
+        try {
+            r.pageCount
+        } finally {
+            r.close()
+        }
+    }
+} catch (_: Exception) {
+    null
 }

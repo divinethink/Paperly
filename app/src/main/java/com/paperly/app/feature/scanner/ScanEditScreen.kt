@@ -4,13 +4,15 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -30,7 +31,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.PaperlyTopBar
-import com.paperly.app.core.ui.topBarTextButtonColors
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditResult
 import com.paperly.app.domain.scanner.cropReset
@@ -77,10 +77,7 @@ fun ScanEditScreen(
     var adjusting by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         EditTopBar(state, onClose = close, onSave = viewModel::save)
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            EditCanvas(state, viewModel)
-            if (state.loading || state.saving) ProcessingCard()
-        }
+        EditStage(state, viewModel)
         if (state.notEditable) {
             Text(stringResource(R.string.scan_edit_unavailable), Modifier.padding(16.dp).navigationBarsPadding())
         } else {
@@ -90,6 +87,9 @@ fun ScanEditScreen(
     }
 }
 
+/** Taller controls scroll instead of squeezing the page preview on small phones. */
+private val ControlsMaxHeight = 340.dp
+
 /** Crop step = "Border adjustment"; the filter / page step has its own title. */
 private fun editTitle(cropping: Boolean): Int =
     if (cropping) R.string.scan_edit_border_title else R.string.scan_edit_page_title
@@ -97,14 +97,16 @@ private fun editTitle(cropping: Boolean): Int =
 @Composable
 private fun EditTopBar(state: ScanEditUi, onClose: () -> Unit, onSave: () -> Unit) {
     PaperlyTopBar(stringResource(editTitle(state.cropping)), onBack = { if (!state.saving) onClose() }) {
-        TextButton(onClick = onSave, enabled = state.dirty && !state.saving, colors = topBarTextButtonColors()) {
-            Text(stringResource(R.string.scan_save))
-        }
+        Button(
+            onClick = onSave,
+            enabled = state.dirty && !state.saving,
+            modifier = Modifier.padding(end = 8.dp),
+        ) { Text(stringResource(R.string.scan_save)) }
     }
 }
 
 @Composable
-private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
+internal fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
     val page = state.page
     val source = state.source
     val preview = state.preview
@@ -125,14 +127,18 @@ private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
 @Composable
 private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjusting: Boolean, onDelete: () -> Unit) {
     val page = state.page ?: return
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        Modifier.heightIn(max = ControlsMaxHeight)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
         if (state.cropping) {
             CropStepRow(viewModel)
         } else {
             FilterRow(state, page, viewModel)
             if (adjusting) AdjustPanel(page, viewModel)
-            ToolRow(state, viewModel)
             if (state.pages.size > 1) PageStrip(state, viewModel)
             PageManagementRow(state, viewModel, onDelete)
         }

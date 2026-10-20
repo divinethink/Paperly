@@ -1,15 +1,20 @@
 package com.paperly.app.feature.scanner
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -18,7 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 import com.paperly.app.domain.scanner.ScanEditPage
@@ -41,20 +48,40 @@ internal fun EditBottomBar(state: ScanEditUi, viewModel: ScanEditViewModel, onAd
             Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).navigationBarsPadding(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            ToolButton(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {
+            ToolItem(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {
                 viewModel.edit(ScanEditPage::cropReset)
             }
-            ToolButton(ScanEditIcons.Rotate, R.string.scan_edit_rotate, !page.locked) {
+            ToolItem(ScanEditIcons.Rotate, R.string.scan_edit_rotate, !page.locked) {
                 viewModel.edit(ScanEditPage::rotated)
             }
-            ToolButton(
+            ToolItem(
                 if (state.cropping) ScanEditIcons.Done else ScanEditIcons.Crop,
                 if (state.cropping) R.string.scan_edit_crop_done else R.string.scan_edit_crop,
                 !page.locked,
                 viewModel::toggleCrop,
             )
-            ToolButton(ScanEditIcons.Adjust, R.string.scan_adjust, true, onAdjust)
+            ToolItem(ScanEditIcons.Adjust, R.string.scan_adjust, true, onAdjust)
         }
+    }
+}
+
+private const val DISABLED_ALPHA = 0.38f
+private val ToolItemMinHeight = 56.dp
+
+/** Icon with its name underneath; the whole cell is the touch target. */
+@Composable
+private fun RowScope.ToolItem(icon: ImageVector, label: Int, enabled: Boolean, onClick: () -> Unit) {
+    val tint = LocalContentColor.current.copy(alpha = if (enabled) 1f else DISABLED_ALPHA)
+    Column(
+        Modifier.weight(1f)
+            .heightIn(min = ToolItemMinHeight)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint)
+        Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
     }
 }
 

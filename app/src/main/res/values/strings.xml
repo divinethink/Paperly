@@ -5,7 +5,19 @@
     <string name="nav_library">Library</string>
     <string name="nav_scan">Scan</string>
     <string name="nav_scanned">Scanned</string>
-    <string name="scan_row_created">Created: %1$s</string>
+    <string name="scan_row_today">Today, %1$s</string>
+    <string name="scan_row_yesterday">Yesterday, %1$s</string>
+    <string name="scan_row_pages_size">%1$s · %2$s</string>
+    <string name="scan_section_folders">Folders</string>
+    <string name="scan_section_documents">Documents</string>
+    <plurals name="scan_doc_pages">
+        <item quantity="one">%d page</item>
+        <item quantity="other">%d pages</item>
+    </plurals>
+    <plurals name="scan_folder_documents">
+        <item quantity="one">%d document</item>
+        <item quantity="other">%d documents</item>
+    </plurals>
     <string name="scan_page_number">%1$02d</string>
     <string name="scan_page_desc">Page %1$d</string>
     <string name="scan_pages_error">This document could not be opened</string>
@@ -217,7 +229,10 @@
     <string name="scan_adjust_brightness">Brightness</string>
     <string name="scan_adjust_contrast">Contrast</string>
     <string name="scan_adjust_reset">Reset adjustments</string>
-    <string name="scan_edit_reorder_hint">Press and hold a page number, then drag it to move the page.</string>
+    <string name="scan_edit_reorder_hint">Hold &amp; drag to reorder</string>
+    <string name="scan_edit_pages_header">Pages · %1$d of %2$d</string>
+    <string name="scan_edit_section_filter">Filter</string>
+    <string name="scan_filter_apply_all_short">Apply to all pages</string>
     <string name="scan_edit_page_number">Page %1$d</string>
     <string name="scan_quality_label">Scan quality</string>
     <string name="scan_size_small">Small</string>

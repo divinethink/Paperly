@@ -8,9 +8,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,12 +20,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -42,7 +41,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
@@ -66,7 +64,8 @@ private val BW_SIZE = 48.dp
 private val ThumbCorner = 8.dp
 private val ThumbBorder = 1.dp
 private val ThumbBorderSelected = 2.dp
-private val PAGE_CHIP_SIZE = 40.dp
+private val PAGE_CHIP_SIZE = 44.dp
+private val PageChipShape = RoundedCornerShape(12.dp)
 private val PAGE_CHIP_GAP = 6.dp
 private val ADJUST_LABEL_WIDTH = 88.dp
 private val ADJUST_VALUE_WIDTH = 36.dp
@@ -77,6 +76,19 @@ private val ADJUST_VALUE_WIDTH = 36.dp
  */
 @Composable
 internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEditViewModel) {
+    SectionHeader(stringResource(R.string.scan_edit_section_filter)) {
+        if (state.pages.size > 1) {
+            OutlinedButton(
+                onClick = viewModel::applyFilterToAll,
+                enabled = !state.saving,
+                shape = CircleShape,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.tertiary),
+            ) {
+                Text(stringResource(R.string.scan_filter_apply_all_short), style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
     Row(
         Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -91,11 +103,6 @@ internal fun FilterRow(state: ScanEditUi, page: ScanEditPage, viewModel: ScanEdi
             )
         }
         BwToggle(page.filter == ScanFilter.BW, viewModel::toggleBw)
-    }
-    if (state.pages.size > 1) {
-        TextButton(onClick = viewModel::applyFilterToAll, enabled = !state.saving, colors = actionTextColors()) {
-            Text(stringResource(R.string.scan_filter_apply_all))
-        }
     }
 }
 
@@ -159,24 +166,6 @@ internal fun filterLabel(filter: ScanFilter): Int = when (filter) {
     ScanFilter.PHOTO -> R.string.scan_filter_photo
 }
 
-/** Previous page, "Page N of M", next page (rotate / crop / reset / adjust are in the bottom bar). */
-@Composable
-internal fun ToolRow(state: ScanEditUi, viewModel: ScanEditViewModel) {
-    val hasNext = state.current < state.pages.size - 1
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        ToolButton(ScanEditIcons.Previous, R.string.scan_edit_prev, state.current > 0) {
-            viewModel.goTo(state.current - 1)
-        }
-        Text(
-            stringResource(R.string.scan_edit_page_of, state.current + 1, state.pages.size.coerceAtLeast(1)),
-            Modifier.weight(1f),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.titleSmall,
-        )
-        ToolButton(ScanEditIcons.Next, R.string.scan_edit_next, hasNext) { viewModel.goTo(state.current + 1) }
-    }
-}
-
 /** Manual brightness and contrast of the shown page (saved with the page; "Reset" puts both back to 0). */
 @Composable
 internal fun AdjustPanel(page: ScanEditPage, viewModel: ScanEditViewModel) {
@@ -210,13 +199,20 @@ private fun AdjustSlider(label: Int, value: Int, range: IntRange, onChange: (Int
 }
 
 /**
- * Page numbers: tap = open that page; press and hold, then drag sideways = move the page (one place per chip width).
- * Same rules as the "Move earlier / later" buttons, which stay as the non-drag way.
+ * "Pages · 2 of 5" header and the page numbers: tap = open that page; press and hold, then drag sideways = move
+ * the page (one place per chip width). Same rules as the "Move earlier / later" buttons, the non-drag way.
  */
 @Composable
 internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
     val step = with(LocalDensity.current) { (PAGE_CHIP_SIZE + PAGE_CHIP_GAP).toPx() }
     val current by rememberUpdatedState(state.current)
+    SectionHeader(stringResource(R.string.scan_edit_pages_header, state.current + 1, state.pages.size)) {
+        Text(
+            stringResource(R.string.scan_edit_reorder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(PAGE_CHIP_GAP)) {
         state.pages.forEachIndexed { index, _ ->
             val selected = index == state.current
@@ -224,7 +220,8 @@ internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
             val label = stringResource(R.string.scan_edit_page_number, index + 1)
             Box(
                 Modifier.size(PAGE_CHIP_SIZE)
-                    .border(if (selected) ThumbBorderSelected else ThumbBorder, color, CircleShape)
+                    .border(if (selected) ThumbBorderSelected else ThumbBorder, color, PageChipShape)
+                    .clip(PageChipShape)
                     .clickable(role = Role.Button, onClickLabel = label) { viewModel.goTo(index) }
                     .pointerInput(index) {
                         var carried = 0f
@@ -254,12 +251,6 @@ internal fun PageStrip(state: ScanEditUi, viewModel: ScanEditViewModel) {
             }
         }
     }
-    Text(stringResource(R.string.scan_edit_reorder_hint), style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-internal fun ToolButton(icon: ImageVector, label: Int, enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled) { Icon(icon, stringResource(label)) }
 }
 
 // 24dp Material-style glyphs from path data: the bundled icon set (icons-core) has no crop/rotate, and the

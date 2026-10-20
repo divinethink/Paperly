@@ -34,4 +34,8 @@ class ScanFolderItemsTest {
         val docs = listOf(doc("a", "f1"), doc("b"), doc("c", "gone"))
         assertEquals(listOf("b"), docs.withoutFolder().map { it.id })
     }
+
+    @Test fun stackLayersGrowWithPagesUpToTwo() {
+        assertEquals(listOf(0, 0, 0, 1, 2, 2), listOf(null, 0, 1, 2, 3, 40).map { scanStackLayers(it) })
+    }
 }

@@ -26,3 +26,8 @@ internal fun scanFolderItems(
 
 /** Notebloc-style root: folders are listed on top, so the list below shows only documents that are in no folder. */
 internal fun List<Document>.withoutFolder(): List<Document> = filter { it.folderId == null }
+
+private const val MAX_STACK_LAYERS = 2
+
+/** Paper layers drawn behind a scan's cover: none for one page (or unknown), up to two for a longer document. */
+internal fun scanStackLayers(pages: Int?): Int = ((pages ?: 1) - 1).coerceIn(0, MAX_STACK_LAYERS)

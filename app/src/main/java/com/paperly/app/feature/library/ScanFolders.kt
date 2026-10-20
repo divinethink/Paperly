@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -26,12 +26,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.ChevronGlyph
 import com.paperly.app.core.ui.icons.FolderGlyph
 import com.paperly.app.domain.folder.FOLDER_PATH_SEPARATOR
 import com.paperly.app.domain.folder.Folder
@@ -136,39 +138,52 @@ private fun FolderMenuItem(label: Int, onClick: () -> Unit) {
     DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = onClick)
 }
 
-/** One folder in the Scanned list: icon, name, number of documents inside. */
+/** One folder in the Scanned list: brown icon tile, name, "N documents" and a chevron (clearly not a document). */
 @Composable
 internal fun ScanFolderRow(item: ScanFolderItem, onOpen: (String) -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(item.id) },
+        modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth().clickable(role = Role.Button) { onOpen(item.id) },
     ) {
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                FolderGlyph,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp),
-            )
-            Text(
-                item.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        FolderGlyph,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+            Column(Modifier.weight(1f)) {
                 Text(
-                    item.count.toString(),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    item.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    pluralStringResource(R.plurals.scan_folder_documents, item.count, item.count),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Icon(
+                ChevronGlyph,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

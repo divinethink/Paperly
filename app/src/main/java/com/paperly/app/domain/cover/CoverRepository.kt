@@ -8,4 +8,7 @@ interface CoverRepository {
 
     /** EPUB author line for the library card (read from the book's own metadata; cached); null if none. */
     suspend fun author(documentId: String, type: String): String?
+
+    /** Number of pages of a PDF document (cached); null if the file is missing or cannot be read. Never throws. */
+    suspend fun pageCount(documentId: String): Int?
 }
