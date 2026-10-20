@@ -27,12 +27,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 private val MenuGap = 36.dp // the bar sits this far above the selected text (handles hang below it)
 private val MenuElevation = 6.dp
 private val PanelShape = RoundedCornerShape(16.dp)
 private const val POLL_MS = 150L
 private const val HALF = 0.5f
+private const val SETTLE_POLLS = 2 // the bar shows once the selection has not moved for this many polls
+private const val SPOT_TOL_PX = 2f
 
 /** Where a selection or a tapped mark sits, in the pixels of the navigator view. */
 data class EpubAnchor(val left: Float, val top: Float, val right: Float, val bottom: Float)
@@ -64,16 +67,25 @@ internal fun EpubSelectionPopup(tracker: EpubSelectionTracker, annotations: Epub
     val activity = LocalContext.current as FragmentActivity
     val scope = rememberCoroutineScope()
     var picked by remember { mutableStateOf<EpubPicked?>(null) }
-    // the finger may still drag the handles: re-read where the selection is while it exists
+    var settled by remember { mutableStateOf(false) }
+    // the finger may still drag the handles: keep reading where the selection is, but show the bar only once it
+    // has stopped moving (a bar chasing the handle, flipping above/below, is the "shake")
     LaunchedEffect(active) {
         picked = null
+        settled = false
         if (!active) return@LaunchedEffect
+        var still = 0
         while (true) {
-            picked = readSelection(activity)
+            val now = readSelection(activity)
+            if (now != null) {
+                still = if (sameSpot(picked?.anchor, now.anchor)) still + 1 else 0
+                picked = now
+            }
+            settled = still >= SETTLE_POLLS
             delay(POLL_MS)
         }
     }
-    val sel = picked ?: return
+    val sel = picked?.takeIf { settled } ?: return
     fun finish(action: () -> Unit) {
         action()
         picked = null
@@ -87,6 +99,13 @@ internal fun EpubSelectionPopup(tracker: EpubSelectionTracker, annotations: Epub
         onCopy = { finish { copyText(activity, sel.text) } },
     )
     SelectionToolbar(style, null, actions) { bar, area -> epubPlacement(sel.anchor, bar, area, gap) }
+}
+
+/** True when two selection rects are the same place (within [tol] px); two nulls count as the same. */
+internal fun sameSpot(a: EpubAnchor?, b: EpubAnchor?, tol: Float = SPOT_TOL_PX): Boolean {
+    if (a == null || b == null) return a == b
+    return abs(a.left - b.left) <= tol && abs(a.top - b.top) <= tol &&
+        abs(a.right - b.right) <= tol && abs(a.bottom - b.bottom) <= tol
 }
 
 /** Full-size transparent box (for clamping) holding one floating surface placed by [epubPopupOrigin]. */
