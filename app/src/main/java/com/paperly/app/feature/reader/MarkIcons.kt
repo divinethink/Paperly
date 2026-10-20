@@ -2,6 +2,7 @@ package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ private val StrokeCell = 64.dp
 private val StrokePreview = 36.dp
 private const val PREVIEW_SCALE = 1.6f // the 0.8 dp thin line would be nearly invisible at true size
 private val ChipSize = 32.dp
+private const val RING_ALPHA = 0.25f // outline of the colours that are not chosen
 private const val LIGHT_COLOR = 0.5f // above this luminance the tick is drawn dark
 private val MarkGlyph = 24.dp
 private val MarkStroke = 2.dp
@@ -181,7 +183,15 @@ internal fun ColorRow(selected: AnnotationColor, modifier: Modifier = Modifier, 
                     .semantics { contentDescription = name },
                 contentAlignment = Alignment.Center,
             ) {
-                Box(Modifier.size(ChipSize).clip(CircleShape).background(option.argb()), Alignment.Center) {
+                val ring = MaterialTheme.colorScheme.onSurface.copy(alpha = if (on) 1f else RING_ALPHA)
+                Box(
+                    Modifier
+                        .size(ChipSize)
+                        .clip(CircleShape)
+                        .background(option.argb())
+                        .border(if (on) 2.dp else 1.dp, ring, CircleShape),
+                    Alignment.Center,
+                ) {
                     if (on) Text("\u2713", color = tick, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }

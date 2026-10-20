@@ -8,6 +8,7 @@ import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.EpubAnnotation
 import com.paperly.app.domain.reader.EpubAnnotationRepository
 import com.paperly.app.domain.reader.MatchRect
+import com.paperly.app.domain.reader.lookFor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,6 +67,9 @@ class EpubAnnotationController(
         _mode.value = !_mode.value
     }
 
+    val tools: StateFlow<Map<AnnotationType, AnnotateStyle>> =
+        styleStore.tools.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
     fun setStyle(style: AnnotateStyle) {
         scope.launch { styleStore.save(style) }
     }
@@ -75,7 +79,9 @@ class EpubAnnotationController(
         if (type == AnnotationType.NOTE) {
             startNew(locatorJson)
         } else {
-            val content = AnnotationContent(type, style.value.color, null, style.value.stroke)
+            val look = tools.value.lookFor(type) // the tool's own colour and thickness
+            setStyle(look)
+            val content = AnnotationContent(type, look.color, null, look.stroke)
             changed = true
             scope.launch { repository.add(documentId, locatorJson, content) }
         }

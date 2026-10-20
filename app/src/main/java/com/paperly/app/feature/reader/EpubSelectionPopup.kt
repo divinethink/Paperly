@@ -40,6 +40,7 @@ import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
+import com.paperly.app.domain.reader.lookFor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,7 +78,10 @@ private class EpubPicked(val locatorJson: String, val text: String, val anchor: 
 @Composable
 internal fun EpubSelectionPopup(tracker: EpubSelectionTracker, annotations: EpubAnnotationController) {
     val active by tracker.active.collectAsStateWithLifecycle()
-    val style by annotations.style.collectAsStateWithLifecycle()
+    val current by annotations.style.collectAsStateWithLifecycle()
+    val tools by annotations.tools.collectAsStateWithLifecycle()
+    // the dot and panel show (and change) the look of the tool last used
+    val style = tools.lookFor(toolInUse(current))
     val activity = LocalContext.current as FragmentActivity
     val scope = rememberCoroutineScope()
     var picked by remember { mutableStateOf<EpubPicked?>(null) }

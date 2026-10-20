@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -38,17 +39,25 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotateStyle
+import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
+import com.paperly.app.domain.reader.lookFor
 
 private val MenuGap = 36.dp // at least; the menu sits about two text lines above the selection
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
 private val MenuElevation = 6.dp
 private val PanelPadding = 12.dp
+private val PanelBottom = 8.dp
+private val PanelGap = 4.dp
+private val BarSide = 4.dp
+private val DividerGap = 2.dp
+private val DividerHeight = 24.dp
 private val PanelShape = RoundedCornerShape(16.dp)
 private const val LINES_ABOVE = 2f
+private const val MAX_GAP_FACTOR = 1.5f // two lines of a tall rect must not push the menu far away: cap at 1.5 x gap
 private val BarPadding = PaddingValues(horizontal = 8.dp)
 private const val HALF = 0.5f
 
@@ -58,6 +67,7 @@ internal class SelectionViewport(
     val zoom: PageZoomState,
     val basePx: Float,
     val viewportPx: Float,
+    /** Bottom of the usable page area (above the navigation bar): a menu never goes below it. */
     val heightPx: Float,
     /** Height of the floating top bar + status bar: a menu never goes under it. */
     val topPx: Float = 0f,
@@ -87,11 +97,11 @@ internal fun PdfSelectionPopup(
     val annotate by viewModel.annotations.annotateMode.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val style by viewModel.annotations.style.collectAsStateWithLifecycle()
+    val tools by viewModel.annotations.tools.collectAsStateWithLifecycle()
     val dragging by viewModel.textSelect.dragging.collectAsStateWithLifecycle()
     val items by viewModel.annotations.items.collectAsStateWithLifecycle()
     val picked = selection
-    val hidden = annotate || reflow || dragging
-    if (picked == null || hidden) return
+    if (picked == null || annotate || reflow || dragging) return
     val context = LocalContext.current
     val density = LocalDensity.current
     var menu by remember { mutableStateOf(IntSize.Zero) }
@@ -100,37 +110,10 @@ internal fun PdfSelectionPopup(
     // the marks just placed on exactly this selection (one per page, still stored): colour/type changes restyle
     // them all, not add more
     val marks = items.filter { it.id in picked.markIds }
-    val mark = marks.firstOrNull()
-    fun restyleAll(change: (AnnotationContent) -> AnnotationContent) =
-        marks.forEach { viewModel.annotations.restyleMark(it.id, change) }
-    fun annotateAs(type: AnnotationType) {
-        if (mark != null && type != AnnotationType.NOTE) {
-            restyleAll { it.copy(type = type, color = style.color, stroke = style.stroke) }
-            return
-        }
-        val editor = viewModel.annotations.annotateSelection(picked.parts, type) { ids ->
-            viewModel.textSelect.linkMark(picked, ids) // the selection stays, so colour and type can still be changed
-        }
-        if (editor != null) {
-            onEditor(editor)
-            viewModel.textSelect.clear()
-        }
-    }
-    val actions = SelectionActions(
-        onColor = { color ->
-            viewModel.annotations.setStyle(style.copy(color = color))
-            restyleAll { c -> c.copy(color = color) }
-        },
-        onStroke = { stroke ->
-            viewModel.annotations.setStyle(style.copy(stroke = stroke))
-            restyleAll { c -> c.copy(stroke = stroke) }
-        },
-        onMark = ::annotateAs,
-        onCopy = {
-            copyText(context, picked.text)
-            viewModel.textSelect.clear()
-        },
-    )
+    // the dot and panel show (and change) the look of the tool in use: the mark's own, else the last one used
+    val tool = marks.firstOrNull()?.type ?: toolInUse(style)
+    val look = tools.lookFor(tool)
+    val actions = selectionActions(SelectionContext(viewModel, context, picked, marks, tools), look, onEditor)
     Box(Modifier.fillMaxSize()) {
         Surface(
             modifier = Modifier
@@ -140,9 +123,58 @@ internal fun PdfSelectionPopup(
             tonalElevation = MenuElevation,
             shadowElevation = MenuElevation,
         ) {
-            PdfSelectionBar(style, mark?.type, actions)
+            PdfSelectionBar(look, marks.firstOrNull()?.type, actions)
         }
     }
+}
+
+/** What the bar's actions work on: the selection, the marks already placed on it and each tool's own look. */
+private class SelectionContext(
+    val viewModel: ReaderViewModel,
+    val context: Context,
+    val picked: PdfSelection,
+    val marks: List<Annotation>,
+    val tools: Map<AnnotationType, AnnotateStyle>,
+)
+
+private fun selectionActions(
+    ctx: SelectionContext,
+    look: AnnotateStyle,
+    onEditor: (AnnotationEditor) -> Unit,
+): SelectionActions {
+    val controller = ctx.viewModel.annotations
+    fun restyleAll(change: (AnnotationContent) -> AnnotationContent) =
+        ctx.marks.forEach { controller.restyleMark(it.id, change) }
+    fun annotateAs(type: AnnotationType) {
+        val own = ctx.tools.lookFor(type) // each tool keeps its own colour and thickness
+        if (type != AnnotationType.NOTE) controller.setStyle(own)
+        if (ctx.marks.isNotEmpty() && type != AnnotationType.NOTE) {
+            restyleAll { it.copy(type = type, color = own.color, stroke = own.stroke) }
+            return
+        }
+        val editor = controller.annotateSelection(ctx.picked.parts, type) { ids ->
+            ctx.viewModel.textSelect.linkMark(ctx.picked, ids) // the selection stays: colour/type can still change
+        }
+        if (editor != null) {
+            onEditor(editor)
+            ctx.viewModel.textSelect.clear()
+        }
+    }
+    return SelectionActions(
+        onColor = { color ->
+            controller.setStyle(look.copy(color = color))
+            restyleAll { c -> c.copy(color = color) }
+        },
+        onStroke = { stroke ->
+            controller.setStyle(look.copy(stroke = stroke))
+            restyleAll { c -> c.copy(stroke = stroke) }
+        },
+        onMark = ::annotateAs,
+        onCopy = {
+            copyText(ctx.context, ctx.picked.text)
+            ctx.viewModel.textSelect.clear()
+        },
+    )
 }
 
 @Composable
@@ -153,10 +185,12 @@ internal fun PdfSelectionBar(
 ) {
     var panel by remember { mutableStateOf(false) } // colour + thickness, opened by the colour dot
     // the panel is exactly as wide as the bar
-    Column(Modifier.width(IntrinsicSize.Max)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.width(IntrinsicSize.Max).padding(bottom = if (panel) PanelBottom else 0.dp)) {
+        Row(Modifier.padding(horizontal = BarSide), verticalAlignment = Alignment.CenterVertically) {
             ColorDot(style.color, panel) { panel = !panel }
+            BarDivider()
             MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
+            BarDivider()
             TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }, contentPadding = BarPadding) {
                 Text(stringResource(R.string.reader_annotation_note))
             }
@@ -165,20 +199,40 @@ internal fun PdfSelectionBar(
             }
         }
         if (panel) {
-            ColorRow(style.color, Modifier.fillMaxWidth(), actions.onColor)
-            StrokeRow(
-                style.stroke,
-                style.color,
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PanelPadding, vertical = 4.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                actions.onStroke,
-            )
+            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+            ColorRow(style.color, Modifier.fillMaxWidth().padding(vertical = PanelGap), actions.onColor)
+            // a highlight has no line, so no thickness to choose
+            if (AnnotationStroke.appliesTo(style.type)) {
+                StrokeRow(
+                    style.stroke,
+                    style.color,
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PanelPadding)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    actions.onStroke,
+                )
+            }
         }
     }
 }
+
+/** Thin separator between the groups of the bar (colour | marks | Note, Copy). */
+@Composable
+private fun BarDivider() {
+    Box(
+        Modifier
+            .padding(horizontal = DividerGap)
+            .width(1.dp)
+            .height(DividerHeight)
+            .background(MaterialTheme.colorScheme.outlineVariant),
+    )
+}
+
+/** The tool the dot/panel stand for when no mark is picked: the last one used (a Note has no colour: Highlight). */
+internal fun toolInUse(style: AnnotateStyle): AnnotationType =
+    style.type.takeUnless { it == AnnotationType.NOTE } ?: AnnotationType.HIGHLIGHT
 
 /**
  * Top-left of the menu in viewport px: centred on the selection, above its first line (first part), or below the last
@@ -206,7 +260,8 @@ internal fun popupOrigin(
     val above = if (firstItem != null && first != null) {
         // clear of the selected line by about two line heights (never less than [gap])
         val lines = (first.bottom - first.top) * firstItem.size * zoom * LINES_ABOVE
-        (firstItem.offset + first.top * firstItem.size) * zoom - menu.height - maxOf(gap, lines)
+        val clear = minOf(maxOf(gap, lines), gap * MAX_GAP_FACTOR)
+        (firstItem.offset + first.top * firstItem.size) * zoom - menu.height - clear
     } else {
         null
     }

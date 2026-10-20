@@ -24,7 +24,7 @@ internal fun PdfAnnotateBars(
     if (!annotate) return
     val style by controller.style.collectAsStateWithLifecycle()
     val pending by controller.pending.collectAsStateWithLifecycle()
-    PdfAnnotateStrip(style, controller::setStyle)
+    PdfAnnotateStrip(style, controller::styleFor, controller::setStyle)
     pending?.let { parts ->
         PendingBar(
             count = parts.rects.size,

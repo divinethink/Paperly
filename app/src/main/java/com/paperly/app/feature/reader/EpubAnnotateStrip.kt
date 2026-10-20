@@ -20,6 +20,7 @@ import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
+import com.paperly.app.domain.reader.lookFor
 
 internal val PDF_STRIP_TYPES = listOf(
     AnnotationType.HIGHLIGHT to R.string.reader_annotation_highlight,
@@ -41,19 +42,25 @@ internal fun EpubTopOverlay(
     val style by annotations.style.collectAsStateWithLifecycle()
     Column {
         EpubTopBar(bar.copy(annotating = annotating), actions, trailing = trailing)
-        if (annotating) AnnotateStrip(style, PDF_STRIP_TYPES, annotations::setStyle)
+        if (annotating) {
+            AnnotateStrip(style, PDF_STRIP_TYPES, { annotations.tools.value.lookFor(it) }, annotations::setStyle)
+        }
     }
 }
 
 /** PDF Annotate strip (same look as EPUB); shown only while the pencil is on. */
 @Composable
-internal fun PdfAnnotateStrip(style: AnnotateStyle, onStyle: (AnnotateStyle) -> Unit) =
-    AnnotateStrip(style, PDF_STRIP_TYPES, onStyle)
+internal fun PdfAnnotateStrip(
+    style: AnnotateStyle,
+    lookFor: (AnnotationType) -> AnnotateStyle,
+    onStyle: (AnnotateStyle) -> Unit,
+) = AnnotateStrip(style, PDF_STRIP_TYPES, lookFor, onStyle)
 
 @Composable
 private fun AnnotateStrip(
     style: AnnotateStyle,
     types: List<Pair<AnnotationType, Int>>,
+    lookFor: (AnnotationType) -> AnnotateStyle, // a tool comes back with the colour and thickness it had last
     onStyle: (AnnotateStyle) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().background(barColor()).padding(horizontal = 8.dp)) {
@@ -61,7 +68,7 @@ private fun AnnotateStrip(
             types.forEach { (type, label) ->
                 FilterChip(
                     selected = style.type == type,
-                    onClick = { onStyle(style.copy(type = type)) },
+                    onClick = { onStyle(lookFor(type)) },
                     label = { Text(stringResource(label)) },
                 )
             }

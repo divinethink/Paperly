@@ -1,14 +1,17 @@
 package com.paperly.app.feature.reader
 
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 
 /**
- * Floating menus that sit on top of the page area but outside the zoomed list. The text-selection menu
- * (Copy | Highlight | Underline | Note) lives in [PdfSelectionPopup], next to the selected text; here only the
- * quick-box menu remains.
+ * Both floating menus of the page area, placed next to what they act on with the same rule ([popupOrigin]):
+ * the text-selection menu ([PdfSelectionPopup]) and the quick-box menu for scan pages ([PdfQuickMenu]).
  */
 @Composable
-internal fun BoxScope.PdfSelectionMenu(viewModel: ReaderViewModel, onEditor: (AnnotationEditor) -> Unit) {
-    PdfQuickMenu(viewModel, onEditor)
+internal fun PdfSelectionMenu(
+    viewModel: ReaderViewModel,
+    port: SelectionViewport,
+    onEditor: (AnnotationEditor) -> Unit,
+) {
+    PdfSelectionPopup(viewModel, port, onEditor)
+    PdfQuickMenu(viewModel, port, onEditor)
 }

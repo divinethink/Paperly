@@ -38,18 +38,44 @@ class AnnotateStyleStoreImpl @Inject constructor(
             )
         }
 
+    // Per tool keys are additive too; a tool without them keeps the old single colour/thickness if it was the
+    // current tool, else its default look.
+    override val tools: Flow<Map<AnnotationType, AnnotateStyle>> = store.data
+        .catch { if (it is IOException) emptyFlow<Preferences>() else throw it }
+        .map { prefs -> TOOLS.associateWith { toolLook(prefs, it) } }
+
     override suspend fun save(style: AnnotateStyle) {
         store.edit {
             it[TYPE_KEY] = style.type.key
             it[COLOR_KEY] = style.color.key
             it[STROKE_KEY] = style.stroke.key
+            it[stringPreferencesKey("annotate_color_${style.type.key}")] = style.color.key
+            it[stringPreferencesKey("annotate_stroke_${style.type.key}")] = style.stroke.key
         }
+    }
+
+    private fun toolLook(prefs: Preferences, type: AnnotationType): AnnotateStyle {
+        val fallback = if (prefs[TYPE_KEY] == type.key) {
+            AnnotateStyle(
+                type,
+                AnnotationColor.fromKey(prefs[COLOR_KEY]) ?: AnnotationColor.defaultFor(type),
+                AnnotationStroke.fromKey(prefs[STROKE_KEY]) ?: AnnotateStyle().stroke,
+            )
+        } else {
+            AnnotateStyle.defaultFor(type)
+        }
+        return AnnotateStyle(
+            type,
+            AnnotationColor.fromKey(prefs[stringPreferencesKey("annotate_color_${type.key}")]) ?: fallback.color,
+            AnnotationStroke.fromKey(prefs[stringPreferencesKey("annotate_stroke_${type.key}")]) ?: fallback.stroke,
+        )
     }
 
     private companion object {
         val TYPE_KEY = stringPreferencesKey("annotate_type")
         val COLOR_KEY = stringPreferencesKey("annotate_color")
         val STROKE_KEY = stringPreferencesKey("annotate_stroke")
+        val TOOLS = AnnotationType.entries - AnnotationType.NOTE
     }
 }
 

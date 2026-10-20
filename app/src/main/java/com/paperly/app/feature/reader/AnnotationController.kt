@@ -7,6 +7,7 @@ import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
+import com.paperly.app.domain.reader.lookFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,6 +64,13 @@ class AnnotationController(
     /** Type + color chosen in the pencil strip; persisted, so no per-annotation color prompt. */
     val style: StateFlow<AnnotateStyle> =
         styleStore.style.stateIn(scope, SharingStarted.Eagerly, AnnotateStyle())
+
+    /** Each tool's own remembered colour and thickness. */
+    val tools: StateFlow<Map<AnnotationType, AnnotateStyle>> =
+        styleStore.tools.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
+    /** [type] with the colour and thickness last used for that tool. */
+    fun styleFor(type: AnnotationType): AnnotateStyle = tools.value.lookFor(type)
 
     fun setStyle(style: AnnotateStyle) {
         scope.launch { styleStore.save(style) }
@@ -124,7 +132,7 @@ class AnnotationController(
         onSaved: (List<String>) -> Unit = {},
     ): AnnotationEditor? {
         val pieces = parts.map { it.copy(rects = it.rects.take(MAX_PARTS)) }.filter { it.rects.isNotEmpty() }
-        val chosen = type?.let { style.value.copy(type = it) } ?: style.value
+        val chosen = type?.let(::styleFor) ?: style.value
         return when {
             pieces.isEmpty() -> null
             chosen.type == AnnotationType.NOTE -> pieces.first().let {

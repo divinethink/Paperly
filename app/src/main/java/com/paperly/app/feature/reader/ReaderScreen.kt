@@ -164,7 +164,6 @@ private fun ReaderContent(
                     .withDirectMark(viewModel, annotate && search.probed && !search.available) { editor = it }
                 val look = PageLook(fitHeight, pageFilter, highlights, hooks, showBars) { editor = it }
                 PdfOrReflow(viewModel, state, listState, look)
-                PdfSelectionMenu(viewModel) { editor = it }
             }
             else -> Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -276,8 +275,16 @@ private fun PdfPages(
         }
         val heightPx = with(density) { viewportHeight.toPx() }
         EdgeScrollEffect(edgeScroll, listState, { zoomState.zoom }, heightPx)
-        val port = SelectionViewport(listState, zoomState, basePx, viewportPx, heightPx)
-        PdfSelectionPopup(viewModel, port, look.onEditor)
+        val edge = readerEdgePadding()
+        val port = SelectionViewport(
+            listState,
+            zoomState,
+            basePx,
+            viewportPx,
+            heightPx - with(density) { edge.calculateBottomPadding().toPx() }, // not under the navigation bar
+            topPx = with(density) { edge.calculateTopPadding().toPx() }, // not under the top bar
+        )
+        PdfSelectionMenu(viewModel, port, look.onEditor)
     }
 }
 

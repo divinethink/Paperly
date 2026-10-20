@@ -6,24 +6,30 @@ import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
+import com.paperly.app.domain.reader.lookFor
 import kotlinx.coroutines.launch
 
 private const val QUICK_HEIGHT = 0.03f // about one text line, as a fraction of the page height
@@ -31,8 +37,8 @@ private const val QUICK_WIDTH = 0.4f // starting length of the box, as a fractio
 private const val QUICK_MIN_WIDTH = 0.05f
 private const val QUICK_HALF = 0.5f
 private const val QUICK_SLOP_FACTOR = 2
-private val QuickTopPadding = 8.dp
-private val QuickSidePadding = 12.dp
+private val QuickGap = 36.dp // the menu sits about two text lines above the box
+private const val QUICK_BELOW_FACTOR = 0.5f // below the box there are no round handles, so less room is needed
 private val QuickElevation = 6.dp
 private val QuickShape = RoundedCornerShape(16.dp) // same look as the text-select popup
 
@@ -115,9 +121,9 @@ internal fun AnnotationController.quickMiss(page: Int, from: Offset, to: Offset?
     if (!annotateMode.value) quickStart(page, quickBoxRect(from.x, from.y, to?.x))
 }
 
-/** Saves the quick box in [type] and the colour already chosen; the type is remembered like a strip choice. */
+/** Saves the quick box in [type] with that tool's own colour and thickness; the tool is remembered (strip-like). */
 internal fun AnnotationController.commitQuick(type: AnnotationType): AnnotationEditor? {
-    val chosen = style.value.copy(type = type)
+    val chosen = styleFor(type)
     setStyle(chosen)
     return commitPending(chosen)
 }
@@ -142,34 +148,43 @@ internal fun AnnotationHooks.withSelect(
     )
 }
 
-/** The text-select popup bar (colour dot, mark icons, Note, Copy) for the quick box; hidden in annotate/Reflow. */
+/**
+ * The text-select popup bar (colour dot, mark icons, Note, Copy) for the quick box, placed next to the box exactly
+ * like the text popup ([popupOrigin]); hidden in annotate/Reflow.
+ */
 @Composable
-internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (AnnotationEditor) -> Unit) {
+internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, onEditor: (AnnotationEditor) -> Unit) {
     val controller = viewModel.annotations
     val pending by controller.pending.collectAsStateWithLifecycle()
     val annotate by controller.annotateMode.collectAsStateWithLifecycle()
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val style by controller.style.collectAsStateWithLifecycle()
-    val page = pending?.page ?: return
-    if (annotate || reflow) return
+    val tools by controller.tools.collectAsStateWithLifecycle()
+    val parts = pending ?: return
+    if (annotate || reflow || parts.rects.isEmpty()) return
     val copyPage = rememberOcrCopy(viewModel)
+    val density = LocalDensity.current
+    var menu by remember { mutableStateOf(IntSize.Zero) }
+    val gap = with(density) { QuickGap.toPx() }
+    val look = tools.lookFor(toolInUse(style))
     val actions = SelectionActions(
-        onColor = { controller.setStyle(style.copy(color = it)) },
-        onStroke = { controller.setStyle(style.copy(stroke = it)) },
+        onColor = { controller.setStyle(look.copy(color = it)) },
+        onStroke = { controller.setStyle(look.copy(stroke = it)) },
         onMark = { type -> controller.commitQuick(type)?.let(onEditor) },
-        onCopy = { copyPage(page) },
+        onCopy = { copyPage(parts.page) },
     )
-    Surface(
-        modifier = Modifier.align(Alignment.TopCenter).padding(
-            top = readerEdgePadding().calculateTopPadding() + QuickTopPadding,
-            start = QuickSidePadding,
-            end = QuickSidePadding,
-        ),
-        shape = QuickShape,
-        tonalElevation = QuickElevation,
-        shadowElevation = QuickElevation,
-    ) {
-        PdfSelectionBar(style, null, actions)
+    val where = PdfSelection.single(parts.page, parts.rects, "")
+    Box(Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier
+                .onSizeChanged { menu = it }
+                .offset { popupOrigin(where, port, menu, gap, gap * QUICK_BELOW_FACTOR) },
+            shape = QuickShape,
+            tonalElevation = QuickElevation,
+            shadowElevation = QuickElevation,
+        ) {
+            PdfSelectionBar(look, null, actions)
+        }
     }
 }
 
