@@ -34,6 +34,10 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
             ),
         )
     }
+    scanEditDestination(navController)
+}
+
+private fun NavGraphBuilder.scanEditDestination(navController: NavHostController) {
     composable(
         Routes.SCAN_EDIT,
         arguments = listOf(

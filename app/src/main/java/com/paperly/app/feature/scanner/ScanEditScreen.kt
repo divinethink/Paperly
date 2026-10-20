@@ -48,9 +48,7 @@ fun ScanEditScreen(
     var askDiscard by remember { mutableStateOf(false) }
     var askDelete by remember { mutableStateOf(false) }
     val leave = { onDone(viewModel.exitDocumentId) }
-    LaunchedEffect(state.done) { if (state.done) leave() }
-    LaunchedEffect(state.cancelled) { if (state.cancelled) onCancelAdd() }
-    LaunchedEffect(state.discarded) { if (state.discarded) onDiscarded(viewModel.fromCamera) }
+    EditExitEffects(state, leave, onCancelAdd) { onDiscarded(viewModel.fromCamera) }
     // A fresh scan that is still unedited in the crop step is simply thrown away (retake); other edits ask first.
     val close: () -> Unit = {
         when {
@@ -92,6 +90,14 @@ fun ScanEditScreen(
             EditBottomBar(state, viewModel) { adjusting = !adjusting }
         }
     }
+}
+
+/** Leaves the screen when the editor says so: saved, nothing added, or the new scan was thrown away. */
+@Composable
+private fun EditExitEffects(state: ScanEditUi, onDone: () -> Unit, onCancelAdd: () -> Unit, onDiscarded: () -> Unit) {
+    LaunchedEffect(state.done) { if (state.done) onDone() }
+    LaunchedEffect(state.cancelled) { if (state.cancelled) onCancelAdd() }
+    LaunchedEffect(state.discarded) { if (state.discarded) onDiscarded() }
 }
 
 /** Crop step = "Border adjustment"; the filter / page step has its own title. */
