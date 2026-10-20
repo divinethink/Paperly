@@ -275,15 +275,7 @@ private fun PdfPages(
         }
         val heightPx = with(density) { viewportHeight.toPx() }
         EdgeScrollEffect(edgeScroll, listState, { zoomState.zoom }, heightPx)
-        val edge = readerEdgePadding()
-        val port = SelectionViewport(
-            listState,
-            zoomState,
-            basePx,
-            viewportPx,
-            heightPx - with(density) { edge.calculateBottomPadding().toPx() }, // not under the navigation bar
-            topPx = with(density) { edge.calculateTopPadding().toPx() }, // not under the top bar
-        )
+        val port = selectionPort(listState, zoomState, basePx, viewportPx, heightPx)
         PdfSelectionMenu(viewModel, port, look.onEditor)
     }
 }

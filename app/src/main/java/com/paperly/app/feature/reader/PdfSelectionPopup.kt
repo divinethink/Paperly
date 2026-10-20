@@ -101,7 +101,8 @@ internal fun PdfSelectionPopup(
     val dragging by viewModel.textSelect.dragging.collectAsStateWithLifecycle()
     val items by viewModel.annotations.items.collectAsStateWithLifecycle()
     val picked = selection
-    if (picked == null || annotate || reflow || dragging) return
+    val hidden = annotate || reflow || dragging
+    if (picked == null || hidden) return
     val context = LocalContext.current
     val density = LocalDensity.current
     var menu by remember { mutableStateOf(IntSize.Zero) }
