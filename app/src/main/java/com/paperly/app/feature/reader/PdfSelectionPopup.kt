@@ -3,24 +3,20 @@ package com.paperly.app.feature.reader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,10 +25,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -48,17 +44,16 @@ import com.paperly.app.domain.reader.lookFor
 
 private val MenuGap = 36.dp // at least; the menu sits about two text lines above the selection
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
-private val MenuElevation = 6.dp
 private val PanelPadding = 12.dp
 private val PanelBottom = 8.dp
 private val PanelGap = 4.dp
 private val BarSide = 4.dp
 private val DividerGap = 2.dp
 private val DividerHeight = 24.dp
-private val PanelShape = RoundedCornerShape(16.dp)
 private const val LINES_ABOVE = 2f
 private const val MAX_GAP_FACTOR = 1.5f // two lines of a tall rect must not push the menu far away: cap at 1.5 x gap
-private val BarPadding = PaddingValues(horizontal = 8.dp)
+private val ActionHeight = 42.dp // as tall as the icon buttons
+private val ActionPadding = 8.dp
 private const val HALF = 0.5f
 
 /** What the popup needs to turn page fractions into screen pixels: list scroll, zoom, page width, viewport size. */
@@ -105,7 +100,6 @@ internal fun PdfSelectionPopup(
     if (picked == null || hidden) return
     val context = LocalContext.current
     val density = LocalDensity.current
-    var menu by remember { mutableStateOf(IntSize.Zero) }
     val gap = with(density) { MenuGap.toPx() }
     val clearance = with(density) { HandleClearance.toPx() }
     // the marks just placed on exactly this selection (one per page, still stored): colour/type changes restyle
@@ -115,17 +109,8 @@ internal fun PdfSelectionPopup(
     val tool = marks.firstOrNull()?.type ?: toolInUse(style)
     val look = tools.lookFor(tool)
     val actions = selectionActions(SelectionContext(viewModel, context, picked, marks, tools), look, onEditor)
-    Box(Modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier
-                .onSizeChanged { menu = it }
-                .offset { popupOrigin(picked, port, menu, gap, clearance) },
-            shape = PanelShape,
-            tonalElevation = MenuElevation,
-            shadowElevation = MenuElevation,
-        ) {
-            PdfSelectionBar(look, marks.firstOrNull()?.type, actions)
-        }
+    SelectionToolbar(look, marks.firstOrNull()?.type, actions) { bar, _ ->
+        popupPlacement(picked, port, bar, gap, clearance)
     }
 }
 
@@ -178,44 +163,82 @@ private fun selectionActions(
     )
 }
 
+/**
+ * The bar (colour dot | four mark icons | Note | Copy) and, under the dot, the colour + thickness panel. The panel
+ * opens on the side of the bar away from the text ([FloatingToolbar]), so it never covers the marked line.
+ * [place] puts the bar next to what it acts on.
+ */
 @Composable
-internal fun PdfSelectionBar(
+internal fun SelectionToolbar(
     style: AnnotateStyle,
     marked: AnnotationType?,
     actions: SelectionActions,
+    place: (bar: IntSize, area: IntSize) -> BarPlacement,
 ) {
     var panel by remember { mutableStateOf(false) } // colour + thickness, opened by the colour dot
-    // the panel is exactly as wide as the bar
-    Column(Modifier.width(IntrinsicSize.Max).padding(bottom = if (panel) PanelBottom else 0.dp)) {
-        Row(Modifier.padding(horizontal = BarSide), verticalAlignment = Alignment.CenterVertically) {
-            ColorDot(style.color, panel) { panel = !panel }
-            BarDivider()
-            MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
-            BarDivider()
-            TextButton(onClick = { actions.onMark(AnnotationType.NOTE) }, contentPadding = BarPadding) {
-                Text(stringResource(R.string.reader_annotation_note))
-            }
-            TextButton(onClick = actions.onCopy, contentPadding = BarPadding) {
-                Text(stringResource(R.string.reader_select_copy))
-            }
+    FloatingToolbar(
+        panelOpen = panel,
+        place = place,
+        panel = { SelectionPanel(style, actions) },
+        bar = { SelectionBarRow(style, marked, panel, actions) { panel = !panel } },
+    )
+}
+
+@Composable
+private fun SelectionBarRow(
+    style: AnnotateStyle,
+    marked: AnnotationType?,
+    panelOpen: Boolean,
+    actions: SelectionActions,
+    onDot: () -> Unit,
+) {
+    Row(Modifier.padding(horizontal = BarSide), verticalAlignment = Alignment.CenterVertically) {
+        ColorDot(style.color, panelOpen, onDot)
+        BarDivider()
+        MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
+        BarDivider()
+        TextAction(R.string.reader_annotation_note) { actions.onMark(AnnotationType.NOTE) }
+        BarDivider()
+        TextAction(R.string.reader_select_copy, actions.onCopy)
+    }
+}
+
+@Composable
+private fun SelectionPanel(style: AnnotateStyle, actions: SelectionActions) {
+    Column(Modifier.padding(bottom = PanelBottom)) {
+        ColorRow(style.color, Modifier.fillMaxWidth().padding(vertical = PanelGap), actions.onColor)
+        // a highlight has no line, so no thickness to choose
+        if (AnnotationStroke.appliesTo(style.type)) {
+            StrokeRow(
+                style.stroke,
+                style.color,
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PanelPadding)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                actions.onStroke,
+            )
         }
-        if (panel) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
-            ColorRow(style.color, Modifier.fillMaxWidth().padding(vertical = PanelGap), actions.onColor)
-            // a highlight has no line, so no thickness to choose
-            if (AnnotationStroke.appliesTo(style.type)) {
-                StrokeRow(
-                    style.stroke,
-                    style.color,
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PanelPadding)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    actions.onStroke,
-                )
-            }
-        }
+    }
+}
+
+/** Text button as tight as the icons (a Material TextButton is at least 58 dp wide, which spread Note and Copy). */
+@Composable
+private fun TextAction(@StringRes label: Int, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .height(ActionHeight)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = ActionPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(label),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
@@ -236,17 +259,17 @@ internal fun toolInUse(style: AnnotateStyle): AnnotationType =
     style.type.takeUnless { it == AnnotationType.NOTE } ?: AnnotationType.HIGHLIGHT
 
 /**
- * Top-left of the menu in viewport px: centred on the selection, above its first line (first part), or below the last
- * line (last part) when the top would leave the viewport. A selection scrolled out of view parks the menu at the top
- * edge.
+ * Where the bar goes, in viewport px: centred on the selection, above its
+ * first line (first part), or below the last line (last part) when the top would leave the viewport. A selection
+ * scrolled out of view parks the bar at the top edge (its panel then opens below it).
  */
-internal fun popupOrigin(
+internal fun popupPlacement(
     sel: PdfSelection,
     port: SelectionViewport,
     menu: IntSize,
     gap: Float,
     clearance: Float,
-): IntOffset {
+): BarPlacement {
     val zoom = port.zoom.zoom
     val visible = port.listState.layoutInfo.visibleItemsInfo
     val firstPart = sel.parts.firstOrNull()
@@ -271,14 +294,21 @@ internal fun popupOrigin(
     } else {
         null
     }
-    if (above == null && below == null) return IntOffset((maxX * HALF).toInt(), minY.toInt())
+    val top = minY.toInt()
+    val bottom = port.heightPx.toInt()
+    if (above == null && below == null) return BarPlacement(IntOffset((maxX * HALF).toInt(), top), false, top, bottom)
     val rects = sel.parts.flatMap { it.rects }
     val left = rects.minOf { it.left }
     val right = rects.maxOf { it.right }
     val centre = (left + right) * HALF * port.basePx * zoom + port.zoom.offsetX(port.viewportPx, port.basePx)
-    val x = (centre - menu.width * HALF).coerceIn(0f, maxX)
-    return IntOffset(x.toInt(), popupY(above, below, maxY, minY).toInt())
+    val x = (centre - menu.width * HALF).coerceIn(0f, maxX).toInt()
+    val y = popupY(above, below, maxY, minY).toInt()
+    return BarPlacement(IntOffset(x, y), popupAbove(above, below, minY), top, bottom)
 }
+
+/** Whether the bar sits above the text (not below it): the first line is on screen and has room under the top bar. */
+internal fun popupAbove(above: Float?, below: Float?, minY: Float = 0f): Boolean =
+    above != null && (above >= minY || below == null)
 
 /** Above the first line when it fits on screen, else below the last line; whichever end is off screen is null. */
 internal fun popupY(above: Float?, below: Float?, maxY: Float, minY: Float = 0f): Float =

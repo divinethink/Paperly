@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalDensity
 
 /**
- * Both floating menus of the page area, placed next to what they act on with the same rule ([popupOrigin]):
+ * Both floating menus of the page area, placed next to what they act on with the same rule ([popupPlacement]):
  * the text-selection menu ([PdfSelectionPopup]) and the quick-box menu for scan pages ([PdfQuickMenu]).
  */
 @Composable

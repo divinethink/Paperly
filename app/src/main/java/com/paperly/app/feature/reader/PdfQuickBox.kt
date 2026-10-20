@@ -6,24 +6,14 @@ import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
@@ -39,8 +29,6 @@ private const val QUICK_HALF = 0.5f
 private const val QUICK_SLOP_FACTOR = 2
 private val QuickGap = 36.dp // the menu sits about two text lines above the box
 private const val QUICK_BELOW_FACTOR = 0.5f // below the box there are no round handles, so less room is needed
-private val QuickElevation = 6.dp
-private val QuickShape = RoundedCornerShape(16.dp) // same look as the text-select popup
 
 /**
  * Long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
@@ -150,7 +138,7 @@ internal fun AnnotationHooks.withSelect(
 
 /**
  * The text-select popup bar (colour dot, mark icons, Note, Copy) for the quick box, placed next to the box exactly
- * like the text popup ([popupOrigin]); hidden in annotate/Reflow.
+ * like the text popup ([popupPlacement]); hidden in annotate/Reflow.
  */
 @Composable
 internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, onEditor: (AnnotationEditor) -> Unit) {
@@ -164,7 +152,6 @@ internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, o
     if (annotate || reflow || parts.rects.isEmpty()) return
     val copyPage = rememberOcrCopy(viewModel)
     val density = LocalDensity.current
-    var menu by remember { mutableStateOf(IntSize.Zero) }
     val gap = with(density) { QuickGap.toPx() }
     val look = tools.lookFor(toolInUse(style))
     val actions = SelectionActions(
@@ -174,17 +161,8 @@ internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, o
         onCopy = { copyPage(parts.page) },
     )
     val where = PdfSelection.single(parts.page, parts.rects, "")
-    Box(Modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier
-                .onSizeChanged { menu = it }
-                .offset { popupOrigin(where, port, menu, gap, gap * QUICK_BELOW_FACTOR) },
-            shape = QuickShape,
-            tonalElevation = QuickElevation,
-            shadowElevation = QuickElevation,
-        ) {
-            PdfSelectionBar(look, null, actions)
-        }
+    SelectionToolbar(look, null, actions) { bar, _ ->
+        popupPlacement(where, port, bar, gap, gap * QUICK_BELOW_FACTOR)
     }
 }
 
