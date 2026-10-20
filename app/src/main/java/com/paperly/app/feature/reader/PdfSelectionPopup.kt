@@ -45,9 +45,9 @@ import com.paperly.app.domain.reader.AnnotationType
 
 private val MenuGap = 36.dp // at least; the menu sits about two text lines above the selection
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
-internal val MenuElevation = 6.dp
+private val MenuElevation = 6.dp
 private val PanelPadding = 12.dp
-internal val PanelShape = RoundedCornerShape(16.dp)
+private val PanelShape = RoundedCornerShape(16.dp)
 private const val LINES_ABOVE = 2f
 private val BarPadding = PaddingValues(horizontal = 8.dp)
 private const val HALF = 0.5f
@@ -140,13 +140,13 @@ internal fun PdfSelectionPopup(
             tonalElevation = MenuElevation,
             shadowElevation = MenuElevation,
         ) {
-            SelectionBar(style, mark?.type, actions)
+            PdfSelectionBar(style, mark?.type, actions)
         }
     }
 }
 
 @Composable
-internal fun SelectionBar(
+internal fun PdfSelectionBar(
     style: AnnotateStyle,
     marked: AnnotationType?,
     actions: SelectionActions,

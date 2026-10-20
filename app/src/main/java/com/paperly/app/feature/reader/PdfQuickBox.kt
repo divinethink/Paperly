@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +33,8 @@ private const val QUICK_HALF = 0.5f
 private const val QUICK_SLOP_FACTOR = 2
 private val QuickTopPadding = 8.dp
 private val QuickSidePadding = 12.dp
+private val QuickElevation = 6.dp
+private val QuickShape = RoundedCornerShape(16.dp) // same look as the text-select popup
 
 /**
  * Long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
@@ -162,11 +165,11 @@ internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (Annota
             start = QuickSidePadding,
             end = QuickSidePadding,
         ),
-        shape = PanelShape,
-        tonalElevation = MenuElevation,
-        shadowElevation = MenuElevation,
+        shape = QuickShape,
+        tonalElevation = QuickElevation,
+        shadowElevation = QuickElevation,
     ) {
-        SelectionBar(style, null, actions)
+        PdfSelectionBar(style, null, actions)
     }
 }
 
