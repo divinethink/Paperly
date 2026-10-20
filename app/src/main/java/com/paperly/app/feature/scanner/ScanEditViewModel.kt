@@ -15,10 +15,10 @@ import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanOcrRepository
 import com.paperly.app.domain.scanner.ScanOutputSettings
 import com.paperly.app.domain.scanner.ScanQuad
+import com.paperly.app.domain.scanner.asFreshScan
 import com.paperly.app.domain.scanner.canDeleteAt
 import com.paperly.app.domain.scanner.moved
 import com.paperly.app.domain.scanner.toggledBw
-import com.paperly.app.domain.scanner.asFreshScan
 import com.paperly.app.domain.scanner.withFilter
 import com.paperly.app.domain.scanner.withFilterAll
 import com.paperly.app.domain.scanner.withQuad
