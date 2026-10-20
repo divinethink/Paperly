@@ -38,13 +38,16 @@ val CoverPalette = listOf(
 )
 
 // UI refresh tokens (light / dark pairs). Roles are wired in Theme.kt so screens read MaterialTheme only.
-val MutedText = Color(0xFF6B625B)
-val Tonal = Color(0xFFF1E0CC)
-val OnTonal = Color(0xFF5A3A12)
-val SurfaceSoft = Color(0xFFF1EAE1)
-val CardSoft = Color(0xFFF4ECE2)
-val OutlineSoft = Color(0xFFD9CFC4)
-val DividerSoft = Color(0xFFE6DBCD)
+// Deeper light tones so cards, search fields and segments stand out from the page. `Paper` stays the reader page.
+val AppBackground = Color(0xFFF6EFE6)
+val PillWhite = Color(0xFFFFFDF9)
+val MutedText = Color(0xFF5F564F)
+val Tonal = Color(0xFFEBD3B3)
+val OnTonal = Color(0xFF4A2F0E)
+val SurfaceSoft = Color(0xFFE6D6C2)
+val CardSoft = Color(0xFFEBDDCB)
+val OutlineSoft = Color(0xFFC9B8A3)
+val DividerSoft = Color(0xFFD8C9B5)
 val Danger = Color(0xFFB3362A)
 val TonalDark = Color(0xFF4A3620)
 val OutlineDark = Color(0xFF4A4540)

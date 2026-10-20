@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -89,6 +90,7 @@ internal fun PageManagementRow(state: ScanEditUi, viewModel: ScanEditViewModel, 
     }
 }
 
+private const val TILE_BORDER_ALPHA = 0.55f
 private val TileGap = 8.dp
 private val TileMinHeight = 64.dp
 private val TileCorner = 12.dp
@@ -110,6 +112,7 @@ private fun RowScope.ActionTile(
         shape = RoundedCornerShape(TileCorner),
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = tint),
+        border = BorderStroke(1.dp, tint.copy(alpha = if (enabled) TILE_BORDER_ALPHA else TILE_BORDER_ALPHA / 2)),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, contentDescription = null)

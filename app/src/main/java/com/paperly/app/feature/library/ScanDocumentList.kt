@@ -120,8 +120,8 @@ private fun ScanCoverStack(doc: Document, pages: Int?, covers: CoverViewModel, b
         for (i in layers downTo 1) {
             Surface(
                 shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                color = MaterialTheme.colorScheme.outlineVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.offset(StackStep * i, StackStep * i).size(RowCoverWidth, RowCoverHeight),
             ) {}
         }

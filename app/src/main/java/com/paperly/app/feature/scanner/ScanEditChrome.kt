@@ -60,7 +60,7 @@ internal fun ColumnScope.EditStage(state: ScanEditUi, viewModel: ScanEditViewMod
     } else {
         Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(MaterialTheme.colorScheme.outlineVariant)
     }
     Box(Modifier.weight(1f).fillMaxWidth().then(card), contentAlignment = Alignment.Center) {
         EditCanvas(state, viewModel)

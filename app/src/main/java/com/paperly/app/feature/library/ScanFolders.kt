@@ -143,7 +143,7 @@ private fun FolderMenuItem(label: Int, onClick: () -> Unit) {
 internal fun ScanFolderRow(item: ScanFolderItem, onOpen: (String) -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.primaryContainer,
         modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth().clickable(role = Role.Button) { onOpen(item.id) },
     ) {
         Row(
@@ -176,13 +176,13 @@ internal fun ScanFolderRow(item: ScanFolderItem, onOpen: (String) -> Unit) {
                 Text(
                     pluralStringResource(R.plurals.scan_folder_documents, item.count, item.count),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
             Icon(
                 ChevronGlyph,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
