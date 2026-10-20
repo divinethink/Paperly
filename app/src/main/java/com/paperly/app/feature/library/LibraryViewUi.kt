@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +34,10 @@ import androidx.compose.ui.unit.em
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.GridGlyph
+import com.paperly.app.core.ui.icons.ListGlyph
 import com.paperly.app.core.ui.icons.SortGlyph
+import com.paperly.app.domain.document.LibraryLayout
 import com.paperly.app.domain.document.LibrarySort
 import com.paperly.app.domain.document.LibraryView
 import kotlin.math.roundToInt
@@ -90,8 +94,29 @@ internal fun SortButton(view: LibraryView, controls: LibraryViewViewModel = hilt
                     },
                 )
             }
+            HorizontalDivider()
+            LayoutItem(LibraryLayout.GRID, view.layout) {
+                menuOpen = false
+                controls.setLayout(it)
+            }
+            LayoutItem(LibraryLayout.LIST, view.layout) {
+                menuOpen = false
+                controls.setLayout(it)
+            }
         }
     }
+}
+
+/** "Grid view" / "List view" entry of the sort menu; the active one is marked with a check. */
+@Composable
+private fun LayoutItem(layout: LibraryLayout, current: LibraryLayout, onPick: (LibraryLayout) -> Unit) {
+    val grid = layout == LibraryLayout.GRID
+    val label = stringResource(if (grid) R.string.layout_grid else R.string.layout_list)
+    DropdownMenuItem(
+        text = { Text(label + if (layout == current) " \u2713" else "") },
+        leadingIcon = { Icon(if (grid) GridGlyph else ListGlyph, contentDescription = null) },
+        onClick = { onPick(layout) },
+    )
 }
 
 /** Card for the most recently opened document with its saved progress; hidden while searching. */

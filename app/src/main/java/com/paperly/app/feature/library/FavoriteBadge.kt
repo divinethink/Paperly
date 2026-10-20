@@ -21,14 +21,19 @@ import com.paperly.app.R
 
 /** Round badge on the cover of a favourite document (toggled from the card menu). */
 @Composable
-internal fun FavoriteBadge(modifier: Modifier = Modifier) {
+internal fun FavoriteBadge(modifier: Modifier = Modifier, compact: Boolean = false) {
     val description = stringResource(R.string.doc_is_favorite)
     Box(
-        modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = BADGE_ALPHA))
+        modifier.size(if (compact) 22.dp else 32.dp).clip(CircleShape).background(Color.Black.copy(alpha = BADGE_ALPHA))
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Filled.Star, contentDescription = null, tint = StarGold, modifier = Modifier.size(18.dp))
+        Icon(
+            Icons.Filled.Star,
+            contentDescription = null,
+            tint = StarGold,
+            modifier = Modifier.size(if (compact) 14.dp else 18.dp),
+        )
     }
 }
 

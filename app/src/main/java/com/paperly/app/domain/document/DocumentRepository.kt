@@ -1,6 +1,7 @@
 package com.paperly.app.domain.document
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /** UI-facing model: features never touch the Room entity directly. */
 data class Document(
@@ -13,6 +14,8 @@ data class Document(
     val lastOpenedAt: Long? = null,
     val folderId: String? = null,
     val tags: List<String> = emptyList(),
+    /** Source format when this EPUB was made by the converter (e.g. "docx"); null for imported files. */
+    val convertedFrom: String? = null,
 )
 
 const val MAX_TITLE_LENGTH = 200
@@ -28,6 +31,9 @@ sealed interface ImportResult {
 
 interface DocumentRepository {
     fun observeDocuments(): Flow<List<Document>>
+
+    /** Ids of documents read to the end (saved progress 100%); emits on every change. */
+    val finishedIds: Flow<Set<String>> get() = flowOf(emptySet())
     suspend fun getDocument(id: String): Document?
 
     /** Metadata-only rename (the file itself is never touched). False if blank or the document is gone. */

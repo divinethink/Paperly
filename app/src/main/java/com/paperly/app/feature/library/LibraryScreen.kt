@@ -1,29 +1,19 @@
 package com.paperly.app.feature.library
 
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -40,26 +30,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.model.DocumentType
-import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.domain.folder.MAX_FOLDER_DEPTH
 import com.paperly.app.feature.common.EmptyState
 import com.paperly.app.feature.common.ErrorRetry
 import com.paperly.app.feature.common.LoadingPlaceholder
-import com.paperly.app.feature.common.documentMeta
 
 @StringRes
 private fun ImportError.messageRes(): Int = when (this) {
@@ -72,9 +57,8 @@ private fun LibraryFilter.emptyRes(): Int = when (this) {
     LibraryFilter.All -> R.string.library_empty
     LibraryFilter.Favorites -> R.string.favorites_empty
     LibraryFilter.Recent -> R.string.recent_empty
+    LibraryFilter.Finished -> R.string.finished_empty
 }
-
-private val ImportMimeTypes = arrayOf("application/pdf", "application/epub+zip", DOCX_MIME)
 
 /** Per-document callbacks, grouped so composables stay under the parameter-count limit. */
 internal class DocumentActions(
@@ -97,15 +81,8 @@ fun LibraryScreen(
     val batch = rememberBatchState()
     val libraryTitle = stringResource(viewModel.type.nameRes())
     val isScanTab = viewModel.type == LibraryType.SCAN
-    val context = LocalContext.current
     LibraryTabEffects(viewModel, navigation.onShowTab)
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        when {
-            uri == null -> Unit
-            isDocx(context, uri) -> enqueueDocxConversion(context, uri) // Word file -> background EPUB conversion
-            else -> viewModel.importDocument(uri.toString())
-        }
-    }
+    val startImport = rememberImportStarter(viewModel)
     val actions = DocumentActions(
         onOpen = { navigation.onOpenReader(it.id) },
         onToggleFavorite = viewModel::toggleFavorite,
@@ -123,18 +100,16 @@ fun LibraryScreen(
         viewModel.selectFolder(state.parentFolderId())
     }
     val folderUi = folderUi(state, viewModel, organize, navigation) { dialog = it }
-    val listActions = ListActions({ picker.launch(ImportMimeTypes) }, viewModel::retry, viewModel::selectFolder)
+    val listActions = ListActions(startImport, navigation.onScan, viewModel::retry, viewModel::selectFolder)
 
     Column(Modifier.fillMaxSize()) {
         if (batch.active) {
             Box(Modifier.statusBarsPadding()) { BatchBar(batch, state.documents, state.folders) }
         } else {
-            val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, isScanTab)
+            val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, viewModel.type)
             val canAddFolder = isScanTab && state.folderPath.size < MAX_FOLDER_DEPTH
             val newFolder = { dialog = LibraryDialog.NewFolder(state.selectedFolderId) }
-            LibraryHeader(header, navigation, canAddFolder, newFolder) {
-                picker.launch(ImportMimeTypes)
-            }
+            LibraryHeader(header, navigation, canAddFolder, newFolder, startImport)
         }
         SearchRow(state.query, viewModel::setQuery, state.view)
         FilterRow(state.filter, viewModel::setFilter)
@@ -145,13 +120,14 @@ fun LibraryScreen(
         }
         ImageExportStatus()
         DocxConversionStatus(navigation.onOpenReader)
-        LibraryList(state, actions, batch, listActions)
+        LibraryList(state, viewModel.type, actions, batch, listActions)
     }
 }
 
 @Composable
 private fun LibraryList(
     state: LibraryUiState,
+    type: LibraryType,
     actions: DocumentActions,
     batch: BatchState,
     listActions: ListActions,
@@ -168,27 +144,30 @@ private fun LibraryList(
         state.load == LibraryLoad.Loading -> LoadingPlaceholder()
         state.load == LibraryLoad.Failed ->
             ErrorRetry(stringResource(R.string.library_load_error), listActions.onRetry)
-        state.documents.isEmpty() && state.scanFolders.isEmpty() -> LibraryEmpty(state, listActions.onImport)
+        state.documents.isEmpty() && state.scanFolders.isEmpty() -> LibraryEmpty(state, type, listActions)
         state.documents.all { it.type == DocumentType.SCANNED_PDF } ->
             ScanDocumentList(state, actions, batch, hiltViewModel(), listActions.onOpenFolder)
-        else -> DocumentList(state.documents, actions, batch, hiltViewModel())
+        else -> DocumentList(state, actions, batch, hiltViewModel())
     }
 }
 
 @Composable
-private fun LibraryEmpty(state: LibraryUiState, onImport: () -> Unit) {
+private fun LibraryEmpty(state: LibraryUiState, type: LibraryType, listActions: ListActions) {
     val searching = state.query.isNotBlank() || state.selectedFolderId != null
     val emptyRes = when {
-        state.totalCount == 0 -> R.string.library_empty
+        state.totalCount == 0 -> type.emptyRes()
         searching -> R.string.search_empty
         else -> state.filter.emptyRes()
     }
-    val cta = if (state.totalCount == 0) stringResource(R.string.library_import) else null
-    EmptyState(stringResource(emptyRes), cta, onImport)
+    if (state.totalCount == 0) {
+        EmptyWithActions(stringResource(emptyRes), type, listActions.onImport, listActions.onScan)
+    } else {
+        EmptyState(stringResource(emptyRes))
+    }
 }
 
 /** What the header shows, grouped so [LibraryHeader] stays under the parameter-count limit. */
-private class HeaderInfo(val title: String, val count: Int, val isImporting: Boolean, val isScanTab: Boolean)
+private class HeaderInfo(val title: String, val count: Int, val isImporting: Boolean, val type: LibraryType)
 
 @Composable
 private fun LibraryHeader(
@@ -196,7 +175,7 @@ private fun LibraryHeader(
     navigation: LibraryNavigation,
     canAddFolder: Boolean,
     onNewFolder: () -> Unit,
-    onImport: () -> Unit,
+    onImport: (ImportKind) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     // Notebloc-style teal title bar; the background also paints the status-bar area.
@@ -216,13 +195,7 @@ private fun LibraryHeader(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
-            IconButton(onClick = onImport, enabled = !info.isImporting) {
-                Icon(
-                    DownloadGlyph,
-                    contentDescription = stringResource(R.string.library_import),
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            ImportAction(info.type, enabled = !info.isImporting, onImport = onImport)
             Box {
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.library_more))
@@ -237,123 +210,9 @@ private fun LibraryHeader(
                             },
                         )
                     }
-                    LibraryMenuItems(info.isScanTab, navigation) { menuOpen = false }
+                    LibraryMenuItems(info.type == LibraryType.SCAN, navigation) { menuOpen = false }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun DocumentList(docs: List<Document>, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        items(docs, key = { it.id }) { doc -> DocumentCard(doc, actions, batch, covers) }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalFoundationApi::class)
-private fun DocumentCard(doc: Document, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
-    val context = LocalContext.current
-    var menuOpen by remember { mutableStateOf(false) }
-    val export = rememberDocumentExport(doc)
-    Column(
-        Modifier.fillMaxWidth().combinedClickable(
-            role = Role.Button,
-            onClick = { if (batch.active) batch.toggle(doc.id) else actions.onOpen(doc) },
-            onLongClickLabel = stringResource(R.string.batch_select),
-            onLongClick = { batch.toggle(doc.id) },
-        ),
-    ) {
-        Box {
-            CoverImage(doc, covers, Modifier.fillMaxWidth().height(COVER_HEIGHT.dp))
-            if (doc.isFavorite) FavoriteBadge(Modifier.align(Alignment.TopEnd).padding(8.dp))
-            if (batch.active) {
-                Checkbox(
-                    checked = doc.id in batch.selected,
-                    onCheckedChange = { batch.toggle(doc.id) },
-                    modifier = Modifier.align(Alignment.TopStart),
-                )
-            }
-        }
-        Row(Modifier.padding(start = 4.dp, top = 8.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    doc.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                AuthorLine(doc, covers)
-                Text(
-                    documentMeta(context, doc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (!batch.active) {
-                Box {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doc_more))
-                    }
-                    DocumentMenu(menuOpen, doc, actions, export) { menuOpen = false }
-                }
-            }
-        }
-    }
-}
-
-private const val COVER_HEIGHT = 176
-
-@Composable
-private fun DocumentMenu(
-    expanded: Boolean,
-    doc: Document,
-    actions: DocumentActions,
-    export: DocumentExport,
-    onDismiss: () -> Unit,
-) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        DropdownMenuItem(
-            text = { Text(stringResource(favoriteLabel(doc.isFavorite))) },
-            onClick = {
-                onDismiss()
-                actions.onToggleFavorite(doc)
-            },
-        )
-        listOfNotNull(
-            R.string.doc_share to export.share,
-            R.string.doc_save_copy to export.saveCopy,
-            export.print?.let { R.string.doc_print to it },
-            export.exportImages?.let { R.string.doc_export_images to it },
-        ).forEach { (label, action) ->
-            DropdownMenuItem(
-                text = { Text(stringResource(label)) },
-                onClick = {
-                    onDismiss()
-                    action()
-                },
-            )
-        }
-        listOf(
-            R.string.doc_rename to actions.onRename,
-            R.string.doc_move to actions.onMove,
-            R.string.doc_tags to actions.onTags,
-            R.string.doc_trash to actions.onTrash,
-        ).forEach { (label, action) ->
-            DropdownMenuItem(
-                text = { Text(stringResource(label)) },
-                onClick = {
-                    onDismiss()
-                    action(doc)
-                },
-            )
         }
     }
 }

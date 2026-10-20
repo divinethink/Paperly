@@ -2,6 +2,7 @@ package com.paperly.app.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.domain.document.LibraryLayout
 import com.paperly.app.domain.document.LibrarySort
 import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.domain.document.LibraryViewStore
@@ -25,6 +26,11 @@ class LibraryViewViewModel @Inject constructor(private val store: LibraryViewSto
             }
             store.save(next)
         }
+    }
+
+    /** Grid / List choice for PDF and EPUB tabs (persisted). */
+    fun setLayout(layout: LibraryLayout) {
+        viewModelScope.launch { store.save(store.view.first().copy(layout = layout)) }
     }
 
     /** Tapping the active type clears it. */

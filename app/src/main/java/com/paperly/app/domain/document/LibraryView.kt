@@ -28,10 +28,22 @@ enum class LibraryType(val key: String, val docType: String) {
     }
 }
 
+/** How PDF/EPUB documents are laid out: small 3-column covers or one row per document. Persisted by [key]. */
+enum class LibraryLayout(val key: String) {
+    GRID("grid"),
+    LIST("list"),
+    ;
+
+    companion object {
+        fun fromKey(key: String?): LibraryLayout = entries.firstOrNull { it.key == key } ?: GRID
+    }
+}
+
 data class LibraryView(
     val sort: LibrarySort = LibrarySort.DEFAULT,
     val ascending: Boolean = false,
     val type: LibraryType? = null,
+    val layout: LibraryLayout = LibraryLayout.GRID,
 )
 
 interface LibraryViewStore {

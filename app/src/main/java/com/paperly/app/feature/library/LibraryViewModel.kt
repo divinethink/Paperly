@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 
 enum class ImportError { Unsupported, Failed }
 
-enum class LibraryFilter { All, Favorites, Recent }
+enum class LibraryFilter { All, Favorites, Recent, Finished }
 
 /** Loading until the first database emission, so an empty Library is never shown while still loading. */
 enum class LibraryLoad { Loading, Ready, Failed }
@@ -77,7 +77,7 @@ internal fun List<Document>.filterFor(
     val needle = query.trim()
     val base = filter { it.inFolder(folderId) && it.matches(needle, scanTextIds) && it.isType(view.type) }
     return when (kind) {
-        LibraryFilter.All -> base.sortedFor(view)
+        LibraryFilter.All, LibraryFilter.Finished -> base.sortedFor(view) // Finished is narrowed by the caller
         LibraryFilter.Favorites -> base.filter { it.isFavorite }.sortedFor(view)
         LibraryFilter.Recent -> base.filter { it.lastOpenedAt != null }
             .sortedByDescending { it.lastOpenedAt }
@@ -136,6 +136,8 @@ data class LibraryUiState(
     val folderPath: List<Folder> = emptyList(),
     val view: LibraryView = LibraryView(),
     val load: LibraryLoad = LibraryLoad.Loading,
+    /** Documents read to the end: they get a check mark and the Finished filter. */
+    val finishedIds: Set<String> = emptySet(),
 )
 
 @Suppress("LongParameterList", "TooManyFunctions") // Hilt DI collaborators; small state/event handlers
@@ -179,7 +181,9 @@ class LibraryViewModel @Inject constructor(
     private val scanTextHits: Flow<Set<String>> = selection.map { it.query.trim() }.distinctUntilChanged()
         .flatMapLatest { q -> if (q.isEmpty()) flowOf(emptySet<String>()) else scanOcr.observeMatchingIds(q) }
 
-    private val docsAndHits = combine(documentsResult, scanTextHits) { result, hits -> result to hits }
+    private val docsAndHits = combine(documentsResult, scanTextHits, repository.finishedIds) { r, hits, done ->
+        Triple(r, hits, done)
+    }
 
     val uiState: StateFlow<LibraryUiState> =
         combine(
@@ -188,14 +192,15 @@ class LibraryViewModel @Inject constructor(
             selection,
             transient,
             viewStore.view,
-        ) { (result, hits), folders, sel, t, view ->
+        ) { (result, hits, finished), folders, sel, t, view ->
             val docs = (result as? DocsResult.Ready)?.docs.orEmpty()
             val tabView = view.copy(type = type)
             val tabFolders = folders.visibleIn(type.docType)
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> tabFolders.any { it.id == id } }
             val scanBrowse = type == LibraryType.SCAN && sel.query.isBlank() && sel.kind == LibraryFilter.All
-            val shown = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits)
+            val found = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits)
+            val shown = if (sel.kind == LibraryFilter.Finished) found.filter { it.id in finished } else found
             LibraryUiState(
                 documents = if (scanBrowse && folderId == null) shown.withoutFolder() else shown,
                 scanFolders = if (scanBrowse) {
@@ -213,6 +218,7 @@ class LibraryViewModel @Inject constructor(
                 folders = tabFolders,
                 selectedFolderId = folderId,
                 view = tabView,
+                finishedIds = finished,
                 load = when (result) {
                     DocsResult.Loading -> LibraryLoad.Loading
                     is DocsResult.Ready -> LibraryLoad.Ready

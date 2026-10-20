@@ -51,6 +51,7 @@ private fun LibraryFilter.labelRes(): Int = when (this) {
     LibraryFilter.All -> R.string.filter_all
     LibraryFilter.Favorites -> R.string.filter_favorites
     LibraryFilter.Recent -> R.string.filter_recent
+    LibraryFilter.Finished -> R.string.filter_finished
 }
 
 /** Search field + sort button on one row. */

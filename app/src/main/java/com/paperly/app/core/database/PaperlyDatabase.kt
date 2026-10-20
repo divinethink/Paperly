@@ -126,6 +126,13 @@ interface AggregateDao {
     @Query("SELECT * FROM documents WHERE deletedAt IS NULL ORDER BY createdAt")
     suspend fun getAllActive(): List<DocumentEntity>
 
+    /** Documents read to the end (progress 100%, with a little float slack). Trash is excluded. */
+    @Query(
+        "SELECT r.documentId FROM reading_state r JOIN documents d ON d.documentId = r.documentId " +
+            "WHERE d.deletedAt IS NULL AND r.progressPercent >= 0.999",
+    )
+    fun observeFinishedIds(): Flow<List<String>>
+
     /** Every row's id, Trash included (a file is "unused" only when NO row, trashed or not, refers to it). */
     @Query("SELECT documentId FROM documents")
     suspend fun getAllIds(): List<String>

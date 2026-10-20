@@ -48,9 +48,10 @@ internal class FolderUi(
     val onGallery: () -> Unit,
 )
 
-/** Library list callbacks (import, retry, open a folder), grouped for the same reason. */
+/** Library list callbacks (import, scan, retry, open a folder), grouped for the same reason. */
 internal class ListActions(
-    val onImport: () -> Unit,
+    val onImport: (ImportKind) -> Unit,
+    val onScan: () -> Unit,
     val onRetry: () -> Unit,
     val onOpenFolder: (String) -> Unit,
 )

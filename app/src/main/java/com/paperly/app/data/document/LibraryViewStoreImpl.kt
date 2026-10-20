@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.paperly.app.domain.document.LibraryLayout
 import com.paperly.app.domain.document.LibrarySort
 import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.domain.document.LibraryView
@@ -34,6 +35,7 @@ class LibraryViewStoreImpl @Inject constructor(
                 sort = LibrarySort.fromKey(it[SORT_KEY]),
                 ascending = it[ASC_KEY] ?: false,
                 type = LibraryType.fromKey(it[TYPE_KEY]),
+                layout = LibraryLayout.fromKey(it[LAYOUT_KEY]),
             )
         }
 
@@ -41,6 +43,7 @@ class LibraryViewStoreImpl @Inject constructor(
         store.edit {
             it[SORT_KEY] = view.sort.key
             it[ASC_KEY] = view.ascending
+            it[LAYOUT_KEY] = view.layout.key
             val type = view.type
             if (type == null) it.remove(TYPE_KEY) else it[TYPE_KEY] = type.key
         }
@@ -50,6 +53,7 @@ class LibraryViewStoreImpl @Inject constructor(
         val SORT_KEY = stringPreferencesKey("library_sort")
         val ASC_KEY = booleanPreferencesKey("library_sort_asc")
         val TYPE_KEY = stringPreferencesKey("library_type")
+        val LAYOUT_KEY = stringPreferencesKey("library_layout")
     }
 }
 

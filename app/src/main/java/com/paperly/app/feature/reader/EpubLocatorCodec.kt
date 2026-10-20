@@ -7,6 +7,8 @@ import org.readium.r2.shared.util.Url
 
 private const val BOOKMARK_BUCKETS = 20
 private const val END_PROGRESSION = 0.98
+private const val END_TOTAL_PROGRESSION = 0.985
+private const val END_POSITIONS_LEFT = 2.5
 
 internal fun encodeLocator(locator: Locator): String = locator.toJSON().toString()
 
@@ -28,11 +30,24 @@ internal fun progressOf(locator: Locator): Float =
     (locator.locations.totalProgression ?: locator.locations.progression ?: 0.0).toFloat()
 
 /**
- * Readium counts ~1 KB "positions", so a very short book can never report 100% (its last position is e.g. 50%).
- * At the end of the last reading-order file we report 100% instead; anywhere else the locator is unchanged.
+ * Readium counts ~1 KB "positions" and reports where the visible page STARTS, so the last page of a book never
+ * reads 100% (a 3-page last chapter ends at 67%). In the last reading-order file we report 100% once the page is
+ * the last one, judged by any of: chapter progression, whole-book progression, or at most ~2 positions left
+ * (position and total progression give the remaining count). Anywhere else the locator is unchanged.
  */
 internal fun withBookEnd(locator: Locator, lastHref: Url?): Locator {
-    val atEnd = lastHref != null && locator.href == lastHref &&
-        (locator.locations.progression ?: 0.0) >= END_PROGRESSION
+    val atEnd = lastHref != null && sameResource(locator.href, lastHref) && reachedEnd(locator.locations)
     return if (atEnd) locator.copy(locations = locator.locations.copy(totalProgression = 1.0)) else locator
+}
+
+private fun sameResource(a: Url, b: Url): Boolean = pathOf(a) == pathOf(b)
+
+private fun pathOf(url: Url): String = url.toString().substringBefore('#').substringBefore('?')
+
+private fun reachedEnd(locations: Locator.Locations): Boolean {
+    val total = locations.totalProgression ?: 0.0
+    val position = locations.position ?: 0
+    val left = if (total > 0.0) position * (1.0 / total - 1.0) else Double.MAX_VALUE
+    return (locations.progression ?: 0.0) >= END_PROGRESSION || total >= END_TOTAL_PROGRESSION ||
+        left <= END_POSITIONS_LEFT
 }

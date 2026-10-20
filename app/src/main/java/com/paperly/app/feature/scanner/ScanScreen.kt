@@ -4,15 +4,20 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,12 +28,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.CameraGlyph
+import com.paperly.app.core.ui.icons.GalleryGlyph
 
 /** Which picker the Scan screen opens by itself: nothing (Scan tab: camera/gallery buttons) or the gallery. */
 enum class ScanMode { Camera, Gallery }
@@ -110,7 +118,7 @@ private fun CameraSavingContent() {
     }
 }
 
-/** What shows while the scanner starts or after it failed: a hint, the two buttons and the status. */
+/** What shows while the scanner starts or after it failed: a hint, the two choice cards and the status. */
 @Composable
 private fun ScanFallbackContent(state: ScanUiState, onScan: () -> Unit, onGallery: () -> Unit) {
     Column(
@@ -119,9 +127,12 @@ private fun ScanFallbackContent(state: ScanUiState, onScan: () -> Unit, onGaller
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(stringResource(R.string.scan_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = onScan, enabled = !state.saving) { Text(stringResource(R.string.scan_start)) }
-        OutlinedButton(onClick = onGallery, enabled = !state.saving) {
-            Text(stringResource(R.string.scan_gallery))
+        // Gallery on the left, Camera on the right (the primary action sits under the thumb).
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            val gallery = ScanChoice(GalleryGlyph, R.string.scan_card_gallery, primary = false, onClick = onGallery)
+            val camera = ScanChoice(CameraGlyph, R.string.scan_card_camera, primary = true, onClick = onScan)
+            ScanChoiceCard(gallery, !state.saving, Modifier.weight(1f))
+            ScanChoiceCard(camera, !state.saving, Modifier.weight(1f))
         }
         if (state.saving) Text(stringResource(R.string.scan_saving))
         state.error?.let {
@@ -130,6 +141,42 @@ private fun ScanFallbackContent(state: ScanUiState, onScan: () -> Unit, onGaller
         }
     }
 }
+
+private class ScanChoice(
+    val icon: ImageVector,
+    @StringRes val label: Int,
+    val primary: Boolean,
+    val onClick: () -> Unit,
+)
+
+/** One big tappable card with an icon over its name (Material 3 filled surface, 120dp tall). */
+@Composable
+private fun ScanChoiceCard(choice: ScanChoice, enabled: Boolean, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        onClick = choice.onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = if (choice.primary) scheme.primary else scheme.secondaryContainer,
+        contentColor = if (choice.primary) scheme.onPrimary else scheme.onSecondaryContainer,
+        modifier = modifier.height(ScanCardHeight),
+    ) {
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(choice.icon, contentDescription = null, modifier = Modifier.size(36.dp))
+            Text(
+                stringResource(choice.label),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+private val ScanCardHeight = 120.dp
 
 /** The save finished: tells the user about a duplicate, resets the state and moves on (editor / Library). */
 @Composable

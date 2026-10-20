@@ -3,6 +3,7 @@ package com.paperly.app.data.document
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.paperly.app.core.database.AggregateDao
 import com.paperly.app.core.database.DocumentDao
 import com.paperly.app.core.database.DocumentEntity
 import com.paperly.app.core.file.DocumentFileStore
@@ -32,10 +33,13 @@ class DocumentRepositoryImpl @Inject constructor(
     private val dao: DocumentDao,
     private val fileStore: DocumentFileStore,
     private val syncQueue: SyncQueue,
+    private val aggregateDao: AggregateDao,
 ) : DocumentRepository {
 
     override fun observeDocuments(): Flow<List<Document>> =
         dao.observeActive().map { list -> list.mapNotNull { it.toDomain() } }
+
+    override val finishedIds: Flow<Set<String>> get() = aggregateDao.observeFinishedIds().map { it.toSet() }
 
     override suspend fun getDocument(id: String): Document? =
         dao.getById(id)?.takeIf { it.deletedAt == null }?.toDomain()
@@ -167,7 +171,18 @@ private fun detectType(name: String?, mime: String?): String? {
 /** Mapper with runtime validation: rows with an unknown type are skipped, not crashed on. */
 internal fun DocumentEntity.toDomain(): Document? =
     if (DocumentType.isValid(type)) {
-        Document(documentId, title, type, sizeBytes, createdAt, isFavorite, lastOpenedAt, folderId, tags.orEmpty())
+        Document(
+            documentId,
+            title,
+            type,
+            sizeBytes,
+            createdAt,
+            isFavorite,
+            lastOpenedAt,
+            folderId,
+            tags.orEmpty(),
+            convertedFrom,
+        )
     } else {
         null
     }
