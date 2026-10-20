@@ -45,9 +45,9 @@ import com.paperly.app.domain.reader.AnnotationType
 
 private val MenuGap = 36.dp // at least; the menu sits about two text lines above the selection
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
-private val MenuElevation = 6.dp
+internal val MenuElevation = 6.dp
 private val PanelPadding = 12.dp
-private val PanelShape = RoundedCornerShape(16.dp)
+internal val PanelShape = RoundedCornerShape(16.dp)
 private const val LINES_ABOVE = 2f
 private val BarPadding = PaddingValues(horizontal = 8.dp)
 private const val HALF = 0.5f
@@ -59,10 +59,12 @@ internal class SelectionViewport(
     val basePx: Float,
     val viewportPx: Float,
     val heightPx: Float,
+    /** Height of the floating top bar + status bar: a menu never goes under it. */
+    val topPx: Float = 0f,
 )
 
 /** What the bar can do; bundled so the bar composable stays within the detekt parameter limit. */
-private class SelectionActions(
+internal class SelectionActions(
     val onColor: (AnnotationColor) -> Unit,
     val onStroke: (AnnotationStroke) -> Unit,
     val onMark: (AnnotationType) -> Unit,
@@ -144,7 +146,7 @@ internal fun PdfSelectionPopup(
 }
 
 @Composable
-private fun SelectionBar(
+internal fun SelectionBar(
     style: AnnotateStyle,
     marked: AnnotationType?,
     actions: SelectionActions,
@@ -196,7 +198,8 @@ internal fun popupOrigin(
     val lastPart = sel.parts.lastOrNull()
     val first = firstPart?.rects?.firstOrNull()
     val last = lastPart?.rects?.lastOrNull()
-    val maxY = (port.heightPx - menu.height).coerceAtLeast(0f)
+    val minY = port.topPx
+    val maxY = (port.heightPx - menu.height).coerceAtLeast(minY)
     val maxX = (port.viewportPx - menu.width).coerceAtLeast(0f)
     val firstItem = visible.firstOrNull { it.index == firstPart?.page }
     val lastItem = visible.firstOrNull { it.index == lastPart?.page }
@@ -212,18 +215,18 @@ internal fun popupOrigin(
     } else {
         null
     }
-    if (above == null && below == null) return IntOffset((maxX * HALF).toInt(), 0)
+    if (above == null && below == null) return IntOffset((maxX * HALF).toInt(), minY.toInt())
     val rects = sel.parts.flatMap { it.rects }
     val left = rects.minOf { it.left }
     val right = rects.maxOf { it.right }
     val centre = (left + right) * HALF * port.basePx * zoom + port.zoom.offsetX(port.viewportPx, port.basePx)
     val x = (centre - menu.width * HALF).coerceIn(0f, maxX)
-    return IntOffset(x.toInt(), popupY(above, below, maxY).toInt())
+    return IntOffset(x.toInt(), popupY(above, below, maxY, minY).toInt())
 }
 
 /** Above the first line when it fits on screen, else below the last line; whichever end is off screen is null. */
-internal fun popupY(above: Float?, below: Float?, maxY: Float): Float =
-    (if (above != null && (above >= 0f || below == null)) above else below ?: 0f).coerceIn(0f, maxY)
+internal fun popupY(above: Float?, below: Float?, maxY: Float, minY: Float = 0f): Float =
+    (if (above != null && (above >= minY || below == null)) above else below ?: minY).coerceIn(minY, maxY)
 
 private fun copyText(context: Context, text: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return

@@ -6,17 +6,9 @@ import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -26,11 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
-import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 import kotlinx.coroutines.launch
@@ -42,7 +32,6 @@ private const val QUICK_HALF = 0.5f
 private const val QUICK_SLOP_FACTOR = 2
 private val QuickTopPadding = 8.dp
 private val QuickSidePadding = 12.dp
-private val QuickElevation = 6.dp
 
 /**
  * Long-press on a page with no readable text layer (scan, image PDF, Bijoy text) drops a one-line box here; the
@@ -150,7 +139,7 @@ internal fun AnnotationHooks.withSelect(
     )
 }
 
-/** Highlight | Underline | Strikethrough | Note (+ colour, Cancel) for the quick box; hidden in annotate/Reflow. */
+/** The text-select popup bar (colour dot, mark icons, Note, Copy) for the quick box; hidden in annotate/Reflow. */
 @Composable
 internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (AnnotationEditor) -> Unit) {
     val controller = viewModel.annotations
@@ -161,33 +150,23 @@ internal fun BoxScope.PdfQuickMenu(viewModel: ReaderViewModel, onEditor: (Annota
     val page = pending?.page ?: return
     if (annotate || reflow) return
     val copyPage = rememberOcrCopy(viewModel)
+    val actions = SelectionActions(
+        onColor = { controller.setStyle(style.copy(color = it)) },
+        onStroke = { controller.setStyle(style.copy(stroke = it)) },
+        onMark = { type -> controller.commitQuick(type)?.let(onEditor) },
+        onCopy = { copyPage(page) },
+    )
     Surface(
-        modifier = Modifier.align(Alignment.TopCenter)
-            .padding(top = QuickTopPadding, start = QuickSidePadding, end = QuickSidePadding),
-        shape = MaterialTheme.shapes.large,
-        tonalElevation = QuickElevation,
-        shadowElevation = QuickElevation,
+        modifier = Modifier.align(Alignment.TopCenter).padding(
+            top = readerEdgePadding().calculateTopPadding() + QuickTopPadding,
+            start = QuickSidePadding,
+            end = QuickSidePadding,
+        ),
+        shape = PanelShape,
+        tonalElevation = MenuElevation,
+        shadowElevation = MenuElevation,
     ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                    PDF_STRIP_TYPES.forEach { (type, label) ->
-                        TextButton(onClick = { controller.commitQuick(type)?.let(onEditor) }) {
-                            Text(stringResource(label))
-                        }
-                    }
-                    TextButton(onClick = { copyPage(page) }) { Text(stringResource(R.string.reader_ocr_copy)) }
-                }
-                TextButton(onClick = controller::cancelPending) { Text(stringResource(R.string.action_cancel)) }
-            }
-            Row(Modifier.fillMaxWidth()) {
-                AnnotationColor.entries.forEach { color ->
-                    ColorSwatch(color, color == style.color, Modifier.weight(1f)) {
-                        controller.setStyle(style.copy(color = color))
-                    }
-                }
-            }
-        }
+        SelectionBar(style, null, actions)
     }
 }
 
