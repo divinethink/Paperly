@@ -98,11 +98,11 @@ class DeleteDataViewModel @Inject constructor(
     fun open() {
         runner.dismissOutcome()
         scoped.dismissOutcome()
-        form.value = DeleteForm(DeleteDialog.INTRO, scope = form.value.scope)
+        form.value = DeleteForm(dialog = DeleteDialog.INTRO, scope = form.value.scope)
     }
 
     fun next() {
-        form.value = DeleteForm(DeleteDialog.FINAL, scope = form.value.scope)
+        form.value = DeleteForm(dialog = DeleteDialog.FINAL, scope = form.value.scope)
     }
 
     fun close() {
