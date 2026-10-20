@@ -6,6 +6,7 @@ import com.paperly.app.domain.auth.AuthRepository
 import com.paperly.app.domain.auth.DeleteAccountResult
 import com.paperly.app.domain.backup.BackupRunState
 import com.paperly.app.domain.backup.BackupRunner
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.privacy.AccountStatus
 import com.paperly.app.domain.privacy.CloudWipe
 import com.paperly.app.domain.privacy.CloudWipeBlock
@@ -107,7 +108,7 @@ class AppScopeDeleteAllDataRunnerTest {
     private class Backup(busy: Boolean = false) : BackupRunner {
         override val state: StateFlow<BackupRunState> = MutableStateFlow(BackupRunState(busy = busy))
 
-        override fun startExport(targetUri: String) = Unit
+        override fun startExport(targetUri: String, scope: BackupScope) = Unit
 
         override fun startRestore(sourceUri: String) = Unit
 

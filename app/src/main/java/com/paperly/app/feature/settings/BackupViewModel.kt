@@ -8,14 +8,18 @@ import com.paperly.app.domain.backup.BackupPreview
 import com.paperly.app.domain.backup.BackupResult
 import com.paperly.app.domain.backup.BackupRunState
 import com.paperly.app.domain.backup.BackupRunner
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.backup.InspectResult
 import com.paperly.app.domain.backup.RestoreResult
+import com.paperly.app.domain.document.DocumentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+
+private const val STATS_TIMEOUT_MS = 5_000L
 
 sealed interface BackupMessage {
     data class ExportOk(val count: Int, val skipped: Int) : BackupMessage
@@ -31,6 +35,9 @@ sealed interface BackupMessage {
     data object CheckFailed : BackupMessage
 }
 
+/** How many documents (and bytes) one export scope would carry. */
+data class ScopeStat(val count: Int, val bytes: Long)
+
 /** [confirm] != null = a verified backup is waiting for the user's "Restore" / "Cancel". */
 data class BackupUiState(
     val busy: Boolean = false,
@@ -43,12 +50,25 @@ data class BackupUiState(
  * A finished result is shown on return and cleared once the screen is really gone.
  */
 @HiltViewModel
-class BackupViewModel @Inject constructor(private val runner: BackupRunner) : ViewModel() {
+class BackupViewModel @Inject constructor(
+    private val runner: BackupRunner,
+    documents: DocumentRepository,
+) : ViewModel() {
+    /** Live counts for the Scanned / PDF / EPUB / All chips (Trash is not exported, so not counted). */
+    val stats: StateFlow<Map<BackupScope, ScopeStat>> = documents.observeDocuments()
+        .map { docs ->
+            BackupScope.entries.associateWith { scope ->
+                val inScope = docs.filter { scope.includes(it.type) }
+                ScopeStat(inScope.size, inScope.sumOf { it.sizeBytes })
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STATS_TIMEOUT_MS), emptyMap())
+
     val state: StateFlow<BackupUiState> = runner.state
         .map { it.toUi() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, runner.state.value.toUi())
 
-    fun export(target: Uri) = runner.startExport(target.toString())
+    fun export(target: Uri, scope: BackupScope) = runner.startExport(target.toString(), scope)
 
     /** Restore step 1: read and verify the file, then ask the user to confirm (see [confirmRestore]). */
     fun previewRestore(source: Uri) = runner.startInspect(source.toString(), forRestore = true)

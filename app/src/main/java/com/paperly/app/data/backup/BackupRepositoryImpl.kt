@@ -15,6 +15,7 @@ import com.paperly.app.core.file.StoredFile
 import com.paperly.app.core.model.DocumentType
 import com.paperly.app.domain.backup.BackupRepository
 import com.paperly.app.domain.backup.BackupResult
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.backup.RestoreResult
 import com.paperly.app.domain.backup.RestoreSummary
 import dagger.Binds
@@ -51,13 +52,13 @@ class BackupRepositoryImpl @Inject constructor(
 
     private enum class Outcome { RESTORED, PRESENT, FAILED }
 
-    override suspend fun export(targetUri: String): BackupResult = lock.withLock {
+    override suspend fun export(targetUri: String, scope: BackupScope): BackupResult = lock.withLock {
         val uri = Uri.parse(targetUri)
         try {
             withContext(Dispatchers.IO) {
                 val resolver = context.contentResolver
                 val out = resolver.openOutputStream(uri, "w") ?: throw IOException("Cannot open target")
-                val (written, skipped) = out.use { writeArchive(it) }
+                val (written, skipped) = out.use { writeArchive(it, scope) }
                 val verified = resolver.openInputStream(uri)?.use { BackupArchive.verify(it) } == true
                 if (verified) {
                     BackupResult.Success(written, skipped)
@@ -75,13 +76,13 @@ class BackupRepositoryImpl @Inject constructor(
         }
     }
 
-    /** Collects the whole library and writes the archive to [out]. Returns (documents written, documents skipped). */
-    internal suspend fun writeArchive(out: OutputStream): Pair<Int, Int> {
-        val entities = aggregateDao.getAllActive().filter { DocumentType.isValid(it.type) }
+    /** Collects the library (or one tab of it) and writes the archive to [out]. Returns (written, skipped). */
+    internal suspend fun writeArchive(out: OutputStream, scope: BackupScope = BackupScope.ALL): Pair<Int, Int> {
+        val entities = aggregateDao.getAllActive().filter { DocumentType.isValid(it.type) && scope.includes(it.type) }
         val sources = entities.mapNotNull { e ->
             fileStore.resolve(e.documentId)?.let { BackupSource(e.toBackupDocument(), it) }
         }
-        val folders = folderDao.getAll().map {
+        val folders = folderDao.getAll().filter { scope.includesFolder(it.type) }.map {
             BackupFolder(it.folderId, it.name, it.parentFolderId, it.createdAt, it.type)
         }
         val header = BackupHeader(DATABASE_VERSION, appVersion(context), System.currentTimeMillis())

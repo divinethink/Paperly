@@ -5,6 +5,7 @@ import com.paperly.app.domain.backup.BackupOutcome
 import com.paperly.app.domain.backup.BackupRepository
 import com.paperly.app.domain.backup.BackupResult
 import com.paperly.app.domain.backup.BackupRunState
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.backup.InspectResult
 import com.paperly.app.domain.backup.RestoreResult
 import com.paperly.app.domain.backup.RestoreSummary
@@ -39,7 +40,7 @@ class AppScopeBackupRunnerTest {
         var restoreResult: RestoreResult = RestoreResult.Done(RestoreSummary(1, 0, 0))
         var throwOnCall = false
 
-        override suspend fun export(targetUri: String): BackupResult {
+        override suspend fun export(targetUri: String, scope: BackupScope): BackupResult {
             exportCalls.incrementAndGet()
             gate.await()
             if (throwOnCall) error("boom")

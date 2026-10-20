@@ -22,8 +22,8 @@ sealed interface RestoreResult {
  * Restore = additive merge: never overwrites or deletes existing data (Zero Data Loss).
  */
 interface BackupRepository {
-    /** [targetUri] = content:// URI from the system "create document" picker. */
-    suspend fun export(targetUri: String): BackupResult
+    /** [targetUri] = content:// URI from the system "create document" picker; [scope] = which documents go in. */
+    suspend fun export(targetUri: String, scope: BackupScope = BackupScope.ALL): BackupResult
 
     /** [sourceUri] = content:// URI of a backup ZIP from the system picker. */
     suspend fun restore(sourceUri: String): RestoreResult

@@ -26,8 +26,8 @@ data class BackupRunState(val busy: Boolean = false, val outcome: BackupOutcome?
 interface BackupRunner {
     val state: StateFlow<BackupRunState>
 
-    /** [targetUri] = content:// URI from the system "create document" picker. */
-    fun startExport(targetUri: String)
+    /** [targetUri] = content:// URI from the system "create document" picker; [scope] = which documents go in. */
+    fun startExport(targetUri: String, scope: BackupScope = BackupScope.ALL)
 
     /** [sourceUri] = content:// URI of a backup ZIP from the system picker. */
     fun startRestore(sourceUri: String)

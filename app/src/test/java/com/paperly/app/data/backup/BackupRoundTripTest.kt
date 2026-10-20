@@ -11,6 +11,7 @@ import com.paperly.app.core.database.ReadingStateEntity
 import com.paperly.app.core.database.ScanPageEntity
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.StoredFile
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.backup.RestoreResult
 import com.paperly.app.domain.backup.RestoreSummary
 import java.io.ByteArrayInputStream
@@ -122,6 +123,18 @@ class BackupRoundTripTest {
 
     private fun restore(p: Phone, zip: ByteArray): RestoreResult = runBlocking {
         p.repo.restoreFromFile(tmp.newFile().apply { writeBytes(zip) })
+    }
+
+    @Test
+    fun scopedExportCarriesOnlyThatTabsDocuments() {
+        val a = newPhone("a")
+        seed(a)
+        val pdfOnly = ByteArrayOutputStream().also { out -> runBlocking { a.repo.writeArchive(out, BackupScope.PDF) } }
+        val epubOnly = ByteArrayOutputStream().also { out -> runBlocking { a.repo.writeArchive(out, BackupScope.EPUB) } }
+
+        // d1 is the only live PDF (the trashed one stays out); d2 the only EPUB
+        assertEquals(RestoreResult.Done(RestoreSummary(1, 0, 0)), restore(newPhone("b"), pdfOnly.toByteArray()))
+        assertEquals(RestoreResult.Done(RestoreSummary(1, 0, 0)), restore(newPhone("c"), epubOnly.toByteArray()))
     }
 
     @Test

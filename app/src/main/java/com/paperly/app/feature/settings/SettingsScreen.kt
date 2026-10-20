@@ -23,10 +23,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.feature.reader.ReadingTimeViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** Settings: Reading, Data (storage, sync, backup), Privacy and the Danger zone. */
 @Composable
@@ -42,9 +40,8 @@ fun SettingsScreen(
     val backup by backupViewModel.state.collectAsStateWithLifecycle()
     val del by deleteViewModel.state.collectAsStateWithLifecycle()
     val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
-        it?.let(backupViewModel::export)
-    }
+    val stats by backupViewModel.stats.collectAsStateWithLifecycle()
+    val export = rememberBackupExport(backupViewModel)
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
         it?.let(backupViewModel::previewRestore)
     }
@@ -52,10 +49,10 @@ fun SettingsScreen(
         it?.let(backupViewModel::check)
     }
     backup.confirm?.let { RestoreConfirmDialog(it, backupViewModel::confirmRestore, backupViewModel::cancelRestore) }
-    val onExport = { exportLauncher.launch(backupFileName()) }
+    val onExport = export.exportAll
     val busy = backup.busy || del.running
     val actions = BackupActions(
-        onExport = onExport,
+        onExport = export.exportChosen,
         onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
         onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
     )
@@ -67,7 +64,7 @@ fun SettingsScreen(
             GroupLabel(R.string.settings_group_data)
             SettingsCard { StorageCardContent(usage) }
             SettingsCard { SyncSection() }
-            SettingsCard { BackupSection(backup.copy(busy = busy), actions) }
+            SettingsCard { BackupSection(backup.copy(busy = busy), actions, export, stats) }
             GroupLabel(R.string.settings_group_privacy)
             SettingsCard { PrivacySection(busy = busy, onExport = onExport) }
             GroupLabel(R.string.settings_group_danger, danger = true)
@@ -109,14 +106,16 @@ private fun ReadingCard(minutesToday: Int, dynamicColor: Boolean, onDynamicColor
 
 private val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/octet-stream")
 
-private fun backupFileName(): String =
-    "paperly-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".zip"
-
 /** Callbacks of the Backup card, grouped to keep parameter counts small. */
 private class BackupActions(val onExport: () -> Unit, val onRestore: () -> Unit, val onCheck: () -> Unit)
 
 @Composable
-private fun BackupSection(state: BackupUiState, actions: BackupActions) {
+private fun BackupSection(
+    state: BackupUiState,
+    actions: BackupActions,
+    export: BackupExportUi,
+    stats: Map<BackupScope, ScopeStat>,
+) {
     CardHeader(R.string.settings_backup_header)
     Text(
         stringResource(R.string.settings_backup_hint),
@@ -124,10 +123,11 @@ private fun BackupSection(state: BackupUiState, actions: BackupActions) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 4.dp),
     )
+    BackupScopeChips(export, stats)
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
             onClick = actions.onExport,
-            enabled = !state.busy,
+            enabled = !state.busy && (stats[export.chosen]?.count ?: 0) > 0,
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
         ) { Text(stringResource(R.string.settings_backup_export)) }
         FilledTonalButton(

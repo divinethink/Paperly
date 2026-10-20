@@ -7,6 +7,7 @@ import com.paperly.app.domain.backup.BackupRepository
 import com.paperly.app.domain.backup.BackupResult
 import com.paperly.app.domain.backup.BackupRunState
 import com.paperly.app.domain.backup.BackupRunner
+import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.backup.InspectResult
 import com.paperly.app.domain.backup.RestoreResult
 import com.paperly.app.domain.sync.SyncQueue
@@ -34,9 +35,9 @@ class AppScopeBackupRunner @Inject constructor(
     private val _state = MutableStateFlow(BackupRunState())
     override val state: StateFlow<BackupRunState> = _state.asStateFlow()
 
-    override fun startExport(targetUri: String) = start {
+    override fun startExport(targetUri: String, scope: BackupScope) = start {
         BackupOutcome.Exported(
-            guarded(BackupResult.Failed) { repository.export(targetUri) },
+            guarded(BackupResult.Failed) { repository.export(targetUri, scope) },
         )
     }
 

@@ -290,7 +290,12 @@
     <string name="scan_text_none">No scanned text yet. Turn on Scan text recognition in Settings; scans are read in the background.</string>
     <string name="scan_error_save">Could not save the scan. Please try again.</string>
     <string name="settings_backup_header">Backup</string>
-    <string name="settings_backup_hint">Export saves all documents to one ZIP file. Restore only adds what is missing; nothing is overwritten or deleted.</string>
+    <string name="settings_backup_hint">Choose what to export; it is saved as one ZIP file. Restore only adds what is missing; nothing is overwritten or deleted.</string>
+    <string name="backup_scope_all">All</string>
+    <plurals name="backup_scope_summary">
+        <item quantity="one">%1$d document · %2$s</item>
+        <item quantity="other">%1$d documents · %2$s</item>
+    </plurals>
     <string name="settings_backup_export">Export</string>
     <string name="settings_backup_restore">Restore</string>
     <string name="settings_backup_working">Working… please keep the app open.</string>
