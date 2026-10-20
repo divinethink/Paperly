@@ -53,6 +53,7 @@ internal class BarPlacement(
  * pass as the placement, so nothing lags a frame behind. [place] gets the bar size and the container size (px); the
  * side margin is applied here.
  */
+@Suppress("LongMethod", "MagicNumber") // TEMP-DEBUG: remove with the overlay
 @Composable
 internal fun FloatingToolbar(
     panelOpen: Boolean,
