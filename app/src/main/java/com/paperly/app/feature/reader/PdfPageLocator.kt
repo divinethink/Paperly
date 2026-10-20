@@ -28,10 +28,16 @@ internal fun locateInPages(boxes: List<PageBox>, from: Int, y: Float, x: Float):
 internal fun viewportYOf(boxes: List<PageBox>, page: Int, y: Float): Float? =
     boxes.firstOrNull { it.index == page }?.let { it.offset + y }
 
-/** Reads the shown pages from the list; lets a selection drag started on one page find the page under the finger. */
+/**
+ * Reads the shown pages from the list; lets a selection drag started on one page find the page under the finger.
+ * Item offsets start below the list's top content padding, so that is added: [PageBox.offset] is from the viewport top.
+ */
 internal class PageLocator(private val listState: LazyListState) {
-    private fun boxes() = listState.layoutInfo.visibleItemsInfo.map {
-        PageBox(it.index, it.offset.toFloat(), it.size.toFloat())
+    private fun boxes(): List<PageBox> {
+        val info = listState.layoutInfo
+        return info.visibleItemsInfo.map {
+            PageBox(it.index, (it.offset + info.beforeContentPadding).toFloat(), it.size.toFloat())
+        }
     }
 
     fun locate(from: Int, y: Float, x: Float): PagePoint? = locateInPages(boxes(), from, y, x)

@@ -161,18 +161,20 @@ internal fun popupPlacement(
     val minY = port.topPx
     val maxY = (port.heightPx - menu.height).coerceAtLeast(minY)
     val maxX = (port.viewportPx - menu.width).coerceAtLeast(0f)
+    // item offsets start below the list's top content padding (the top bar); the bar's place is in container px
+    val pad = port.listState.layoutInfo.beforeContentPadding
     val firstItem = visible.firstOrNull { it.index == firstPart?.page }
     val lastItem = visible.firstOrNull { it.index == lastPart?.page }
     val above = if (firstItem != null && first != null) {
         // clear of the selected line by about two line heights (never less than [gap])
         val lines = (first.bottom - first.top) * firstItem.size * zoom * LINES_ABOVE
         val clear = minOf(maxOf(gap, lines), gap * MAX_GAP_FACTOR)
-        (firstItem.offset + first.top * firstItem.size) * zoom - menu.height - clear
+        (firstItem.offset + pad + first.top * firstItem.size) * zoom - menu.height - clear
     } else {
         null
     }
     val below = if (lastItem != null && last != null) {
-        (lastItem.offset + last.bottom * lastItem.size) * zoom + clearance
+        (lastItem.offset + pad + last.bottom * lastItem.size) * zoom + clearance
     } else {
         null
     }
