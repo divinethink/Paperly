@@ -18,6 +18,7 @@ import com.paperly.app.domain.scanner.ScanQuad
 import com.paperly.app.domain.scanner.canDeleteAt
 import com.paperly.app.domain.scanner.moved
 import com.paperly.app.domain.scanner.toggledBw
+import com.paperly.app.domain.scanner.asFreshScan
 import com.paperly.app.domain.scanner.withFilter
 import com.paperly.app.domain.scanner.withFilterAll
 import com.paperly.app.domain.scanner.withQuad
@@ -108,14 +109,17 @@ class ScanEditViewModel @Inject constructor(
             if (pages == null) {
                 _state.value = ScanEditUi(loading = false, notEditable = true)
             } else {
+                // A fresh scan starts with the Docs filter; "dirty" so Save is active and writes that look.
+                val shown = if (isNewScan) pages.map { it.asFreshScan() } else pages
                 _state.value = ScanEditUi(
                     loading = false,
-                    pages = pages,
+                    pages = shown,
+                    dirty = isNewScan,
                     autoAdd = addAtStart,
                     autoPick = pickAtStart,
                     awaitingAdd = addAtStart || pickAtStart,
                 )
-                openAtStart(pages)
+                openAtStart(shown)
             }
         }
     }
@@ -231,7 +235,8 @@ class ScanEditViewModel @Inject constructor(
                 _state.update { it.copy(loading = false, addFailed = true, awaitingAdd = false) }
             } else {
                 val first = _state.value.pages.size
-                _state.update { it.copy(pages = it.pages + added, dirty = true, awaitingAdd = false) }
+                val fresh = added.map { it.asFreshScan() }
+                _state.update { it.copy(pages = it.pages + fresh, dirty = true, awaitingAdd = false) }
                 showPage(first, cropFirst = crop)
             }
         }

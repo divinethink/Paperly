@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -121,6 +123,8 @@ private fun ScanPagesReady(
 private fun NoticeEffect(selection: ScanPageSelectionViewModel) {
     val notice by selection.notice.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val shown = remember { arrayOfNulls<Toast>(1) }
+    DisposableEffect(Unit) { onDispose { shown[0]?.cancel() } } // the message must not follow the user to other screens
     val text = when (notice) {
         PagesNotice.NOT_EDITABLE -> stringResource(R.string.scan_pages_delete_not_editable)
         PagesNotice.BLOCKED -> stringResource(R.string.scan_pages_delete_blocked)
@@ -129,7 +133,8 @@ private fun NoticeEffect(selection: ScanPageSelectionViewModel) {
     }
     LaunchedEffect(notice) {
         if (text != null) {
-            Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+            shown[0]?.cancel()
+            shown[0] = Toast.makeText(context, text, Toast.LENGTH_SHORT).also { it.show() }
             selection.dismissNotice()
         }
     }

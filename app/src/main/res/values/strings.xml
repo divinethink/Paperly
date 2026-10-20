@@ -20,7 +20,7 @@
     <string name="scan_page_state_not_selected">Not selected</string>
     <string name="scan_pages_delete_body">The selected pages are removed now. Their titles, notes and bookmarks go with them. Your current file is kept as a backup for 7 days.</string>
     <string name="scan_pages_delete_not_editable">These pages cannot be deleted here: this scan has no kept originals, or the page editor is off.</string>
-    <string name="scan_pages_delete_blocked">Nothing was deleted: a chosen page has highlights, or you chose every page.</string>
+    <string name="scan_pages_delete_blocked">Nothing was deleted. A scan keeps at least one page, and pages with highlights stay.</string>
     <string name="scan_pages_delete_failed">The pages could not be deleted. Your document is unchanged.</string>
     <string name="scan_pages_move">Move</string>
     <string name="scan_pages_copy">Copy</string>
@@ -188,6 +188,7 @@
     <string name="scan_camera_flash_off">Flash off</string>
     <string name="scan_camera_flash_auto">Flash auto</string>
     <string name="scan_camera_flash_on">Flash on</string>
+    <string name="scan_camera_flash_torch">Torch on</string>
     <string name="scan_camera_grid_on">Grid on</string>
     <string name="scan_camera_grid_off">Grid off</string>
     <string name="scan_here">Scan here</string>

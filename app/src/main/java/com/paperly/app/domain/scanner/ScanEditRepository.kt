@@ -28,6 +28,10 @@ fun ScanEditPage.rotated(): ScanEditPage = if (locked) this else copy(rotation =
 
 fun ScanEditPage.withFilter(value: ScanFilter): ScanEditPage = copy(filter = value)
 
+/** A freshly scanned page starts with the Docs filter; a page that already has a look of its own keeps it. */
+fun ScanEditPage.asFreshScan(): ScanEditPage =
+    if (filter == ScanFilter.ORIGINAL) copy(filter = ScanFilter.DOCS) else this
+
 /** Manual brightness / contrast (clamped to their ranges); like filters they never touch geometry. */
 fun ScanEditPage.withBrightness(value: Int): ScanEditPage =
     copy(brightness = value.coerceIn(MIN_BRIGHTNESS, MAX_BRIGHTNESS))

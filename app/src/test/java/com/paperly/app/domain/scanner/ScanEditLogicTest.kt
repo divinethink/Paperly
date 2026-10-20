@@ -20,6 +20,11 @@ class ScanEditLogicTest {
         assertEquals(0, normalizeRotation(720))
     }
 
+    @Test fun freshScanStartsWithDocsFilterButKeepsAnotherLook() {
+        assertEquals(ScanFilter.DOCS, ScanEditPage(index = 0).asFreshScan().filter)
+        assertEquals(ScanFilter.BW, ScanEditPage(index = 0, filter = ScanFilter.BW).asFreshScan().filter)
+    }
+
     @Test fun annotatedPageBlocksCropAndRotateOnly() {
         assertFalse(canCropOrRotate(true))
         assertTrue(canCropOrRotate(false))

@@ -48,12 +48,11 @@ fun ScanEditScreen(
     var askDelete by remember { mutableStateOf(false) }
     val leave = { onDone(viewModel.exitDocumentId) }
     EditExitEffects(state, leave, onCancelAdd) { onDiscarded(viewModel.fromCamera) }
-    // A fresh scan that is still unedited in the crop step is simply thrown away (retake); other edits ask first.
+    // Back on a fresh scan always asks first (same answer every time); an older document asks only after edits.
     val close: () -> Unit = {
         when {
             state.saving -> Unit
-            viewModel.isNewScan && state.cropping && !state.dirty -> viewModel.discardNewScan()
-            state.dirty -> askDiscard = true
+            viewModel.isNewScan || state.dirty -> askDiscard = true
             else -> leave()
         }
     }
@@ -112,7 +111,7 @@ private fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
     if (state.awaitingAdd) return // picker/scanner is (about to be) up: not the old page behind it
     when {
         page != null && state.cropping && source != null ->
-            ScanCropOverlay(source, page.quad, viewModel::setQuad, Modifier.fillMaxSize())
+            ScanCropOverlay(source, page.quad, viewModel::setQuad, page.rotation, Modifier.fillMaxSize())
         preview != null ->
             Image(
                 preview,

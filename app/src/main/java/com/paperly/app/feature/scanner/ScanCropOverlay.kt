@@ -51,15 +51,36 @@ private const val LOUPE_MAGNIFY = 2.5f
 private const val FIT_MARGIN = 0.06f
 private const val LOUPE_SHADOW_ALPHA = 0.25f
 
-/** Where the image sits inside the canvas (letterboxed). */
-private class Fit(val left: Float, val top: Float, val width: Float, val height: Float)
+/** Where the picture sits inside the canvas as the user sees it (letterboxed, turned by [rotation] degrees). */
+private class Fit(val left: Float, val top: Float, val width: Float, val height: Float, val rotation: Int) {
+    val sideways: Boolean get() = rotation == QUARTER_TURN || rotation == THREE_QUARTER_TURN
+}
 
-private fun fit(box: IntSize, image: ImageBitmap): Fit {
+private fun fit(box: IntSize, image: ImageBitmap, rotation: Int): Fit {
+    val sideways = rotation == QUARTER_TURN || rotation == THREE_QUARTER_TURN
+    val imageW = if (sideways) image.height else image.width
+    val imageH = if (sideways) image.width else image.height
     val keep = 1f - 2f * FIT_MARGIN // free space around the picture so the edge handles stay easy to grab
-    val scale = minOf(box.width * keep / image.width, box.height * keep / image.height)
-    val w = image.width * scale
-    val h = image.height * scale
-    return Fit((box.width - w) / 2f, (box.height - h) / 2f, w, h)
+    val scale = minOf(box.width * keep / imageW, box.height * keep / imageH)
+    val w = imageW * scale
+    val h = imageH * scale
+    return Fit((box.width - w) / 2f, (box.height - h) / 2f, w, h, rotation)
+}
+
+/** The page image, turned like the final page will be; the crop frame stays in the stored picture's fractions. */
+private fun DrawScope.drawPage(image: ImageBitmap, f: Fit) {
+    val centre = Offset(f.left + f.width / 2f, f.top + f.height / 2f)
+    val w = if (f.sideways) f.height else f.width
+    val h = if (f.sideways) f.width else f.height
+    withTransform({ rotate(f.rotation.toFloat(), centre) }) {
+        drawImage(
+            image,
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(image.width, image.height),
+            dstOffset = IntOffset((centre.x - w / 2f).toInt(), (centre.y - h / 2f).toInt()),
+            dstSize = IntSize(w.toInt(), h.toInt()),
+        )
+    }
 }
 
 private fun handlePoint(quad: ScanQuad, handle: Int): ScanPoint {
@@ -109,6 +130,7 @@ fun ScanCropOverlay(
     image: ImageBitmap,
     quad: ScanQuad,
     onChange: (ScanQuad) -> Unit,
+    rotation: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     var box by remember { mutableStateOf(IntSize.Zero) }
@@ -119,12 +141,12 @@ fun ScanCropOverlay(
     Canvas(
         modifier
             .onSizeChanged { box = it }
-            .pointerInput(image) {
+            .pointerInput(image, rotation) {
                 detectDragGestures(
                     onDragStart = { start ->
-                        val f = fit(box, image)
+                        val f = fit(box, image, rotation)
                         fun dist(h: Int): Float {
-                            val pt = handlePoint(latest, h)
+                            val pt = toShown(handlePoint(latest, h), rotation)
                             return (Offset(f.left + pt.x * f.width, f.top + pt.y * f.height) - start).getDistance()
                         }
                         active = (0 until HANDLES).minByOrNull(::dist)?.takeIf { dist(it) <= hitRadius } ?: -1
@@ -133,22 +155,17 @@ fun ScanCropOverlay(
                     onDragCancel = { active = -1 },
                 ) { change, drag ->
                     change.consume()
-                    val f = fit(box, image)
+                    val f = fit(box, image, rotation)
                     if (active >= 0 && f.width > 0f && f.height > 0f) {
-                        val moveBy = Offset(drag.x / f.width, drag.y / f.height)
-                        onChange(moveHandle(latest, active, moveBy, Size(f.width, f.height)))
+                        val moveBy = toStoredDrag(Offset(drag.x / f.width, drag.y / f.height), rotation)
+                        val stored = if (f.sideways) Size(f.height, f.width) else Size(f.width, f.height)
+                        onChange(moveHandle(latest, active, moveBy, stored))
                     }
                 }
             },
     ) {
-        val f = fit(IntSize(size.width.toInt(), size.height.toInt()), image)
-        drawImage(
-            image,
-            srcOffset = IntOffset.Zero,
-            srcSize = IntSize(image.width, image.height),
-            dstOffset = IntOffset(f.left.toInt(), f.top.toInt()),
-            dstSize = IntSize(f.width.toInt(), f.height.toInt()),
-        )
+        val f = fit(IntSize(size.width.toInt(), size.height.toInt()), image, rotation)
+        drawPage(image, f)
         drawCropFrame(image, f, quad, active, line)
     }
 }
@@ -161,7 +178,10 @@ private fun DrawScope.drawCropFrame(
     active: Int,
     line: Color,
 ) {
-    fun at(pt: ScanPoint) = Offset(f.left + pt.x * f.width, f.top + pt.y * f.height)
+    fun at(pt: ScanPoint): Offset {
+        val shown = toShown(pt, f.rotation)
+        return Offset(f.left + shown.x * f.width, f.top + shown.y * f.height)
+    }
     val frame = Path().apply {
         val pts = quad.points.map(::at)
         moveTo(pts[0].x, pts[0].y)
@@ -209,13 +229,7 @@ private fun DrawScope.drawCropLoupe(image: ImageBitmap, f: Fit, point: Offset, l
             scale(LOUPE_MAGNIFY, LOUPE_MAGNIFY, Offset.Zero)
             translate(-point.x, -point.y)
         }) {
-            drawImage(
-                image,
-                srcOffset = IntOffset.Zero,
-                srcSize = IntSize(image.width, image.height),
-                dstOffset = IntOffset(f.left.toInt(), f.top.toInt()),
-                dstSize = IntSize(f.width.toInt(), f.height.toInt()),
-            )
+            drawPage(image, f)
         }
         val arm = CROSS_ARM.toPx()
         val centre = Offset(centreX, centreY)

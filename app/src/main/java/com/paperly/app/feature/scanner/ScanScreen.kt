@@ -4,11 +4,13 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -20,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -91,7 +94,20 @@ fun ScanScreen(
         }
     }
     SavedEffect(state, viewModel) { editId, openId -> onSaved(editId, openId, fromCamera) }
-    ScanFallbackContent(state, openCamera, openGallery)
+    if (state.saving && fromCamera) CameraSavingContent() else ScanFallbackContent(state, openCamera, openGallery)
+}
+
+/** Right after the shutter: black like the camera, so the wait does not flash the Scan buttons screen. */
+@Composable
+private fun CameraSavingContent() {
+    Column(
+        Modifier.fillMaxSize().background(Color.Black),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator(color = Color.White)
+        Text(stringResource(R.string.scan_saving), Modifier.padding(top = 16.dp), color = Color.White)
+    }
 }
 
 /** What shows while the scanner starts or after it failed: a hint, the two buttons and the status. */
