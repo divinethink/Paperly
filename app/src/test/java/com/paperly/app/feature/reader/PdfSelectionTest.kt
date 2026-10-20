@@ -54,4 +54,13 @@ class PdfSelectionTest {
         assertEquals(40f, popupY(40f, null, 800f), 0f) // last page scrolled away: use the first line
         assertEquals(800f, popupY(900f, 950f, 800f), 0f)
     }
+
+    @Test
+    fun barGoesBelowWhenThePanelWouldNotFitAbove() {
+        // bar would fit above the line (y 400 >= top 288) but the 340 px panel above it would not: bar below from the start
+        assertTrue(popupAbove(400f, 900f, 288f))
+        assertTrue(!popupAbove(400f, 900f, 288f, reserve = 340f))
+        assertTrue(popupAbove(700f, 900f, 288f, reserve = 340f)) // room for bar and panel: stays above
+        assertTrue(popupAbove(100f, null, 288f, reserve = 340f)) // last line scrolled away: nothing below to use
+    }
 }

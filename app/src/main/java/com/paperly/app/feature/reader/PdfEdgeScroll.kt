@@ -13,15 +13,36 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 private const val BAND = 0.15f // top/bottom share of the viewport where a selection drag scrolls the page
+private val EdgeBand = 28.dp // about two text lines: resting a finger on the first lines must not scroll
 private const val MAX_STEP_DP = 10f // scroll per frame at the very edge; slower further in
 
-/** -1..1: how fast to scroll for a finger at [y] in a viewport [height] tall (negative = up, 0 = not near an edge). */
-internal fun edgeSpeed(y: Float, height: Float): Float {
-    if (height <= 0f) return 0f
-    val band = height * BAND
+/** Where a selection drag scrolls the page: the [band] just inside the visible [top] and [bottom] edges (px). */
+internal class EdgeZone(val top: Float, val bottom: Float, val band: Float)
+
+/** The visible page area (below the top bar, above the navigation bar) with a thin [EdgeBand] at each end. */
+@Composable
+internal fun edgeZone(heightPx: Float): EdgeZone {
+    val pad = readerEdgePadding()
+    return with(LocalDensity.current) {
+        EdgeZone(pad.calculateTopPadding().toPx(), heightPx - pad.calculateBottomPadding().toPx(), EdgeBand.toPx())
+    }
+}
+
+/**
+ * -1..1: how fast to scroll for a finger at [y] in a viewport [height] tall (negative = up, 0 = not near an edge).
+ * By default the band is 15% of the height at each end; [top], [bottom] and [band] narrow it to the visible area.
+ */
+internal fun edgeSpeed(
+    y: Float,
+    height: Float,
+    top: Float = 0f,
+    bottom: Float = height,
+    band: Float = height * BAND,
+): Float {
+    if (height <= 0f || band <= 0f) return 0f
     return when {
-        y < band -> -((band - y) / band).coerceAtMost(1f)
-        y > height - band -> ((y - (height - band)) / band).coerceAtMost(1f)
+        y < top + band -> -((top + band - y) / band).coerceAtMost(1f)
+        y > bottom - band -> ((y - (bottom - band)) / band).coerceAtMost(1f)
         else -> 0f
     }
 }
@@ -58,15 +79,21 @@ internal class EdgeScroll {
 
 internal val LocalEdgeScroll = staticCompositionLocalOf { EdgeScroll() }
 
-/** Scrolls [listState] a little every frame while [edge] says a selection drag sits near the top or bottom edge. */
+/** Scrolls [listState] a little every frame while a selection drag sits in the [zone]'s top or bottom band. */
 @Composable
-internal fun EdgeScrollEffect(edge: EdgeScroll, listState: LazyListState, zoomOf: () -> Float, heightPx: Float) {
+internal fun EdgeScrollEffect(
+    edge: EdgeScroll,
+    listState: LazyListState,
+    zoomOf: () -> Float,
+    heightPx: Float,
+    zone: EdgeZone,
+) {
     val step = with(LocalDensity.current) { MAX_STEP_DP.dp.toPx() }
     LaunchedEffect(edge.active) {
         while (edge.active) {
             withFrameNanos { }
             val zoom = zoomOf()
-            val speed = edgeSpeed(edge.y * zoom, heightPx)
+            val speed = edgeSpeed(edge.y * zoom, heightPx, zone.top, zone.bottom, zone.band)
             if (speed != 0f) {
                 val moved = listState.dispatchRawDelta(speed * step / zoom)
                 if (moved != 0f) edge.shifted(moved)

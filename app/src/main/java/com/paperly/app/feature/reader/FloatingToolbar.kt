@@ -122,7 +122,7 @@ internal fun FloatingToolbar(
             if (panelBox != null && panelH > 0) {
                 panelBox.place(at.origin.x, panelAt)
             }
-            dbgBox?.place(margin, area.height - dbgBox.height - margin)
+            dbgBox?.place(margin, raw.bottom - dbgBox.height - margin)
         }
     }
 }

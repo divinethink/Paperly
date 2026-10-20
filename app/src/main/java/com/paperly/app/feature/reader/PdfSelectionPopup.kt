@@ -20,11 +20,12 @@ import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.lookFor
 
-private val MenuGap = 36.dp // at least; the menu sits about two text lines above the selection
+private val MenuGap = 10.dp // at least; the menu sits about one text line above the selection
 private val HandleClearance = 36.dp // below the last line sit the round selection handles
 private const val LINES_ABOVE = 2f
 private const val MAX_GAP_FACTOR = 1.5f // two lines of a tall rect must not push the menu far away: cap at 1.5 x gap
 private const val HALF = 0.5f
+private const val PANEL_RESERVE_FACTOR = 2.8f // the open colour panel is about 2.7 bars tall (122 dp vs 46 dp)
 
 /** What the popup needs to turn page fractions into screen pixels: list scroll, zoom, page width, viewport size. */
 internal class SelectionViewport(
@@ -140,7 +141,9 @@ internal fun toolInUse(style: AnnotateStyle): AnnotationType =
 /**
  * Where the bar goes, in viewport px: centred on the selection, above its
  * first line (first part), or below the last line (last part) when the top would leave the viewport. A selection
- * scrolled out of view parks the bar at the top edge (its panel then opens below it).
+ * scrolled out of view parks the bar at the top edge (its panel then opens below it). When the open colour panel would
+ * not fit above the bar either, the bar goes below the text from the start, so opening the panel never makes the bar
+ * jump to the other side or the panel cover the marked line.
  */
 internal fun popupPlacement(
     sel: PdfSelection,
@@ -181,8 +184,8 @@ internal fun popupPlacement(
     val right = rects.maxOf { it.right }
     val centre = (left + right) * HALF * port.basePx * zoom + port.zoom.offsetX(port.viewportPx, port.basePx)
     val x = (centre - menu.width * HALF).coerceIn(0f, maxX).toInt()
-    val y = popupY(above, below, maxY, minY).toInt()
-    val barAbove = popupAbove(above, below, minY)
+    val barAbove = popupAbove(above, below, minY, menu.height * PANEL_RESERVE_FACTOR)
+    val y = (if (barAbove && above != null) above else below ?: minY).coerceIn(minY, maxY).toInt()
     // the other side of the text, only when that side is on screen and the bar fits there
     val other = (if (barAbove) below else above)?.takeIf { it in minY..maxY }?.toInt()
     return BarPlacement(IntOffset(x, y), barAbove, top, bottom, other)
@@ -197,9 +200,9 @@ internal fun popupOrigin(
     clearance: Float,
 ): IntOffset = popupPlacement(sel, port, menu, gap, clearance).origin
 
-/** Whether the bar sits above the text (not below it): the first line is on screen and has room under the top bar. */
-internal fun popupAbove(above: Float?, below: Float?, minY: Float = 0f): Boolean =
-    above != null && (above >= minY || below == null)
+/** Whether the bar sits above the text: the first line is on screen and has room (plus [reserve]) under the top bar. */
+internal fun popupAbove(above: Float?, below: Float?, minY: Float = 0f, reserve: Float = 0f): Boolean =
+    above != null && (above - reserve >= minY || below == null)
 
 /** Above the first line when it fits on screen, else below the last line; whichever end is off screen is null. */
 internal fun popupY(above: Float?, below: Float?, maxY: Float, minY: Float = 0f): Float =
