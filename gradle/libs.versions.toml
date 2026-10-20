@@ -28,7 +28,7 @@ androidxPdf = "1.0.0-beta01"
 pdfboxAndroid = "2.0.27.0"
 credentials = "1.5.0"
 camerax = "1.4.2"
-googleid = "1.1.1"
+googleid = "1.2.1"
 playServicesAuth = "21.6.0"
 
 [libraries]
