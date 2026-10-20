@@ -46,6 +46,8 @@ fun normalizeRotation(degrees: Int): Int = ((degrees % FULL_TURN) + FULL_TURN) %
 
 fun rotateRight(degrees: Int): Int = normalizeRotation(degrees + QUARTER_TURN)
 
+fun rotateLeft(degrees: Int): Int = normalizeRotation(degrees - QUARTER_TURN)
+
 private const val QUARTER_TURN = 90
 private const val FULL_TURN = 360
 

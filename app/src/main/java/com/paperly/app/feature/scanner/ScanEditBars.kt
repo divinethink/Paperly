@@ -29,15 +29,15 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 import com.paperly.app.domain.scanner.ScanEditPage
-import com.paperly.app.domain.scanner.cropReset
 import com.paperly.app.domain.scanner.rotated
+import com.paperly.app.domain.scanner.rotatedLeft
 
 /** Brown text action (Notebloc style) for the buttons on the white area. */
 @Composable
 internal fun actionTextColors() = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary)
 
 /**
- * Bottom teal bar of the editor: reset crop · rotate · crop on/off · adjust. It paints under the navigation bar
+ * Bottom teal bar of the editor: rotate left · rotate right · crop on/off · adjust. Paints under the nav bar
  * itself. The buttons run the same actions as before (only moved here).
  */
 @Composable
@@ -48,8 +48,8 @@ internal fun EditBottomBar(state: ScanEditUi, viewModel: ScanEditViewModel, onAd
             Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).navigationBarsPadding(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            ToolItem(ScanEditIcons.Reset, R.string.scan_edit_reset, !page.locked) {
-                viewModel.edit(ScanEditPage::cropReset)
+            ToolItem(ScanEditIcons.RotateLeft, R.string.scan_edit_rotate_left, !page.locked) {
+                viewModel.edit(ScanEditPage::rotatedLeft)
             }
             ToolItem(ScanEditIcons.Rotate, R.string.scan_edit_rotate, !page.locked) {
                 viewModel.edit(ScanEditPage::rotated)

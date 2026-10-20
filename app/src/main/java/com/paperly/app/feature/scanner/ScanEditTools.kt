@@ -266,7 +266,7 @@ private const val ROTATE_PATH =
         "c-0.14,0.87 -0.48,1.72 -1.02,2.48z"
 private const val CROP_PATH =
     "M17,15h2V7c0,-1.1 -0.9,-2 -2,-2H9v2h8v8zM7,17V1H5v4H1v2h4v10c0,1.1 0.9,2 2,2h10v4h2v-4h4v-2H7z"
-private const val RESET_PATH =
+private const val ROTATE_LEFT_PATH =
     "M12,5V1L7,6l5,5V7c3.31,0 6,2.69 6,6s-2.69,6 -6,6 -6,-2.69 -6,-6H4c0,4.42 3.58,8 8,8s8,-3.58 8,-8" +
         " -3.58,-8 -8,-8z"
 private const val PREVIOUS_PATH = "M15.41,7.41L14,6l-6,6 6,6 1.41,-1.41L10.83,12z"
@@ -288,7 +288,7 @@ private fun glyph(name: String, pathData: String): ImageVector =
 internal object ScanEditIcons {
     val Rotate: ImageVector by lazy { glyph("ScanRotate", ROTATE_PATH) }
     val Crop: ImageVector by lazy { glyph("ScanCrop", CROP_PATH) }
-    val Reset: ImageVector by lazy { glyph("ScanReset", RESET_PATH) }
+    val RotateLeft: ImageVector by lazy { glyph("ScanRotateLeft", ROTATE_LEFT_PATH) }
     val Previous: ImageVector by lazy { glyph("ScanPrevious", PREVIOUS_PATH) }
     val Next: ImageVector by lazy { glyph("ScanNext", NEXT_PATH) }
     val Adjust: ImageVector by lazy { glyph("ScanAdjust", ADJUST_PATH) }

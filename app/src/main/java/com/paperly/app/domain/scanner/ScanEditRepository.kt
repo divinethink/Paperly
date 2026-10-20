@@ -26,6 +26,8 @@ const val ADDED_INDEX = -1
 /** Edit operations; a [ScanEditPage.locked] page keeps its geometry (crop/rotation), filters always apply. */
 fun ScanEditPage.rotated(): ScanEditPage = if (locked) this else copy(rotation = rotateRight(rotation))
 
+fun ScanEditPage.rotatedLeft(): ScanEditPage = if (locked) this else copy(rotation = rotateLeft(rotation))
+
 fun ScanEditPage.withFilter(value: ScanFilter): ScanEditPage = copy(filter = value)
 
 /** A freshly scanned page starts with the Docs filter; a page that already has a look of its own keeps it. */

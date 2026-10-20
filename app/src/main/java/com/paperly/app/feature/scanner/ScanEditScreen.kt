@@ -136,6 +136,7 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjust
         if (page.locked) Text(stringResource(R.string.scan_edit_locked), style = MaterialTheme.typography.bodySmall)
         if (state.cropping) {
             CropStepRow(viewModel)
+            if (adjusting) AdjustPanel(page, viewModel)
         } else {
             FilterRow(state, page, viewModel)
             if (adjusting) AdjustPanel(page, viewModel)
