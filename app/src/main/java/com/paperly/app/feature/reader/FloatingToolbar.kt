@@ -4,11 +4,19 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
@@ -18,6 +26,7 @@ import androidx.compose.ui.unit.dp
 
 private const val BAR_ID = "bar"
 private const val PANEL_ID = "panel"
+private const val DBG_ID = "dbg" // TEMP-DEBUG: delete with the overlay once the placement bug is found
 private const val FADE_MS = 150
 private val BarMargin = 12.dp // the bar never gets closer than this to the left/right edge
 private val PanelSpace = 4.dp // between the bar and the colour panel
@@ -51,8 +60,16 @@ internal fun FloatingToolbar(
     panel: @Composable () -> Unit,
     bar: @Composable () -> Unit,
 ) {
+    var dbg by remember { mutableStateOf("") } // TEMP-DEBUG
     Layout(
         content = {
+            Text( // TEMP-DEBUG overlay: numbers of the last placement
+                dbg,
+                modifier = Modifier.layoutId(DBG_ID).background(Color(0xCCFFFFFF)),
+                color = Color.Black,
+                fontSize = 9.sp,
+                lineHeight = 11.sp,
+            )
             Surface(
                 modifier = Modifier.layoutId(BAR_ID),
                 shape = PopupShape,
@@ -88,12 +105,23 @@ internal fun FloatingToolbar(
             ?.measure(Constraints.fixedWidth(barBox.width))
         val start = BarPlacement(IntOffset(x, raw.origin.y), raw.above, raw.top, raw.bottom, raw.flipY)
         val at = resolveBar(start, barBox.height, panelBox?.height ?: 0, gap)
+        val panelH = panelBox?.height ?: 0
+        val panelAt = if (panelH > 0) panelY(at, barBox.height, panelH, gap) else -1
+        // TEMP-DEBUG
+        val text = "raw y=${raw.origin.y} above=${raw.above} flip=${raw.flipY} top=${raw.top} bot=${raw.bottom}\n" +
+            "bar h=${barBox.height} panel h=$panelH area=${area.width}x${area.height}\n" +
+            "final y=${at.origin.y} above=${at.above} moved=${at.origin.y != raw.origin.y} panelY=$panelAt"
+        if (text != dbg) {
+            dbg = text
+            android.util.Log.d("PaperlyDbg", text.replace("\n", " | "))
+        }
+        val dbgBox = measurables.firstOrNull { it.layoutId == DBG_ID }?.measure(Constraints(maxWidth = room))
         layout(area.width, area.height) {
             barBox.place(at.origin)
-            if (panelBox != null && panelBox.height > 0) {
-                val y = panelY(at, barBox.height, panelBox.height, gap)
-                panelBox.place(at.origin.x, y)
+            if (panelBox != null && panelH > 0) {
+                panelBox.place(at.origin.x, panelAt)
             }
+            dbgBox?.place(margin, area.height - dbgBox.height - margin)
         }
     }
 }
