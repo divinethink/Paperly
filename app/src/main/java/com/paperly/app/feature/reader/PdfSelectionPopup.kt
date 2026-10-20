@@ -182,7 +182,10 @@ internal fun popupPlacement(
     val centre = (left + right) * HALF * port.basePx * zoom + port.zoom.offsetX(port.viewportPx, port.basePx)
     val x = (centre - menu.width * HALF).coerceIn(0f, maxX).toInt()
     val y = popupY(above, below, maxY, minY).toInt()
-    return BarPlacement(IntOffset(x, y), popupAbove(above, below, minY), top, bottom)
+    val barAbove = popupAbove(above, below, minY)
+    // the other side of the text, only when that side is on screen and the bar fits there
+    val other = (if (barAbove) below else above)?.takeIf { it in minY..maxY }?.toInt()
+    return BarPlacement(IntOffset(x, y), barAbove, top, bottom, other)
 }
 
 /** Top-left of the bar only (for popups that have no colour panel): [popupPlacement] without the side. */

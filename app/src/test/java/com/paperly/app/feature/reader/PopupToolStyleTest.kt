@@ -82,4 +82,29 @@ class PopupToolStyleTest {
         assertTrue(popupAbove(100f, null, 150f)) // nowhere else to go
         assertFalse(popupAbove(null, 600f, 150f)) // first line scrolled away
     }
+
+    @Test
+    fun barMovesToTheOtherSideOfTheTextWhenItsPanelWouldNotFit() {
+        // bar above the text with no room above for the panel, room below the text: bar goes below, panel below it
+        val up = BarPlacement(IntOffset(0, 250), true, 150, 1800, flipY = 600)
+        val moved = resolveBar(up, 110, 250, 4)
+        assertEquals(600, moved.origin.y)
+        assertFalse(moved.above)
+        // bar below the text at the bottom: goes above the text
+        val down = BarPlacement(IntOffset(0, 1650), false, 150, 1800, flipY = 900)
+        val back = resolveBar(down, 110, 250, 4)
+        assertEquals(900, back.origin.y)
+        assertTrue(back.above)
+    }
+
+    @Test
+    fun barStaysPutWhenThePanelFitsOrNothingBetterExists() {
+        val fits = BarPlacement(IntOffset(0, 500), true, 150, 1800, flipY = 900)
+        assertEquals(500, resolveBar(fits, 110, 250, 4).origin.y) // room above: no move
+        val noOther = BarPlacement(IntOffset(0, 250), true, 150, 1800, flipY = null)
+        assertEquals(250, resolveBar(noOther, 110, 250, 4).origin.y) // other side off screen
+        val tight = BarPlacement(IntOffset(0, 250), true, 150, 800, flipY = 600)
+        assertEquals(250, resolveBar(tight, 110, 250, 4).origin.y) // no room on the other side either
+        assertEquals(250, resolveBar(tight, 110, 0, 4).origin.y) // panel closed: never moves
+    }
 }

@@ -110,8 +110,11 @@ internal fun PopupBox(anchor: EpubAnchor?, modifier: Modifier, content: @Composa
 
 /** [epubPopupOrigin] plus the side the bar ended up on (its colour panel opens on the other side). */
 internal fun epubPlacement(anchor: EpubAnchor?, menu: IntSize, box: IntSize, gap: Float): BarPlacement {
-    val above = anchor != null && anchor.top - menu.height - gap >= 0f
-    return BarPlacement(epubPopupOrigin(anchor, menu, box, gap), above, 0, box.height)
+    val up = anchor?.let { it.top - menu.height - gap }
+    val down = anchor?.let { it.bottom + gap }
+    val above = up != null && up >= 0f
+    val other = (if (above) down else up)?.takeIf { it >= 0f && it <= box.height - menu.height }?.toInt()
+    return BarPlacement(epubPopupOrigin(anchor, menu, box, gap), above, 0, box.height, other)
 }
 
 /**
