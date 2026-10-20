@@ -43,7 +43,7 @@ private val NoteStroke = Color(0xFF1E88E5)
 private val DraftFill = Color(0x3300796B)
 private val LineWidth = 1.5.dp // on-screen thickness; drawAnnotations divides by the zoom so it stays constant
 private const val HIGHLIGHT_ALPHA = 0.4f
-private const val UNDERLINE_AT = 0.96f // near the line-box bottom, below Bengali vowel signs; tune if high/low
+internal const val UNDERLINE_AT = 0.96f // near the line-box bottom, below Bengali vowel signs; tune if high/low
 private const val STRIKE_AT = 0.5f
 private const val SQUIGGLE_STEP = 2.5f // half-wave length, in line widths
 private const val SQUIGGLE_AMP = 0.9f // wave height either side of the line, in line widths
@@ -113,7 +113,7 @@ internal fun Modifier.annotationGestures(
             }
         }
         .pointerInput(annotate) {
-            if (annotate) awaitEachGesture { pendingGesture(reachBase, zoomOf) { current } }
+            if (annotate) awaitEachGesture { annotateGesture(reachBase, zoomOf) { current } }
         }
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { textSelectGesture(select) }

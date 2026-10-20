@@ -161,6 +161,7 @@ private fun ReaderContent(
                 val highlights = if (search.open && search.submitted) search.rects else emptyMap()
                 val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
                     .withSelect(viewModel, enabled = !annotate) { barsVisible = !barsVisible }
+                    .withDirectMark(viewModel, annotate && search.probed && !search.available) { editor = it }
                 val look = PageLook(fitHeight, pageFilter, highlights, hooks, showBars) { editor = it }
                 PdfOrReflow(viewModel, state, listState, look)
                 PdfSelectionMenu(viewModel) { editor = it }

@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.unit.dp
+import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 
 internal val HandleReach = 24.dp // touch reach around a handle: 48dp target
@@ -31,6 +32,8 @@ data class PendingHooks(
     val quick: QuickHooks? = null,
     /** A tap on empty page space that closed nothing: the Reader shows / hides its bars. */
     val onBlankTap: () -> Unit = {},
+    /** Set on image pages in annotate mode: a drag draws this type directly (see PdfDirectMark.kt). */
+    val directType: AnnotationType? = null,
 )
 
 /** Everything the annotate-mode gesture of one page needs; [rects] = this page's pending parts. */
