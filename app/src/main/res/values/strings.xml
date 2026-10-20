@@ -538,6 +538,22 @@
     <string name="reader_minutes_and_percent">About %1$d min left · %2$s</string>
     <string name="delete_all_hint">Delete all my data removes your documents, folders, reading progress, bookmarks, annotations and settings from this phone. If you are signed in, it also deletes your cloud copies and your account.</string>
     <string name="delete_all_button">Delete all my data</string>
+    <string name="delete_scope_hint">Choose what to delete. Trash, Scanned, PDF and EPUB are separate; All removes everything, also in the cloud.</string>
+    <string name="delete_scope_button">Delete %1$s</string>
+    <string name="delete_scope_title">Delete %1$s?</string>
+    <string name="delete_scope_what_trash">This permanently deletes everything in Trash. If you are signed in, their cloud copies are deleted too. It cannot be undone.</string>
+    <string name="delete_scope_what_scan">This deletes all your Scanned documents from this phone, with their reading progress, bookmarks and notes. Cloud copies stay; you can delete them yourself in the cloud. Folders and Trash are kept. It cannot be undone.</string>
+    <string name="delete_scope_what_pdf">This deletes all your PDF documents from this phone, with their reading progress, bookmarks and annotations. Cloud copies stay; you can delete them yourself in the cloud. Folders and Trash are kept. It cannot be undone.</string>
+    <string name="delete_scope_what_epub">This deletes all your EPUB documents from this phone, with their reading progress, bookmarks and annotations. Cloud copies stay; you can delete them yourself in the cloud. Folders and Trash are kept. It cannot be undone.</string>
+    <string name="delete_scope_final">These documents will be deleted for good. Type the word below to continue.</string>
+    <string name="delete_scope_confirm">Delete</string>
+    <string name="delete_scope_running">Deleting…</string>
+    <plurals name="delete_scope_done">
+        <item quantity="one">Done. %d document deleted.</item>
+        <item quantity="other">Done. %d documents deleted.</item>
+    </plurals>
+    <string name="delete_scope_partial">%1$d deleted. %2$d could not be removed and are still in your Library; try again.</string>
+    <string name="delete_scope_failed">Could not delete. Nothing was lost; please try again.</string>
     <string name="delete_all_title">Delete all my data?</string>
     <string name="delete_all_what">This deletes everything Paperly keeps: all documents (also Trash), folders, reading progress, bookmarks, annotations, scan notes and settings on this phone. If you are signed in, your copies in Google Drive and Firestore are deleted first, and then your Paperly account. It cannot be undone.</string>
     <string name="delete_all_not_covered">Not deleted: backup ZIP files you saved elsewhere, and copies on your other phones (they can upload their documents again if you sign in there).</string>

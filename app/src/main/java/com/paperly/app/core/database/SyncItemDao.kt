@@ -85,6 +85,10 @@ abstract class SyncItemDao {
     )
     abstract suspend fun dropConflict(syncId: String): Int
 
+    /** Phone-only delete: nothing queued for this document may reach the cloud any more. */
+    @Query("DELETE FROM sync_items WHERE entityId = :id")
+    abstract suspend fun dropItemsFor(id: String): Int
+
     @Query("SELECT remoteUpdatedAt FROM sync_base WHERE documentId = :id")
     abstract suspend fun getBase(id: String): Long?
 

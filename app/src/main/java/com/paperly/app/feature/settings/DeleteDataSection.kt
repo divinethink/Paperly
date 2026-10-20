@@ -1,14 +1,20 @@
 package com.paperly.app.feature.settings
 
+import android.text.format.Formatter
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -17,6 +23,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -24,7 +32,9 @@ import com.paperly.app.R
 import com.paperly.app.domain.privacy.AccountStatus
 import com.paperly.app.domain.privacy.CloudWipeBlock
 import com.paperly.app.domain.privacy.DeleteOutcome
+import com.paperly.app.domain.privacy.DeleteScope
 import com.paperly.app.domain.privacy.DeleteStep
+import com.paperly.app.domain.privacy.ScopedDeleteOutcome
 
 /** Settings > Privacy > "Delete all my data": button, progress, result and the two confirm dialogs. */
 @Composable
@@ -39,19 +49,22 @@ fun DeleteDataSection(state: DeleteUiState, viewModel: DeleteDataViewModel, onEx
     val onOpen = viewModel::open
     Column {
         Text(
-            stringResource(R.string.delete_all_hint),
+            stringResource(R.string.delete_scope_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        DeleteScopeChips(state, viewModel::choose)
         OutlinedButton(
             onClick = onOpen,
-            enabled = !state.running && !backupBusy,
+            enabled = !state.running && !backupBusy && !state.scopeEmpty,
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-        ) { Text(stringResource(R.string.delete_all_button)) }
+        ) { Text(stringResource(R.string.delete_scope_button, stringResource(state.scope.labelRes()))) }
         state.step?.let { Text(stepText(it), Modifier.padding(top = 8.dp)) }
+        if (state.scopedRunning) Text(stringResource(R.string.delete_scope_running), Modifier.padding(top = 8.dp))
         state.outcome?.let { Text(outcomeText(it), Modifier.padding(top = 8.dp)) }
+        state.scopedOutcome?.let { Text(scopedOutcomeText(it), Modifier.padding(top = 8.dp)) }
     }
     when (state.dialog) {
         DeleteDialog.INTRO -> IntroDialog(state, onExport, actions, backupBusy)
@@ -72,11 +85,13 @@ private class DeleteDialogActions(
 private fun IntroDialog(state: DeleteUiState, onExport: () -> Unit, actions: DeleteDialogActions, backupBusy: Boolean) {
     AlertDialog(
         onDismissRequest = actions.onClose,
-        title = { Text(stringResource(R.string.delete_all_title)) },
+        title = { Text(stringResource(R.string.delete_scope_title, stringResource(state.scope.labelRes()))) },
         text = {
             Column {
-                Text(stringResource(R.string.delete_all_what))
-                Text(stringResource(R.string.delete_all_not_covered), Modifier.padding(top = 8.dp))
+                Text(stringResource(state.scope.whatRes()))
+                if (state.scope == DeleteScope.ALL) {
+                    Text(stringResource(R.string.delete_all_not_covered), Modifier.padding(top = 8.dp))
+                }
                 if (state.backupSaved) {
                     Text(stringResource(R.string.delete_all_backup_saved), Modifier.padding(top = 8.dp))
                 } else {
@@ -98,7 +113,9 @@ private fun FinalDialog(state: DeleteUiState, actions: DeleteDialogActions) {
         title = { Text(stringResource(R.string.delete_all_final_title)) },
         text = {
             Column {
-                Text(stringResource(R.string.delete_all_final_body))
+                Text(
+                    stringResource(state.scope.finalRes()),
+                )
                 if (!state.backupSaved) {
                     Row(
                         Modifier.padding(top = 8.dp).toggleable(
@@ -123,7 +140,10 @@ private fun FinalDialog(state: DeleteUiState, actions: DeleteDialogActions) {
         },
         confirmButton = {
             TextButton(onClick = actions.onConfirm, enabled = state.confirmEnabled) {
-                Text(stringResource(R.string.delete_all_confirm), color = MaterialTheme.colorScheme.error)
+                Text(
+                    stringResource(state.scope.confirmRes()),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         },
         dismissButton = { TextButton(onClick = actions.onClose) { Text(stringResource(R.string.delete_all_cancel)) } },

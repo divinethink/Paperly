@@ -22,6 +22,10 @@ interface TrashDao {
     @Query("UPDATE documents SET deletedAt = NULL, updatedAt = :now WHERE documentId = :id AND deletedAt IS NOT NULL")
     suspend fun restore(id: String, now: Long): Int
 
+    /** Scoped phone-only delete: removes a LIVE row (the caller has already removed its file). */
+    @Query("DELETE FROM documents WHERE documentId = :id AND deletedAt IS NULL")
+    suspend fun deleteActiveRow(id: String): Int
+
     /** Only ever removes a row that is already in Trash. */
     @Query("DELETE FROM documents WHERE documentId = :id AND deletedAt IS NOT NULL")
     suspend fun deleteTrashedRow(id: String): Int
