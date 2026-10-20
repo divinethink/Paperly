@@ -1,11 +1,11 @@
 package com.paperly.app.feature.reader
 
+import androidx.compose.ui.unit.IntOffset
 import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.lookFor
-import androidx.compose.ui.unit.IntOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
