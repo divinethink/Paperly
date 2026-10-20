@@ -41,6 +41,7 @@ import com.paperly.app.domain.scanner.cropReset
 fun ScanEditScreen(
     onDone: (openDocumentId: String?) -> Unit,
     onCancelAdd: () -> Unit,
+    onDiscarded: (retake: Boolean) -> Unit,
     viewModel: ScanEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -49,14 +50,24 @@ fun ScanEditScreen(
     val leave = { onDone(viewModel.exitDocumentId) }
     LaunchedEffect(state.done) { if (state.done) leave() }
     LaunchedEffect(state.cancelled) { if (state.cancelled) onCancelAdd() }
-    BackHandler {
+    LaunchedEffect(state.discarded) { if (state.discarded) onDiscarded(viewModel.fromCamera) }
+    // A fresh scan that is still unedited in the crop step is simply thrown away (retake); other edits ask first.
+    val close: () -> Unit = {
         when {
             state.saving -> Unit
+            viewModel.isNewScan && state.cropping && !state.dirty -> viewModel.discardNewScan()
             state.dirty -> askDiscard = true
             else -> leave()
         }
     }
-    if (askDiscard) DiscardDialog(onDiscard = leave, onKeep = { askDiscard = false })
+    BackHandler(onBack = close)
+    if (askDiscard) {
+        DiscardDialog(
+            newScan = viewModel.isNewScan,
+            onDiscard = if (viewModel.isNewScan) viewModel::discardNewScan else leave,
+            onKeep = { askDiscard = false },
+        )
+    }
     if (askDelete) {
         DeleteDialog(
             onDelete = {
@@ -69,7 +80,7 @@ fun ScanEditScreen(
     ErrorDialogs(state, viewModel)
     var adjusting by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        EditTopBar(state, onClose = { if (state.dirty) askDiscard = true else leave() }, onSave = viewModel::save)
+        EditTopBar(state, onClose = close, onSave = viewModel::save)
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             EditCanvas(state, viewModel)
             if (state.loading || state.saving) ProcessingCard()
@@ -144,11 +155,13 @@ private fun CropStepRow(viewModel: ScanEditViewModel) {
 }
 
 @Composable
-private fun DiscardDialog(onDiscard: () -> Unit, onKeep: () -> Unit) {
+private fun DiscardDialog(newScan: Boolean, onDiscard: () -> Unit, onKeep: () -> Unit) {
+    val title = if (newScan) R.string.scan_edit_discard_scan_title else R.string.scan_edit_discard_title
+    val body = if (newScan) R.string.scan_edit_discard_scan_body else R.string.scan_edit_discard_body
     AlertDialog(
         onDismissRequest = onKeep,
-        title = { Text(stringResource(R.string.scan_edit_discard_title)) },
-        text = { Text(stringResource(R.string.scan_edit_discard_body)) },
+        title = { Text(stringResource(title)) },
+        text = { Text(stringResource(body)) },
         confirmButton = { TextButton(onClick = onDiscard) { Text(stringResource(R.string.scan_edit_discard)) } },
         dismissButton = { TextButton(onClick = onKeep) { Text(stringResource(R.string.scan_edit_keep)) } },
     )

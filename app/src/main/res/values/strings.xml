@@ -183,6 +183,14 @@
     <string name="scan_duplicate">This scan is already in your Library.</string>
     <string name="scan_saving">Saving scan…</string>
     <string name="scan_error_unavailable">The camera could not be started on this device.</string>
+    <string name="scan_camera_close">Close camera</string>
+    <string name="scan_camera_shutter">Take picture</string>
+    <string name="scan_camera_flash_off">Flash off</string>
+    <string name="scan_camera_flash_auto">Flash auto</string>
+    <string name="scan_camera_flash_on">Flash on</string>
+    <string name="scan_camera_flash_torch">Light on</string>
+    <string name="scan_camera_grid_on">Grid on</string>
+    <string name="scan_camera_grid_off">Grid off</string>
     <string name="scan_here">Scan here</string>
     <string name="scan_here_gallery">Gallery here</string>
     <string name="scan_gallery">Import from gallery</string>
@@ -219,6 +227,8 @@
     <string name="scan_edit_discard_title">Discard changes?</string>
     <string name="scan_edit_discard_body">Your edits to these pages are not saved yet.</string>
     <string name="scan_edit_discard">Discard</string>
+    <string name="scan_edit_discard_scan_title">Discard this scan?</string>
+    <string name="scan_edit_discard_scan_body">The scan will not be saved.</string>
     <string name="scan_edit_keep">Keep editing</string>
     <string name="scan_edit_error_save">Could not save the edited pages. Your scan was not changed.</string>
     <string name="scan_edit_error_memory">Not enough memory for this size. Try Small or Medium. Your scan was not changed.</string>

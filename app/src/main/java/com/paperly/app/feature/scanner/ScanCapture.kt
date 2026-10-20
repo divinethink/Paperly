@@ -1,6 +1,8 @@
 package com.paperly.app.feature.scanner
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,8 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
-import com.paperly.app.core.file.ExportFiles
+import androidx.core.content.ContextCompat
 import java.io.File
 
 /** What happens with the camera's result; kept together so the composable stays under the parameter limit. */
@@ -22,27 +23,39 @@ internal class CameraResult(
 )
 
 /**
- * The phone's camera takes ONE picture into a temp file (no document-scanner screen, no automatic detection);
- * the app's own crop -> filter steps follow. Returns the function that starts the camera.
+ * The app's own camera (CameraX) takes ONE picture into a temp file; the crop -> filter steps follow. Asks for the
+ * camera permission when needed (only here, never at startup). Returns the function that starts the camera.
  */
 @Composable
 internal fun rememberCameraCapture(result: CameraResult): () -> Unit {
     val context = LocalContext.current
-    var pending by rememberSaveable { mutableStateOf<String?>(null) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-        val path = pending
-        pending = null
-        if (taken && path != null) result.onPicture(Uri.fromFile(File(path))) else result.onCancel()
+    var open by rememberSaveable { mutableStateOf(false) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) open = true else result.onUnavailable()
+    }
+    if (open) {
+        ScanCameraDialog(
+            onPicture = {
+                open = false
+                result.onPicture(it)
+            },
+            onClose = {
+                open = false
+                result.onCancel()
+            },
+            onFailed = {
+                open = false
+                result.onUnavailable()
+            },
+        )
     }
     return {
-        val file = newCaptureFile(context)
-        pending = file.path
-        val started = runCatching {
-            camera.launch(FileProvider.getUriForFile(context, ExportFiles.authority(context), file))
-        }
-        if (started.isFailure) {
-            pending = null
-            result.onUnavailable()
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        when {
+            !context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) -> result.onUnavailable()
+            granted -> open = true
+            else -> permission.launch(Manifest.permission.CAMERA)
         }
     }
 }
@@ -59,7 +72,7 @@ internal fun rememberScanCapture(viewModel: ScanEditViewModel): () -> Unit =
     )
 
 /** One temp file; an older picture (already copied elsewhere) is removed first. */
-private fun newCaptureFile(context: Context): File {
+internal fun newCaptureFile(context: Context): File {
     val dir = File(context.cacheDir, CAPTURE_DIR).apply { mkdirs() }
     dir.listFiles()?.forEach { it.delete() }
     return File(dir, "capture.jpg")

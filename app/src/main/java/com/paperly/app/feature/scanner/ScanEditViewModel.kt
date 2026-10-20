@@ -22,6 +22,7 @@ import com.paperly.app.domain.scanner.withFilter
 import com.paperly.app.domain.scanner.withFilterAll
 import com.paperly.app.domain.scanner.withQuad
 import com.paperly.app.domain.scanner.withoutAt
+import com.paperly.app.domain.trash.TrashRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import java.io.IOException
@@ -61,6 +62,8 @@ data class ScanEditUi(
     val cancelled: Boolean = false,
     /** Opened to delete one page, but it carries highlights or is the last page: nothing was deleted. */
     val deleteBlocked: Boolean = false,
+    /** A fresh scan was thrown away (the picture is deleted again): the screen leaves for a retake. */
+    val discarded: Boolean = false,
 ) {
     val page: ScanEditPage? get() = pages.getOrNull(current)
     val canDelete: Boolean get() = pages.canDeleteAt(current)
@@ -77,9 +80,13 @@ class ScanEditViewModel @Inject constructor(
     private val repository: ScanEditRepository,
     private val ocr: ScanOcrRepository,
     private val outputSettings: ScanOutputSettings,
+    private val trash: TrashRepository,
 ) : ViewModel() {
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
-    private val isNewScan: Boolean = savedStateHandle.get<Boolean>("new") == true
+    val isNewScan: Boolean = savedStateHandle.get<Boolean>("new") == true
+
+    /** The new scan came from the in-app camera (a discard then reopens the camera for a retake). */
+    val fromCamera: Boolean = savedStateHandle.get<Boolean>("cam") == true
     private val addAtStart: Boolean = savedStateHandle.get<Boolean>("add") == true
     private val pickAtStart: Boolean = savedStateHandle.get<Boolean>("pick") == true
     private val startPage: Int = savedStateHandle.get<Int>("page") ?: -1 // opened from the Reader's top bar
@@ -232,6 +239,20 @@ class ScanEditViewModel @Inject constructor(
 
     override fun onCleared() {
         repository.discardStaged(documentId) // pictures staged for adding but never saved
+    }
+
+    /**
+     * A fresh scan is already stored as a document (before this editor opened). Discarding it removes that document
+     * again (Trash, then deleted for good); only ever called for a new scan, never for an older document.
+     */
+    fun discardNewScan() {
+        if (!isNewScan || _state.value.saving) return
+        _state.update { it.copy(saving = true) }
+        viewModelScope.launch {
+            trash.trash(documentId)
+            trash.deleteForever(documentId) // if this fails the scan stays in Trash: nothing is lost
+            _state.update { it.copy(saving = false, discarded = true) }
+        }
     }
 
     /** Saves with the size chosen once in the Scanned tab's menu (no question each time). */

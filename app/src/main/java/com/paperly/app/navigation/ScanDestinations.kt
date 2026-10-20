@@ -1,6 +1,9 @@
 package com.paperly.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -11,12 +14,13 @@ import com.paperly.app.feature.scanner.ScanEditScreen
 import com.paperly.app.feature.scanner.ScanMode
 import com.paperly.app.feature.scanner.ScanPagesActions
 import com.paperly.app.feature.scanner.ScanPagesScreen
+import com.paperly.app.feature.scanner.ScanRetake
 import com.paperly.app.feature.scanner.ScanScreen
 
 /** Scan tab (scanner opens at once), gallery import (Scanned ⋮ menu), the page grid and the page editor. */
 internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) {
-    composable(Routes.SCAN) { ScanRoute(navController, ScanMode.Camera) }
-    composable(Routes.SCAN_GALLERY) { ScanRoute(navController, ScanMode.Gallery) }
+    composable(Routes.SCAN) { ScanRoute(navController, ScanMode.Camera, it) }
+    composable(Routes.SCAN_GALLERY) { ScanRoute(navController, ScanMode.Gallery, it) }
     composable(
         Routes.SCAN_PAGES,
         arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
@@ -58,6 +62,10 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
                 type = NavType.BoolType
                 defaultValue = false
             },
+            navArgument("cam") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
         ),
     ) {
         ScanEditScreen(
@@ -66,17 +74,27 @@ internal fun NavGraphBuilder.scanDestinations(navController: NavHostController) 
                 if (openId != null) navController.showLibrary(openId) else navController.popBackStack()
             },
             onCancelAdd = { navController.popBackStack() }, // nothing added: back to the grid
+            onDiscarded = { retake ->
+                // the scan is gone: back to the Scan screen, which reopens the camera for a retake
+                navController.previousBackStackEntry?.savedStateHandle?.set(RETAKE_KEY, retake)
+                navController.popBackStack()
+            },
         )
     }
 }
 
+private const val RETAKE_KEY = "scan_retake"
+
 @Composable
-private fun ScanRoute(navController: NavHostController, mode: ScanMode) {
+private fun ScanRoute(navController: NavHostController, mode: ScanMode, entry: NavBackStackEntry) {
+    val retake by entry.savedStateHandle.getStateFlow(RETAKE_KEY, false).collectAsStateWithLifecycle()
     ScanScreen(
         mode = mode,
-        onSaved = { editId, openId ->
+        retake = ScanRetake(retake) { entry.savedStateHandle[RETAKE_KEY] = false },
+        onSaved = { editId, openId, fromCamera ->
             if (editId != null) {
-                navController.navigate(Routes.scanEdit(editId, isNew = true)) // new scan: crop view first
+                // new scan: crop view first
+                navController.navigate(Routes.scanEdit(editId, isNew = true, fromCamera = fromCamera))
             } else {
                 navController.showLibrary(openId)
             }

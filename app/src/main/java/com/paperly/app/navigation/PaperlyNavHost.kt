@@ -84,14 +84,19 @@ object Routes {
     const val SCAN_PAGES = "scan-pages/{documentId}"
     fun scanPages(documentId: String) = "scan-pages/$documentId"
     const val SCAN_EDIT =
-        "scan-edit/{documentId}?new={new}&add={add}&pick={pick}&page={page}&crop={crop}&delete={delete}"
+        "scan-edit/{documentId}?new={new}&add={add}&pick={pick}&page={page}&crop={crop}&delete={delete}&cam={cam}"
 
     /**
      * [isNew] = scan just saved (crop mode first, leaving opens the document); [add] = start "Add scan";
-     * [pick] = start the gallery picker ("Add pictures").
+     * [pick] = start the gallery picker ("Add pictures"); [fromCamera] = the new scan came from the in-app camera.
      */
-    fun scanEdit(documentId: String, isNew: Boolean = false, add: Boolean = false, pick: Boolean = false) =
-        "scan-edit/$documentId?new=$isNew&add=$add&pick=$pick"
+    fun scanEdit(
+        documentId: String,
+        isNew: Boolean = false,
+        add: Boolean = false,
+        pick: Boolean = false,
+        fromCamera: Boolean = false,
+    ) = "scan-edit/$documentId?new=$isNew&add=$add&pick=$pick&cam=$fromCamera"
 
     /** The editor opened on [page] (0-based): [crop] starts in the crop step, [delete] removes the page at once. */
     fun scanEditAt(documentId: String, page: Int, crop: Boolean = false, delete: Boolean = false) =

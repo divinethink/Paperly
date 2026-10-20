@@ -48,13 +48,15 @@ private val LOUPE_BORDER = 2.dp
 private val LOUPE_SHADOW_OFFSET = 2.dp
 private val CROSS_ARM = 10.dp
 private const val LOUPE_MAGNIFY = 2.5f
+private const val FIT_MARGIN = 0.06f
 private const val LOUPE_SHADOW_ALPHA = 0.25f
 
 /** Where the image sits inside the canvas (letterboxed). */
 private class Fit(val left: Float, val top: Float, val width: Float, val height: Float)
 
 private fun fit(box: IntSize, image: ImageBitmap): Fit {
-    val scale = minOf(box.width.toFloat() / image.width, box.height.toFloat() / image.height)
+    val keep = 1f - 2f * FIT_MARGIN // free space around the picture so the edge handles stay easy to grab
+    val scale = minOf(box.width * keep / image.width, box.height * keep / image.height)
     val w = image.width * scale
     val h = image.height * scale
     return Fit((box.width - w) / 2f, (box.height - h) / 2f, w, h)
