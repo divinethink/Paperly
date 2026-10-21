@@ -3,6 +3,7 @@ package com.paperly.app.feature.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.core.debug.ImportDebug
 import com.paperly.app.core.intent.IncomingImportRequests
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
@@ -38,9 +39,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class ImportError { Unsupported, Failed }
@@ -171,8 +174,15 @@ class LibraryViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private val documentsResult: Flow<DocsResult> = reload.flatMapLatest {
         repository.observeDocuments()
-            .map<List<Document>, DocsResult> { DocsResult.Ready(it) }
-            .onStart { emit(DocsResult.Loading) }
+            .map<List<Document>, DocsResult> {
+                ImportDebug.log("VM[${type.key}] got ${it.size} docs")
+                DocsResult.Ready(it)
+            }
+            .onStart {
+                ImportDebug.log("VM[${type.key}] docs flow start")
+                emit(DocsResult.Loading)
+            }
+            .onCompletion { ImportDebug.log("VM[${type.key}] docs flow end") }
             .catch { emit(DocsResult.Failed) }
     }
 
@@ -260,6 +270,10 @@ class LibraryViewModel @Inject constructor(
                 val result = PerfTrace.span("library.import") { repository.importDocument(uri, allowDuplicate) }
                 error.value = when (result) {
                     is ImportResult.Success -> {
+                        viewModelScope.launch {
+                            delay(1500)
+                            ImportDebug.log("after1.5s VM[${type.key}] uiTotal=${uiState.value.totalCount}")
+                        }
                         announceTab(result.documentId)
                         null
                     }

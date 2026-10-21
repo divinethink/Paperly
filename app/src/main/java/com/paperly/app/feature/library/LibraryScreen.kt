@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.debug.ImportDebug
 import com.paperly.app.core.model.DocumentType
 import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.LibraryType
@@ -117,6 +118,10 @@ fun LibraryScreen(
         // "Continue reading" is a reading shortcut: not shown on the Scanned tab
         if (viewModel.type != LibraryType.SCAN) {
             ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
+        }
+        val debugLines by ImportDebug.lines.collectAsStateWithLifecycle()
+        if (debugLines.isNotEmpty()) {
+            Text(debugLines.joinToString("\n"), style = MaterialTheme.typography.labelSmall)
         }
         ImageExportStatus()
         DocxConversionStatus(navigation.onOpenReader)

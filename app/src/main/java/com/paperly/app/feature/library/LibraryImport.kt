@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
+import com.paperly.app.core.debug.ImportDebug
 import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.LibraryType
 import com.paperly.app.feature.common.EmptyState
@@ -46,6 +47,7 @@ internal enum class ImportKind(val mimeTypes: Array<String>) {
 internal fun rememberImportStarter(viewModel: LibraryViewModel): (ImportKind) -> Unit {
     val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        ImportDebug.log("picker uri=${uri != null} tab=${viewModel.type.key}")
         when {
             uri == null -> Unit
             isDocx(context, uri) -> enqueueDocxConversion(context, uri) // Word file -> background EPUB conversion
