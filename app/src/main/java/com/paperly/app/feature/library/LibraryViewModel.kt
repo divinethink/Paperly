@@ -62,6 +62,7 @@ private sealed interface DocsResult {
 }
 
 private const val RECENT_LIMIT = 20
+private const val DEBUG_CHECK_DELAY_MS = 1_500L // TEMP import debug
 
 /** Navigation argument carrying the [LibraryType] key of a Library tab (Scanned / PDF / EPUB). */
 const val LIBRARY_TYPE_ARG = "type"
@@ -271,7 +272,7 @@ class LibraryViewModel @Inject constructor(
                 error.value = when (result) {
                     is ImportResult.Success -> {
                         viewModelScope.launch {
-                            delay(1500)
+                            delay(DEBUG_CHECK_DELAY_MS)
                             ImportDebug.log("after1.5s VM[${type.key}] uiTotal=${uiState.value.totalCount}")
                         }
                         announceTab(result.documentId)

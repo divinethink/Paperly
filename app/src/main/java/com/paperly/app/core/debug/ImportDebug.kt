@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+private const val MAX_LINES = 16
+
 /** TEMPORARY debug trace (import list bug). Delete this file and every ImportDebug.log call once fixed. */
 object ImportDebug {
     private val state = MutableStateFlow<List<String>>(emptyList())
@@ -17,6 +19,6 @@ object ImportDebug {
     fun log(msg: String) {
         val time = SimpleDateFormat("mm:ss.SSS", Locale.US).format(Date())
         Log.d("PaperlyDbg", msg)
-        state.update { (it + "$time $msg").takeLast(16) }
+        state.update { (it + "$time $msg").takeLast(MAX_LINES) }
     }
 }
