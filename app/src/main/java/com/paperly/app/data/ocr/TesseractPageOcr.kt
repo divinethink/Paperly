@@ -3,6 +3,7 @@ package com.paperly.app.data.ocr
 import android.content.Context
 import android.graphics.Bitmap
 import com.googlecode.tesseract.android.TessBaseAPI
+import com.paperly.app.domain.ocr.OcrTextCleaner
 import com.paperly.app.domain.ocr.PageOcr
 import com.paperly.app.domain.reader.ReaderEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,7 +22,7 @@ private const val RENDER_WIDTH = 2000
 private val straightBarAfterBengali = Regex("(?<=[\\u0980-\\u09FF])(\\s?)\\|")
 
 /** Tesseract often reads the Bengali danda (।) as a straight bar; only a bar right after Bengali text is fixed. */
-private fun fixDanda(text: String) = text.replace(straightBarAfterBengali, "\$1\u0964")
+private fun fixDanda(text: String) = OcrTextCleaner.clean(text.replace(straightBarAfterBengali, "\$1\u0964"))
 
 /**
  * Tesseract (Bengali + English) behind [PageOcr]. One recogniser, one page at a time; text is cached by

@@ -172,6 +172,7 @@ private fun ReflowPage(
             modifier = Modifier.padding(bottom = BASE_MARGIN_DP.dp),
         )
     }
+    if (ocr != null && state !is ReflowPageState.Loading) OriginalPageToggle(ocr, index, color)
 }
 
 /** OCR text is shown as read (Bengali is expected here); null = the page could not be read. */

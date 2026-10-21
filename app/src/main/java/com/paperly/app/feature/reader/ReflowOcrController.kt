@@ -1,5 +1,6 @@
 package com.paperly.app.feature.reader
 
+import android.graphics.Bitmap
 import com.paperly.app.domain.ocr.PageOcr
 import com.paperly.app.domain.reader.ReaderEngine
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,9 @@ class ReflowOcrController(
             downloadState.value = OcrDownloadUi(running = false, failed = !ok)
         }
     }
+
+    /** The original page image, so a wrong reading can be checked; null = could not be drawn. */
+    suspend fun pageImage(index: Int, widthPx: Int): Bitmap? = engine()?.renderPage(index, widthPx)
 
     /** Text of one page; null = could not be read. */
     suspend fun pageText(index: Int): String? = engine()?.let { ocr.pageText(documentId, it, index) }
