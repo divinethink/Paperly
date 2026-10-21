@@ -3,7 +3,6 @@ package com.paperly.app.feature.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paperly.app.core.debug.ImportDebug
 import com.paperly.app.core.intent.IncomingImportRequests
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
@@ -24,7 +23,6 @@ import com.paperly.app.feature.scanner.ScanFolderTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +38,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -62,7 +59,6 @@ private sealed interface DocsResult {
 }
 
 private const val RECENT_LIMIT = 20
-private const val DEBUG_CHECK_DELAY_MS = 1_500L // TEMP import debug
 
 /** Navigation argument carrying the [LibraryType] key of a Library tab (Scanned / PDF / EPUB). */
 const val LIBRARY_TYPE_ARG = "type"
@@ -175,15 +171,8 @@ class LibraryViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private val documentsResult: Flow<DocsResult> = reload.flatMapLatest {
         repository.observeDocuments()
-            .map<List<Document>, DocsResult> {
-                ImportDebug.log("VM[${type.key}] got ${it.size} docs")
-                DocsResult.Ready(it)
-            }
-            .onStart {
-                ImportDebug.log("VM[${type.key}] docs flow start")
-                emit(DocsResult.Loading)
-            }
-            .onCompletion { ImportDebug.log("VM[${type.key}] docs flow end") }
+            .map<List<Document>, DocsResult> { DocsResult.Ready(it) }
+            .onStart { emit(DocsResult.Loading) }
             .catch { emit(DocsResult.Failed) }
     }
 
@@ -271,10 +260,9 @@ class LibraryViewModel @Inject constructor(
                 val result = PerfTrace.span("library.import") { repository.importDocument(uri, allowDuplicate) }
                 error.value = when (result) {
                     is ImportResult.Success -> {
-                        viewModelScope.launch {
-                            delay(DEBUG_CHECK_DELAY_MS)
-                            ImportDebug.log("after1.5s VM[${type.key}] uiTotal=${uiState.value.totalCount}")
-                        }
+                        // Room can miss the change when the list was re-subscribed right as the file picker closed
+                        // (the new row never appeared until restart); a fresh query is always correct.
+                        reload.update { it + 1 }
                         announceTab(result.documentId)
                         null
                     }
