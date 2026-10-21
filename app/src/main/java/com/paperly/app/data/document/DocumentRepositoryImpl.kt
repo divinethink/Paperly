@@ -20,8 +20,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.util.UUID
-import javax.inject.Inject
 import java.util.concurrent.atomic.AtomicInteger
+import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
