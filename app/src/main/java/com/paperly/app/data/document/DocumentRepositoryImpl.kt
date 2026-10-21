@@ -6,7 +6,6 @@ import android.provider.OpenableColumns
 import com.paperly.app.core.database.AggregateDao
 import com.paperly.app.core.database.DocumentDao
 import com.paperly.app.core.database.DocumentEntity
-import com.paperly.app.core.debug.ImportDebug
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.model.DocumentType
 import com.paperly.app.domain.document.Document
@@ -20,19 +19,13 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
-
-private val debugFlowSeq = AtomicInteger()
 
 @Singleton
 class DocumentRepositoryImpl @Inject constructor(
@@ -43,14 +36,8 @@ class DocumentRepositoryImpl @Inject constructor(
     private val aggregateDao: AggregateDao,
 ) : DocumentRepository {
 
-    override fun observeDocuments(): Flow<List<Document>> {
-        val tag = "F" + debugFlowSeq.incrementAndGet()
-        return dao.observeActive()
-            .onStart { ImportDebug.log("$tag start") }
-            .onEach { ImportDebug.log("$tag emit rows=${it.size}") }
-            .onCompletion { ImportDebug.log("$tag end ${it?.javaClass?.simpleName.orEmpty()}") }
-            .map { list -> list.mapNotNull { it.toDomain() } }
-    }
+    override fun observeDocuments(): Flow<List<Document>> =
+        dao.observeActive().map { list -> list.mapNotNull { it.toDomain() } }
 
     override val finishedIds: Flow<Set<String>> get() = aggregateDao.observeFinishedIds().map { it.toSet() }
 
@@ -142,8 +129,6 @@ class DocumentRepositoryImpl @Inject constructor(
             cleanup(id) // no orphan file if the DB write failed
             ImportResult.Failed
         }
-        val dbRows = runCatching { aggregateDao.getAllActive().size }.getOrNull()
-        ImportDebug.log("import result=${result::class.simpleName} dbRows=$dbRows")
         // After the try: a queue problem must never be mistaken for a failed insert (which would delete the file).
         if (result is ImportResult.Success) syncQueue.documentChanged(id)
         return result
