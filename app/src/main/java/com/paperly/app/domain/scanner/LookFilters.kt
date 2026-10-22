@@ -20,8 +20,8 @@ object LookFilters {
     private const val MIN_BACKGROUND = 40
     private const val WHITE_POINT = 240
     private const val AUTO_CONTRAST = 1.1f
-    private const val CLEAN_BLACK = 70
-    private const val CLEAN_WHITE = 200
+    private const val CLEAN_BLACK = 120
+    private const val CLEAN_WHITE = 215
     private const val SMOOTH_A = 3f
     private const val SMOOTH_B = 2f
     private const val PHOTO_CONTRAST = 1.06f
@@ -87,7 +87,7 @@ object LookFilters {
 
     /**
      * "Clean": [docs] shadow removal, then grey with a soft S-curve: paper turns pure white, ink dark and crisp
-     * (below [CLEAN_BLACK] black, above [CLEAN_WHITE] white, smooth in between so thin strokes keep their edges).
+     * (grey below [CLEAN_BLACK] turns black, above [CLEAN_WHITE] white; the high black point keeps thin strokes dark).
      */
     fun clean(px: IntArray, w: Int, h: Int): IntArray {
         val flat = docs(px, w, h)

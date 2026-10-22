@@ -207,15 +207,23 @@ private fun annotationHooks(
 private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listState: LazyListState, look: PageLook) {
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val scanPages: ScanPageViewModel = hiltViewModel()
+    val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     if (reflow) {
         Box(Modifier.fillMaxSize().padding(readerEdgePadding())) {
             ReflowPages(viewModel.search, state.pageCount, if (search.needsOcr) viewModel.reflowOcr else null)
         }
     } else {
-        PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
+        // Scans are viewed one page per screen (swipe left / right); marking and search keep the scrolling list.
+        val paged = isScan && !look.hooks.annotate && !search.open
+        if (paged) {
+            ScanPages(viewModel, listState, state.pageCount, look.hooks)
+        } else {
+            PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
+        }
         PdfPaceOverlay(listState, state.pageCount, look.showPace)
         PdfPageBadge(listState, state.pageCount, look.showPace, enabled = !search.open && !look.hooks.annotate)
-        PdfScrollHandle(listState, state.pageCount, enabled = !search.open && !look.hooks.annotate)
+        if (!paged) PdfScrollHandle(listState, state.pageCount, enabled = !search.open && !look.hooks.annotate)
     }
 }
 

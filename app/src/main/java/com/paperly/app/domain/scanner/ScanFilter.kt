@@ -18,11 +18,11 @@ enum class ScanFilter {
 }
 
 /**
- * Filters shown as thumbnails. B/W is a separate toggle button; COLOR/GRAY stay in the enum (older pages keep
- * their look) but are no longer offered.
+ * Filters shown as thumbnails. B/W is a separate toggle button; COLOR/GRAY/PHOTO/AUTO stay in the enum (older pages
+ * keep their look) but are no longer offered.
  */
 val SCAN_FILTER_CHOICES: List<ScanFilter> =
-    listOf(ScanFilter.ORIGINAL, ScanFilter.PHOTO, ScanFilter.DOCS, ScanFilter.CLEAN, ScanFilter.AUTO)
+    listOf(ScanFilter.ORIGINAL, ScanFilter.DOCS, ScanFilter.CLEAN)
 
 /** B/W button: not B/W -> BW; already B/W -> back to the filter it replaced ([before]), else ORIGINAL. */
 fun toggledBw(current: ScanFilter, before: ScanFilter?): ScanFilter =
