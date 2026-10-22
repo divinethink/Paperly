@@ -76,7 +76,7 @@ private fun ScanPagesReady(
     val busy by selection.busy.collectAsStateWithLifecycle()
     val selecting = chosen.isNotEmpty()
     val export = rememberDocumentExport(doc)
-    val pageExport = rememberPageExport(doc, chosen)
+    val pageExport = rememberPageExport(doc, chosen, selection::clear)
     val transfer = rememberPageTransfer(chosen) { moved ->
         selection.clear()
         if (moved) viewModel.refresh()

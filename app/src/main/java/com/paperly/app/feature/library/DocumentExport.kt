@@ -165,7 +165,7 @@ private fun ScanFormatPrompt(
 
 /** PDF or JPG, with an editable file name (made safe by [ExportFiles.baseName]) and the current PDF size. */
 @Composable
-private fun ScanFormatDialog(
+internal fun ScanFormatDialog(
     initialName: String,
     sizeText: String?,
     onPdf: (String) -> Unit,
@@ -198,7 +198,7 @@ internal fun toast(context: Context, @StringRes message: Int) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }
 
-private suspend fun shareFile(context: Context, source: File?, name: String, mime: String) {
+internal suspend fun shareFile(context: Context, source: File?, name: String, mime: String) {
     val copy = source?.let { copyOrNull(context, it, name) }
     if (copy == null) {
         toast(context, R.string.export_failed)
