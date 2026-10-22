@@ -29,8 +29,6 @@ object LookFilters {
     private const val PAPER_R = 250
     private const val PAPER_G = 236
     private const val PAPER_B = 210
-    private const val SMOOTH_A = 3f
-    private const val SMOOTH_B = 2f
     private const val PHOTO_CONTRAST = 1.06f
     private const val PHOTO_SATURATION = 1.25f
     private const val MID = 128f
