@@ -242,6 +242,7 @@
     <string name="scan_filter_docs">Docs</string>
     <string name="scan_filter_auto">Auto</string>
     <string name="scan_filter_photo">Photo</string>
+    <string name="scan_filter_clean">Clean</string>
     <string name="scan_filter_apply_all">Use this filter on all pages</string>
     <string name="scan_adjust">Adjust</string>
     <string name="scan_adjust_brightness">Brightness</string>

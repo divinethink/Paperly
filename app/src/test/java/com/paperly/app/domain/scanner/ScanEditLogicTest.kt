@@ -140,6 +140,15 @@ class ScanEditLogicTest {
         assertEquals(15, LookFilters.docs(IntArray(15) { 0xFF000000.toInt() }, 5, 3).size)
     }
 
+    @Test fun cleanMakesPaperWhiteAndInkDark() {
+        // grey paper (shadowed) with one dark ink pixel
+        val px = IntArray(100) { if (it == 55) 0xFF303030.toInt() else 0xFFC8C8C8.toInt() }
+        val out = LookFilters.clean(px, 10, 10)
+        assertEquals(100, out.size)
+        assertTrue((out[10] and 0xFF) > 245) // paper -> white
+        assertTrue((out[55] and 0xFF) < 40) // ink stays dark
+    }
+
     @Test fun autoEnhanceRemovesColourCast() {
         // yellow-tinted paper (low blue) with dark ink
         val px = IntArray(100) { if (it < 10) 0xFF302010.toInt() else 0xFFE0D070.toInt() }

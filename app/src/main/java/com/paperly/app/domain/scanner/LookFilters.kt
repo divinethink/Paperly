@@ -20,6 +20,10 @@ object LookFilters {
     private const val MIN_BACKGROUND = 40
     private const val WHITE_POINT = 240
     private const val AUTO_CONTRAST = 1.1f
+    private const val CLEAN_BLACK = 70
+    private const val CLEAN_WHITE = 200
+    private const val SMOOTH_A = 3f
+    private const val SMOOTH_B = 2f
     private const val PHOTO_CONTRAST = 1.06f
     private const val PHOTO_SATURATION = 1.25f
     private const val MID = 128f
@@ -79,6 +83,20 @@ object LookFilters {
             }
         }
         return out
+    }
+
+    /**
+     * "Clean": [docs] shadow removal, then grey with a soft S-curve: paper turns pure white, ink dark and crisp
+     * (below [CLEAN_BLACK] black, above [CLEAN_WHITE] white, smooth in between so thin strokes keep their edges).
+     */
+    fun clean(px: IntArray, w: Int, h: Int): IntArray {
+        val flat = docs(px, w, h)
+        return IntArray(flat.size) {
+            val grey = PixelFilters.luma(flat[it]) - CLEAN_BLACK
+            val t = (grey.toFloat() / (CLEAN_WHITE - CLEAN_BLACK)).coerceIn(0f, 1f)
+            val v = (t * t * (SMOOTH_A - SMOOTH_B * t) * CHANNEL).toInt().coerceIn(0, CHANNEL)
+            OPAQUE or (v shl SHIFT_R) or (v shl SHIFT_G) or v
+        }
     }
 
     /** "Auto": each colour channel is levelled on its own (removes colour casts), then a small contrast boost. */
