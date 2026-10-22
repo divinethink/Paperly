@@ -1,5 +1,6 @@
 package com.paperly.app.feature.scanner
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -67,7 +68,7 @@ fun ScanScreen(
         CameraResult(
             onPicture = {
                 fromCamera = true
-                viewModel.onGalleryPicked(listOf(it.toString()))
+                viewModel.onGalleryPicked(it.map(Uri::toString))
             },
             onCancel = cancelled,
             onUnavailable = viewModel::onUnavailable,

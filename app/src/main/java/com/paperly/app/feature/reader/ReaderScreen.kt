@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -366,6 +367,7 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
                 bitmap = remember(current) { current.asImageBitmap() },
                 contentDescription = stringResource(R.string.reader_page_description, index + 1, spec.pageCount),
                 contentScale = ContentScale.FillWidth,
+                filterQuality = FilterQuality.High, // page bitmaps are larger than the screen: smooth, not jagged
                 colorFilter = spec.filter,
                 modifier = Modifier.fillMaxWidth(),
             )

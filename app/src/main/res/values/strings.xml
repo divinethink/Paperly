@@ -219,6 +219,9 @@
     <string name="scan_camera_flash_on">Flash on</string>
     <string name="scan_camera_grid_on">Grid on</string>
     <string name="scan_camera_grid_off">Grid off</string>
+    <string name="scan_camera_single">Single page</string>
+    <string name="scan_camera_multi">Multi page</string>
+    <string name="scan_camera_done">Done (%d)</string>
     <string name="scan_here">Scan here</string>
     <string name="scan_here_gallery">Gallery here</string>
     <string name="scan_gallery">Import from gallery</string>

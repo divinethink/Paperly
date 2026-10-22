@@ -55,8 +55,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.paperly.app.R
 
-private enum class FlashChoice { Off, Auto, On }
-
 private const val GRID_DIVISIONS = 3
 private const val GRID_ALPHA = 0.5f
 private val SHUTTER_SIZE = 76.dp
@@ -65,39 +63,40 @@ private val SHUTTER_GAP = 8.dp
 private val SHUTTER_MARGIN = 24.dp
 
 /**
- * The app's own full-screen camera (CameraX): one picture goes to [onPicture] as a temp-file Uri and the dialog is
- * closed by the caller. [onClose] = Back / X, [onFailed] = the picture could not be taken. Tap = focus, pinch = zoom.
+ * The app's own full-screen camera (CameraX): pictures go to [onPicture] as temp-file Uris (one, or all taken in
+ * multi-page mode) and the dialog is closed by the caller. [onClose] = Back / X with nothing taken, [onFailed] = the
+ * picture could not be taken. Tap = focus, pinch = zoom.
  */
 @Composable
-internal fun ScanCameraDialog(onPicture: (Uri) -> Unit, onClose: () -> Unit, onFailed: () -> Unit) {
+internal fun ScanCameraDialog(onPicture: (List<Uri>) -> Unit, onClose: () -> Unit, onFailed: () -> Unit) {
+    var shots by rememberSaveable { mutableStateOf(emptyList<String>()) } // multi-page pictures taken so far
+    // Back / X: nothing taken -> cancel; pictures already taken are handed on (never thrown away)
+    val finish = { if (shots.isEmpty()) onClose() else onPicture(shots.map(Uri::parse)) }
     Dialog(
-        onDismissRequest = onClose,
+        onDismissRequest = finish,
         properties = DialogProperties(
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
         ),
     ) {
-        ScanCameraContent(onPicture, onClose, onFailed)
+        ScanCameraContent(shots, { shots = it }, onPicture, finish, onFailed)
     }
 }
 
 @Composable
-private fun ScanCameraContent(onPicture: (Uri) -> Unit, onClose: () -> Unit, onFailed: () -> Unit) {
+private fun ScanCameraContent(
+    shots: List<String>,
+    onShots: (List<String>) -> Unit,
+    onPicture: (List<Uri>) -> Unit,
+    onFinish: () -> Unit,
+    onFailed: () -> Unit,
+) {
     val context = LocalContext.current
-    val owner = LocalLifecycleOwner.current
-    val cameraController = remember {
-        LifecycleCameraController(context).apply {
-            setEnabledUseCases(CameraController.IMAGE_CAPTURE)
-            imageCaptureMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY // documents: quality before speed
-        }
-    }
-    DisposableEffect(owner) {
-        cameraController.bindToLifecycle(owner)
-        onDispose { cameraController.unbind() }
-    }
+    val cameraController = rememberScanCameraController()
     var flash by rememberSaveable { mutableStateOf(FlashChoice.Off) }
     var grid by rememberSaveable { mutableStateOf(false) }
+    var multi by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     LaunchedEffect(flash) { applyFlash(cameraController, flash) }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -115,7 +114,7 @@ private fun ScanCameraContent(onPicture: (Uri) -> Unit, onClose: () -> Unit, onF
         CameraTopBar(
             flash = flash,
             grid = grid,
-            onClose = onClose,
+            onClose = onFinish,
             onFlash = { flash = FlashChoice.entries[(flash.ordinal + 1) % FlashChoice.entries.size] },
             onGrid = { grid = !grid },
         )
@@ -124,12 +123,38 @@ private fun ScanCameraContent(onPicture: (Uri) -> Unit, onClose: () -> Unit, onF
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             busy = true
-            shoot(context, cameraController, onPicture) {
+            shoot(context, cameraController, shots.size, { uri ->
+                val all = shots + uri.toString()
+                if (multi) {
+                    busy = false
+                    onShots(all)
+                } else {
+                    onPicture(all.map(Uri::parse))
+                }
+            }) {
                 busy = false
                 onFailed()
             }
         }
+        MultiControls(multi, shots.size, { multi = !multi }, onFinish, Modifier.align(Alignment.BottomCenter))
     }
+}
+
+@Composable
+private fun rememberScanCameraController(): LifecycleCameraController {
+    val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
+    val controller = remember {
+        LifecycleCameraController(context).apply {
+            setEnabledUseCases(CameraController.IMAGE_CAPTURE)
+            imageCaptureMode = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY // documents: quality before speed
+        }
+    }
+    DisposableEffect(owner) {
+        controller.bindToLifecycle(owner)
+        onDispose { controller.unbind() }
+    }
+    return controller
 }
 
 @Composable
@@ -150,6 +175,27 @@ private fun CameraTopBar(
         Box(Modifier.weight(1f))
         CameraTextButton(flashLabel(flash), onFlash)
         CameraTextButton(if (grid) R.string.scan_camera_grid_on else R.string.scan_camera_grid_off, onGrid)
+    }
+}
+
+/** Single / multi-page switch (left of the shutter) and, once pictures were taken, "Done (n)" (right). */
+@Composable
+private fun MultiControls(multi: Boolean, count: Int, onToggle: () -> Unit, onDone: () -> Unit, modifier: Modifier) {
+    Row(
+        modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = SHUTTER_MARGIN),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CameraTextButton(if (multi) R.string.scan_camera_multi else R.string.scan_camera_single, onToggle)
+        Box(Modifier.weight(1f))
+        if (count > 0) {
+            TextButton(
+                onClick = onDone,
+                modifier = Modifier.heightIn(min = 48.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+            ) {
+                Text(stringResource(R.string.scan_camera_done, count))
+            }
+        }
     }
 }
 
@@ -197,29 +243,15 @@ private fun GridLines() {
     }
 }
 
-@StringRes
-private fun flashLabel(choice: FlashChoice): Int = when (choice) {
-    FlashChoice.Off -> R.string.scan_camera_flash_off
-    FlashChoice.Auto -> R.string.scan_camera_flash_auto
-    FlashChoice.On -> R.string.scan_camera_flash_on
-}
-
-private fun applyFlash(controller: LifecycleCameraController, choice: FlashChoice) {
-    controller.imageCaptureFlashMode = when (choice) {
-        FlashChoice.Auto -> ImageCapture.FLASH_MODE_AUTO
-        FlashChoice.On -> ImageCapture.FLASH_MODE_ON
-        FlashChoice.Off -> ImageCapture.FLASH_MODE_OFF
-    }
-}
-
-/** Takes one picture into the single temp file; any failure (camera not ready, disk) goes to [onFailed]. */
+/** Takes one picture into its own temp file (number [index]); any failure goes to [onFailed]. */
 private fun shoot(
     context: Context,
     controller: LifecycleCameraController,
+    index: Int,
     onSaved: (Uri) -> Unit,
     onFailed: () -> Unit,
 ) {
-    val file = newCaptureFile(context)
+    val file = newCaptureFile(context, index)
     val callback = object : ImageCapture.OnImageSavedCallback {
         override fun onImageSaved(output: ImageCapture.OutputFileResults) = onSaved(Uri.fromFile(file))
 
