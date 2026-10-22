@@ -122,6 +122,7 @@ internal object ScanPageRenderer {
             ScanFilter.AUTO -> LookFilters.autoEnhance(px)
             ScanFilter.PHOTO -> LookFilters.photo(px)
             ScanFilter.CLEAN -> LookFilters.clean(px, w, h)
+            ScanFilter.SEPIA -> LookFilters.sepia(px, w, h)
             ScanFilter.ORIGINAL -> px
         }
         val out = LookFilters.adjust(filtered, page.brightness, page.contrast)

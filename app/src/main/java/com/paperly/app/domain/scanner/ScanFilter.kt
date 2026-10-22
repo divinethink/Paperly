@@ -10,6 +10,7 @@ enum class ScanFilter {
     AUTO,
     PHOTO,
     CLEAN,
+    SEPIA,
     ;
 
     companion object {
@@ -22,7 +23,7 @@ enum class ScanFilter {
  * keep their look) but are no longer offered.
  */
 val SCAN_FILTER_CHOICES: List<ScanFilter> =
-    listOf(ScanFilter.ORIGINAL, ScanFilter.DOCS, ScanFilter.CLEAN)
+    listOf(ScanFilter.ORIGINAL, ScanFilter.DOCS, ScanFilter.CLEAN, ScanFilter.SEPIA)
 
 /** B/W button: not B/W -> BW; already B/W -> back to the filter it replaced ([before]), else ORIGINAL. */
 fun toggledBw(current: ScanFilter, before: ScanFilter?): ScanFilter =

@@ -146,7 +146,16 @@ class ScanEditLogicTest {
         val out = LookFilters.clean(px, 10, 10)
         assertEquals(100, out.size)
         assertTrue((out[10] and 0xFF) > 245) // paper -> white
-        assertTrue((out[55] and 0xFF) < 40) // ink stays dark
+        assertTrue((out[55] and 0xFF) < 70) // ink stays dark
+    }
+
+    @Test fun sepiaHasCreamPaperAndBrownInk() {
+        val px = IntArray(100) { if (it == 55) 0xFF303030.toInt() else 0xFFC8C8C8.toInt() }
+        val out = LookFilters.sepia(px, 10, 10)
+        fun r(i: Int) = (out[i] shr 16) and 0xFF
+        fun b(i: Int) = out[i] and 0xFF
+        assertTrue(r(10) > 240 && r(10) - b(10) > 20) // warm paper (red above blue)
+        assertTrue(r(55) < 120) // dark ink
     }
 
     @Test fun autoEnhanceRemovesColourCast() {

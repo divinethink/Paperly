@@ -166,6 +166,7 @@ internal fun filterLabel(filter: ScanFilter): Int = when (filter) {
     ScanFilter.AUTO -> R.string.scan_filter_auto
     ScanFilter.PHOTO -> R.string.scan_filter_photo
     ScanFilter.CLEAN -> R.string.scan_filter_clean
+    ScanFilter.SEPIA -> R.string.scan_filter_sepia
 }
 
 /** Manual brightness and contrast of the shown page (saved with the page; "Reset" puts both back to 0). */

@@ -20,8 +20,15 @@ object LookFilters {
     private const val MIN_BACKGROUND = 40
     private const val WHITE_POINT = 240
     private const val AUTO_CONTRAST = 1.1f
-    private const val CLEAN_BLACK = 120
-    private const val CLEAN_WHITE = 215
+    private const val CLEAN_KEEP = 150
+    private const val CLEAN_WHITE = 225
+    private const val CLEAN_INK_GAIN = 0.85f
+    private const val INK_R = 70
+    private const val INK_G = 45
+    private const val INK_B = 25
+    private const val PAPER_R = 250
+    private const val PAPER_G = 236
+    private const val PAPER_B = 210
     private const val SMOOTH_A = 3f
     private const val SMOOTH_B = 2f
     private const val PHOTO_CONTRAST = 1.06f
@@ -86,18 +93,37 @@ object LookFilters {
     }
 
     /**
-     * "Clean": [docs] shadow removal, then grey with a soft S-curve: paper turns pure white, ink dark and crisp
-     * (grey below [CLEAN_BLACK] turns black, above [CLEAN_WHITE] white; the high black point keeps thin strokes dark).
+     * "Clean": [docs] shadow removal, then grey. Light greys (faint shadow, fold marks; [CLEAN_KEEP]..[CLEAN_WHITE])
+     * are pushed to pure white; darker pixels keep their own gradation (a little darker) so letters stay as clear as
+     * in Docs.
      */
     fun clean(px: IntArray, w: Int, h: Int): IntArray {
         val flat = docs(px, w, h)
+        val inkTop = CLEAN_KEEP * CLEAN_INK_GAIN
         return IntArray(flat.size) {
-            val grey = PixelFilters.luma(flat[it]) - CLEAN_BLACK
-            val t = (grey.toFloat() / (CLEAN_WHITE - CLEAN_BLACK)).coerceIn(0f, 1f)
-            val v = (t * t * (SMOOTH_A - SMOOTH_B * t) * CHANNEL).toInt().coerceIn(0, CHANNEL)
+            val grey = PixelFilters.luma(flat[it])
+            val v = if (grey <= CLEAN_KEEP) {
+                grey * CLEAN_INK_GAIN
+            } else {
+                val t = ((grey - CLEAN_KEEP).toFloat() / (CLEAN_WHITE - CLEAN_KEEP)).coerceAtMost(1f)
+                inkTop + (CHANNEL - inkTop) * t
+            }.toInt().coerceIn(0, CHANNEL)
             OPAQUE or (v shl SHIFT_R) or (v shl SHIFT_G) or v
         }
     }
+
+    /** "Sepia": the [clean] page printed in warm tones: cream paper, dark brown ink. */
+    fun sepia(px: IntArray, w: Int, h: Int): IntArray {
+        val base = clean(px, w, h)
+        return IntArray(base.size) {
+            val v = base[it] and CHANNEL
+            val r = mix(INK_R, PAPER_R, v)
+            val g = mix(INK_G, PAPER_G, v)
+            OPAQUE or (r shl SHIFT_R) or (g shl SHIFT_G) or mix(INK_B, PAPER_B, v)
+        }
+    }
+
+    private fun mix(ink: Int, paper: Int, v: Int) = ink + (paper - ink) * v / CHANNEL
 
     /** "Auto": each colour channel is levelled on its own (removes colour casts), then a small contrast boost. */
     fun autoEnhance(px: IntArray): IntArray {
