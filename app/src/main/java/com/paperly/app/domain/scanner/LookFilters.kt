@@ -1,5 +1,7 @@
 package com.paperly.app.domain.scanner
 
+import kotlin.math.pow
+
 /**
  * "Look" filters (Docs / Auto / Photo): pure pixel maths on ARGB int arrays, no Android types. Every function returns
  * a NEW array and keeps alpha opaque. Kept apart from [PixelFilters] (levels, grey, black & white).
@@ -20,15 +22,17 @@ object LookFilters {
     private const val MIN_BACKGROUND = 40
     private const val WHITE_POINT = 240
     private const val AUTO_CONTRAST = 1.1f
-    private const val CLEAN_KEEP = 150
-    private const val CLEAN_WHITE = 225
-    private const val CLEAN_INK_GAIN = 0.85f
+    private const val CLEAN_KEEP = 185
+    private const val CLEAN_WHITE = 222
+    private const val CLEAN_GAMMA = 1.4f
     private const val INK_R = 70
     private const val INK_G = 45
     private const val INK_B = 25
     private const val PAPER_R = 250
     private const val PAPER_G = 236
     private const val PAPER_B = 210
+    private const val SMOOTH_A = 3f
+    private const val SMOOTH_B = 2f
     private const val PHOTO_CONTRAST = 1.06f
     private const val PHOTO_SATURATION = 1.25f
     private const val MID = 128f
@@ -91,21 +95,23 @@ object LookFilters {
     }
 
     /**
-     * "Clean": [docs] shadow removal, then grey. Light greys (faint shadow, fold marks; [CLEAN_KEEP]..[CLEAN_WHITE])
-     * are pushed to pure white; darker pixels keep their own gradation (a little darker) so letters stay as clear as
-     * in Docs.
+     * "Clean": [docs] shadow removal, then grey through a smooth curve: greys up to [CLEAN_KEEP] (letters) are
+     * darkened a little (gamma, no steps, so thin strokes never break up); the light range [CLEAN_KEEP]..[CLEAN_WHITE]
+     * (faint shadow, fold marks) is lifted to pure white.
      */
     fun clean(px: IntArray, w: Int, h: Int): IntArray {
         val flat = docs(px, w, h)
-        val inkTop = CLEAN_KEEP * CLEAN_INK_GAIN
-        return IntArray(flat.size) {
-            val grey = PixelFilters.luma(flat[it])
+        val curve = IntArray(HISTOGRAM) { grey ->
             val v = if (grey <= CLEAN_KEEP) {
-                grey * CLEAN_INK_GAIN
+                CLEAN_KEEP * (grey.toFloat() / CLEAN_KEEP).pow(CLEAN_GAMMA)
             } else {
-                val t = ((grey - CLEAN_KEEP).toFloat() / (CLEAN_WHITE - CLEAN_KEEP)).coerceAtMost(1f)
-                inkTop + (CHANNEL - inkTop) * t
-            }.toInt().coerceIn(0, CHANNEL)
+                CLEAN_KEEP + (CHANNEL - CLEAN_KEEP) * ((grey - CLEAN_KEEP).toFloat() / (CLEAN_WHITE - CLEAN_KEEP))
+                    .coerceAtMost(1f)
+            }
+            v.toInt().coerceIn(0, CHANNEL)
+        }
+        return IntArray(flat.size) {
+            val v = curve[PixelFilters.luma(flat[it]).coerceIn(0, CHANNEL)]
             OPAQUE or (v shl SHIFT_R) or (v shl SHIFT_G) or v
         }
     }
