@@ -1,6 +1,13 @@
 package com.paperly.app.feature.reader
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 
 /**
  * Hand-over of the tapped page thumbnail from the scan page grid to the Reader, so the Reader shows that page at once
@@ -22,5 +29,20 @@ object ScanOpenPreview {
         documentId = null
         bitmap = null
         return found
+    }
+}
+
+/** While the document opens: the tapped scan page's thumbnail if there is one, else the spinner. */
+@Composable
+internal fun OpeningPlaceholder(preview: Bitmap?) {
+    if (preview == null) {
+        CircularProgressIndicator()
+    } else {
+        Image(
+            preview.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+        )
     }
 }

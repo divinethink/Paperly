@@ -390,18 +390,3 @@ private fun errorText(error: ReaderError): Int = when (error) {
     ReaderError.UNSUPPORTED -> R.string.reader_unsupported
     else -> R.string.reader_open_failed
 }
-
-/** While the document opens: the tapped scan page's thumbnail if there is one, else the spinner. */
-@Composable
-private fun OpeningPlaceholder(preview: Bitmap?) {
-    if (preview == null) {
-        CircularProgressIndicator()
-    } else {
-        Image(
-            preview.asImageBitmap(),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-        )
-    }
-}
