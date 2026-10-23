@@ -142,9 +142,12 @@ private class PageZoom {
 
     /** Pinch by [change] about [focus] (area px) plus a [pan]; keeps the content under the fingers in place. */
     fun transform(change: Float, focus: Offset, pan: Offset) {
+        if (!change.isFinite() || !focus.x.isFinite() || !focus.y.isFinite()) return // never store a bad position
         val next = (scale * change).coerceIn(1f, MAX_PAGE_ZOOM)
         val c = focus - Offset(box.width / 2, box.height / 2)
-        offset = clamp(c - (c - offset) * (next / scale) + pan, next)
+        val moved = clamp(c - (c - offset) * (next / scale) + pan, next)
+        if (!moved.x.isFinite() || !moved.y.isFinite()) return
+        offset = moved
         scale = next
     }
 
@@ -177,7 +180,9 @@ private fun Modifier.zoomGestures(zoom: PageZoom, onTap: () -> Unit): Modifier =
                 awaitFirstDown(requireUnconsumed = false)
                 do {
                     val event = awaitPointerEvent()
-                    if (event.changes.count { it.pressed } > 1 || zoom.scale > 1f) {
+                    val fingers = event.changes.count { it.pressed }
+                    // no finger left (the lift-off event): there is no centre point, so nothing to transform
+                    if (fingers > 0 && (fingers > 1 || zoom.scale > 1f)) {
                         zoom.transform(event.calculateZoom(), event.calculateCentroid(), event.calculatePan())
                         event.changes.forEach { if (it.positionChanged()) it.consume() }
                     }
