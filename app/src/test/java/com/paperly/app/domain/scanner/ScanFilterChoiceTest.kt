@@ -27,11 +27,4 @@ class ScanFilterChoiceTest {
         assertEquals(ScanFilter.ORIGINAL, toggledBw(ScanFilter.BW, null))
         assertEquals(ScanFilter.ORIGINAL, toggledBw(ScanFilter.BW, ScanFilter.BW))
     }
-
-    @Test fun savedSizeNameFallsBackToMedium() {
-        assertEquals(ScanOutputSize.LARGE, scanOutputSizeOf("LARGE"))
-        assertEquals(ScanOutputSize.SMALL, scanOutputSizeOf("SMALL"))
-        assertEquals(ScanOutputSize.MEDIUM, scanOutputSizeOf(null))
-        assertEquals(ScanOutputSize.MEDIUM, scanOutputSizeOf("HUGE"))
-    }
 }

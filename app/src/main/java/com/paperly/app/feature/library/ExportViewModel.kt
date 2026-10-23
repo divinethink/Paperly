@@ -31,7 +31,7 @@ class ExportViewModel @Inject constructor(
         size: ExportSize = ExportSize.ACTUAL,
     ): List<File>? = file(documentId)?.let { jpg.render(it, base, pages, size) }
 
-    /** PDF of [pages] (0-based; null = the whole file) at [size]; ACTUAL = the stored pages untouched. null = failed. */
+    /** PDF of [pages] (0-based; null = whole file) at [size]; ACTUAL = stored pages untouched; null = failed. */
     suspend fun sizedPdf(documentId: String, base: String, pages: Set<Int>?, size: ExportSize): File? {
         val whole = file(documentId) ?: return null
         val part = if (pages == null) whole else subset.extract(whole, pages, base) ?: return null

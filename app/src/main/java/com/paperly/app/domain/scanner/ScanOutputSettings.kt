@@ -2,13 +2,7 @@ package com.paperly.app.domain.scanner
 
 import kotlinx.coroutines.flow.Flow
 
-/** Size/quality of saved scans, stored scan quality (default MEDIUM; no menu any more - Share / Save choose their own file size). */
+/** Quality of stored scans: always the best (LARGE); Share / Save choose a smaller file size themselves. */
 interface ScanOutputSettings {
     val size: Flow<ScanOutputSize>
-
-    suspend fun setSize(size: ScanOutputSize)
 }
-
-/** Never throws: a missing or unknown stored name (older/newer data) means MEDIUM. */
-fun scanOutputSizeOf(name: String?): ScanOutputSize =
-    ScanOutputSize.entries.firstOrNull { it.name == name } ?: ScanOutputSize.MEDIUM

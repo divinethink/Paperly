@@ -260,7 +260,7 @@ class ScanEditViewModel @Inject constructor(
         }
     }
 
-    /** Saves with the stored scan quality (no question each time). */
+    /** Saves at the stored scan quality (always LARGE). */
     fun save() {
         val state = _state.value
         if (state.saving) return
