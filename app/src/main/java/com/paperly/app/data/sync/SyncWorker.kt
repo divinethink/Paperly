@@ -15,7 +15,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface Entry {
-        fun processor(): SyncProcessor
+        fun processor(): ReadingSyncProcessor
     }
 
     override suspend fun doWork(): Result = try {

@@ -70,28 +70,22 @@ fun SyncSection(viewModel: SyncAccountViewModel = hiltViewModel()) {
 @Composable
 private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, viewModel: SyncAccountViewModel) {
     val context = LocalContext.current
-    val wifiOnly by viewModel.wifiOnly.collectAsStateWithLifecycle()
     val paused by viewModel.paused.collectAsStateWithLifecycle()
-    val counts by viewModel.fileCounts.collectAsStateWithLifecycle()
     val queue by viewModel.queueCounts.collectAsStateWithLifecycle()
-    val conflicts by viewModel.conflicts.collectAsStateWithLifecycle()
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         viewModel.onConsentResult(it.data)
     }
     LaunchedEffect(account.uid) { viewModel.refreshAccess() }
     val name = account.email ?: account.uid
     Text(stringResource(R.string.settings_sync_signed_in_as, name), Modifier.padding(top = 8.dp))
-    Text(stringResource(R.string.settings_sync_files_hint), Modifier.padding(top = 8.dp))
-    Text(stringResource(R.string.settings_sync_files_count, counts.synced, counts.total), Modifier.padding(top = 8.dp))
+    Text(
+        stringResource(R.string.settings_sync_books_note),
+        Modifier.padding(top = 8.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    SyncSwitchRow(stringResource(R.string.settings_sync_continue_switch), !paused) { viewModel.setPaused(!it) }
     SyncStatusRows(queue, paused, onRetry = viewModel::retryFailed)
-    conflicts.forEach { c ->
-        ConflictRow(
-            title = c.title,
-            onThisDevice = { viewModel.keepThisDevice(c.documentId) },
-            onCloud = { viewModel.keepCloud(c.documentId) },
-        )
-    }
-    if (ui.resolveFailed) Text(stringResource(R.string.settings_sync_conflict_failed), Modifier.padding(top = 8.dp))
     ui.consent?.let { sender ->
         Button(
             onClick = { consentLauncher.launch(IntentSenderRequest.Builder(sender).build()) },
@@ -99,12 +93,6 @@ private fun SignedInRows(account: AuthState.SignedIn, ui: SyncAccountUiState, vi
         ) { Text(stringResource(R.string.settings_sync_allow_files)) }
     }
     if (ui.consentDenied) Text(stringResource(R.string.settings_sync_allow_denied), Modifier.padding(top = 8.dp))
-    SyncSwitchRow(stringResource(R.string.settings_sync_wifi_only), wifiOnly, viewModel::setWifiOnly)
-    if (!wifiOnly) {
-        Text(stringResource(R.string.settings_sync_wifi_only_off), style = MaterialTheme.typography.bodySmall)
-    }
-    SyncSwitchRow(stringResource(R.string.settings_sync_pause), paused, viewModel::setPaused)
-    CloudCleanupRow()
     OutlinedButton(
         onClick = { viewModel.signOut(context) },
         modifier = Modifier.padding(top = 8.dp),
@@ -125,17 +113,6 @@ private fun SyncStatusRows(queue: SyncQueueCounts, paused: Boolean, onRetry: () 
     if (queue.failed > 0) {
         OutlinedButton(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
             Text(stringResource(R.string.settings_sync_retry))
-        }
-    }
-}
-
-@Composable
-private fun ConflictRow(title: String, onThisDevice: () -> Unit, onCloud: () -> Unit) {
-    Column(Modifier.padding(top = 12.dp)) {
-        Text(stringResource(R.string.settings_sync_conflict_title, title))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-            OutlinedButton(onClick = onThisDevice) { Text(stringResource(R.string.settings_sync_keep_device)) }
-            OutlinedButton(onClick = onCloud) { Text(stringResource(R.string.settings_sync_keep_cloud)) }
         }
     }
 }

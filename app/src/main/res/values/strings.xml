@@ -347,8 +347,8 @@
     <string name="settings_backup_confirm_restore">Restore</string>
     <string name="settings_backup_confirm_cancel">Cancel</string>
     <string name="settings_backup_restore_failed">Restore failed. Nothing was changed except any documents already listed as restored.</string>
-    <string name="settings_sync_header">Sync</string>
-    <string name="settings_sync_hint">Optional. Paperly works fully without an account; signing in syncs your library and files to your Google account.</string>
+    <string name="settings_sync_header">Continue reading</string>
+    <string name="settings_sync_hint">Optional. Paperly works fully without an account. Sign in with Google to continue a book on another device where you stopped. Only your reading position is saved; no files are uploaded.</string>
     <string name="settings_sync_unavailable">Sync is not set up in this build.</string>
     <string name="settings_sync_sign_in">Sign in with Google</string>
     <string name="settings_sync_sign_out">Sign out</string>
@@ -356,8 +356,10 @@
     <string name="settings_sync_no_account">No Google account was found on this device.</string>
     <string name="settings_sync_files_hint">Files are kept in a hidden Paperly folder in your Google Drive and use its space. Only Paperly can see them.</string>
     <string name="settings_sync_files_count">Files in the cloud: %1$d of %2$d</string>
-    <string name="settings_sync_allow_files">Allow file sync</string>
-    <string name="settings_sync_allow_denied">Drive access was not allowed, so files will not sync.</string>
+    <string name="settings_sync_allow_files">Allow access to old synced files</string>
+    <string name="settings_sync_books_note">The same book must be on both devices. On the other device, restore your Backup first. Allowing access to old synced files is only needed to delete them.</string>
+    <string name="settings_sync_continue_switch">Continue reading sync</string>
+    <string name="settings_sync_allow_denied">Drive access to old synced files was not allowed.</string>
     <string name="settings_sync_wifi_only">Sync over Wi-Fi only</string>
     <string name="settings_sync_wifi_only_off">Syncing may use mobile data.</string>
     <string name="settings_sync_pause">Pause sync</string>

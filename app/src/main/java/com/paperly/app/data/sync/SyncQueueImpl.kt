@@ -95,7 +95,7 @@ class SyncQueueImpl @Inject constructor(
         }
     }
 
-    /** Paused = nothing scheduled (the queue stays). Wi-Fi only = the run waits for an unmetered network. */
+    /** Paused = nothing scheduled (the queue stays). Reading positions are tiny, so any network will do. */
     private suspend fun schedule() {
         val prefs = settings.data.first()
         val work = WorkManager.getInstance(context)
@@ -103,10 +103,9 @@ class SyncQueueImpl @Inject constructor(
             work.cancelUniqueWork(WORK_NAME)
             return
         }
-        val network = if (prefs[SyncPrefs.WIFI_ONLY] ?: true) NetworkType.UNMETERED else NetworkType.CONNECTED
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setInitialDelay(DEBOUNCE_SECONDS, TimeUnit.SECONDS)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(network).build())
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
             .build()
         work.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
