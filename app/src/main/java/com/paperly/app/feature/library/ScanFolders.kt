@@ -62,18 +62,14 @@ internal fun LibraryUiState.openFolder(): Folder? = folders.firstOrNull { it.id 
 internal fun LibraryUiState.parentFolderId(): String? = folderPath.getOrNull(folderPath.size - 2)?.id
 
 /**
- * PDF/EPUB tabs keep the folder chip row. The Scanned tab shows folders as rows in the list and, inside a
- * folder, a bar with Back (one level up), the folder path and its menu, plus the "Scan here" buttons.
+ * All tabs show folders as rows in the list and, inside a folder, a bar with Back (one level up), the folder
+ * path and its menu. Only the Scanned tab adds the "Scan here" buttons.
  */
 @Composable
 internal fun FolderSection(isScanTab: Boolean, state: LibraryUiState, ui: FolderUi) {
-    if (!isScanTab) {
-        FolderRow(state.folders, state.selectedFolderId, ui.onSelect, ui.onNew, ui.onDelete)
-        return
-    }
     if (state.openFolder() == null) return
     ScanFolderBar(state.folderPath, state.parentFolderId(), ui)
-    ScanHereRow(ui.onScan, ui.onGallery)
+    if (isScanTab) ScanHereRow(ui.onScan, ui.onGallery)
 }
 
 @Composable

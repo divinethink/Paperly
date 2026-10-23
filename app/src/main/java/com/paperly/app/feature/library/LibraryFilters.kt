@@ -42,9 +42,7 @@ import com.paperly.app.domain.document.LibraryView
 import com.paperly.app.domain.folder.Folder
 
 private val FieldHeight = 48.dp
-private val ChipHeight = 36.dp
 private val SegmentHeight = 40.dp
-private val DashLength = 6.dp
 
 @StringRes
 private fun LibraryFilter.labelRes(): Int = when (this) {
@@ -129,63 +127,4 @@ private fun RowScope.Segment(label: String, selected: Boolean, onClick: () -> Un
             )
         }
     }
-}
-
-/** One row of folder chips ("All folders" first, "+ New" last); Delete appears for the selected folder. */
-@Composable
-internal fun FolderRow(
-    folders: List<Folder>,
-    selectedId: String?,
-    onSelect: (String?) -> Unit,
-    onNew: () -> Unit,
-    onDelete: (withDocuments: Boolean) -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FolderChip(stringResource(R.string.folder_all), selectedId == null) { onSelect(null) }
-        folders.forEach { folder ->
-            FolderChip(folder.name, folder.id == selectedId) { onSelect(folder.id) }
-        }
-        FolderChip("+ " + stringResource(R.string.folder_new), selected = false, dashed = true, onClick = onNew)
-        if (selectedId != null) {
-            TextButton(onClick = { onDelete(false) }) { Text(stringResource(R.string.folder_delete)) }
-            TextButton(onClick = { onDelete(true) }) { Text(stringResource(R.string.folder_delete_with_docs)) }
-        }
-    }
-}
-
-@Composable
-private fun FolderChip(label: String, selected: Boolean, dashed: Boolean = false, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val outline = scheme.outline
-    val borderColor = if (selected) scheme.primary else outline
-    Surface(
-        selected = selected,
-        onClick = onClick,
-        shape = CircleShape,
-        color = if (selected) scheme.primaryContainer else scheme.surfaceVariant,
-        border = if (dashed) null else BorderStroke(1.dp, borderColor),
-        modifier = Modifier.height(ChipHeight),
-    ) {
-        val dashing = if (dashed) Modifier.drawBehind { drawDashedBorder(outline) } else Modifier
-        Box(dashing.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (selected) scheme.onPrimaryContainer else scheme.onSurface,
-            )
-        }
-    }
-}
-
-private fun DrawScope.drawDashedBorder(color: Color) {
-    val dash = DashLength.toPx()
-    drawRoundRect(
-        color = color,
-        cornerRadius = CornerRadius(size.height / 2, size.height / 2),
-        style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash))),
-    )
 }

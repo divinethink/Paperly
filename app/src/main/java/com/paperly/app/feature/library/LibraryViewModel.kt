@@ -198,7 +198,7 @@ class LibraryViewModel @Inject constructor(
             val tabFolders = folders.visibleIn(type.docType)
             // A deleted folder silently falls back to "all folders".
             val folderId = sel.folderId?.takeIf { id -> tabFolders.any { it.id == id } }
-            val scanBrowse = type == LibraryType.SCAN && sel.query.isBlank() && sel.kind == LibraryFilter.All
+            val scanBrowse = sel.query.isBlank() && sel.kind == LibraryFilter.All
             val found = docs.filterFor(sel.kind, sel.query, folderId, tabView, hits)
             val shown = if (sel.kind == LibraryFilter.Finished) found.filter { it.id in finished } else found
             LibraryUiState(

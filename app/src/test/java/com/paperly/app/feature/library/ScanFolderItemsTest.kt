@@ -30,6 +30,12 @@ class ScanFolderItemsTest {
         assertEquals(listOf("2026" to 2), inside.map { it.name to it.count })
     }
 
+    @Test fun pdfAndEpubTabsCountTheirOwnTypeLikeTheScanTab() {
+        val docs = listOf(doc("a", "f1", type = "pdf"), doc("b", "f1", type = "epub"), doc("c", "f2", type = "epub"))
+        assertEquals(listOf("Bills" to 1, "Study" to 0), scanFolderItems(folders, docs, "pdf").map { it.name to it.count })
+        assertEquals(listOf("Bills" to 1, "Study" to 1), scanFolderItems(folders, docs, "epub").map { it.name to it.count })
+    }
+
     @Test fun rootListHidesDocumentsThatAreInAFolder() {
         val docs = listOf(doc("a", "f1"), doc("b"), doc("c", "gone"))
         assertEquals(listOf("b"), docs.withoutFolder().map { it.id })

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -57,22 +58,37 @@ private val RowCoverHeight = 76.dp
 
 /** PDF / EPUB tabs: small 3-column covers or one row per document (the choice is saved in the sort menu). */
 @Composable
-internal fun DocumentList(state: LibraryUiState, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
+internal fun DocumentList(
+    state: LibraryUiState,
+    actions: DocumentActions,
+    batch: BatchState,
+    covers: CoverViewModel,
+    onOpenFolder: (String) -> Unit,
+) {
     if (state.view.layout == LibraryLayout.LIST) {
-        DocumentRows(state, actions, batch, covers)
+        DocumentRows(state, actions, batch, covers, onOpenFolder)
     } else {
-        DocumentGrid(state, actions, batch, covers)
+        DocumentGrid(state, actions, batch, covers, onOpenFolder)
     }
 }
 
 @Composable
-private fun DocumentGrid(state: LibraryUiState, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
+private fun DocumentGrid(
+    state: LibraryUiState,
+    actions: DocumentActions,
+    batch: BatchState,
+    covers: CoverViewModel,
+    onOpenFolder: (String) -> Unit,
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        items(state.scanFolders, key = { "folder:" + it.id }, span = { GridItemSpan(maxLineSpan) }) {
+            ScanFolderRow(it, onOpenFolder)
+        }
         items(state.documents, key = { it.id }) { doc ->
             GridCard(doc, doc.id in state.finishedIds, actions, batch, covers)
         }
@@ -144,8 +160,15 @@ private fun BoxScope.CoverBadges(doc: Document, finished: Boolean, batch: BatchS
 }
 
 @Composable
-private fun DocumentRows(state: LibraryUiState, actions: DocumentActions, batch: BatchState, covers: CoverViewModel) {
+private fun DocumentRows(
+    state: LibraryUiState,
+    actions: DocumentActions,
+    batch: BatchState,
+    covers: CoverViewModel,
+    onOpenFolder: (String) -> Unit,
+) {
     LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+        items(state.scanFolders, key = { "folder:" + it.id }) { ScanFolderRow(it, onOpenFolder) }
         items(state.documents, key = { it.id }) { doc ->
             SwipeRow(doc, actions, batch) { DocumentRow(doc, doc.id in state.finishedIds, actions, batch, covers) }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

@@ -95,8 +95,8 @@ fun LibraryScreen(
     state.duplicate?.let { DuplicateHost(it, viewModel, navigation) }
     dialog?.let { LibraryDialogHost(it, state.folders, viewModel, organize) { dialog = null } }
 
-    // Scanned tab: Back goes up one folder level first (then the usual back behaviour)
-    BackHandler(enabled = isScanTab && state.selectedFolderId != null) {
+    // Back goes up one folder level first (then the usual back behaviour)
+    BackHandler(enabled = state.selectedFolderId != null) {
         viewModel.selectFolder(state.parentFolderId())
     }
     val folderUi = folderUi(state, viewModel, organize, navigation) { dialog = it }
@@ -107,7 +107,7 @@ fun LibraryScreen(
             Box(Modifier.statusBarsPadding()) { BatchBar(batch, state.documents, state.folders) }
         } else {
             val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, viewModel.type)
-            val canAddFolder = isScanTab && state.folderPath.size < MAX_FOLDER_DEPTH
+            val canAddFolder = state.folderPath.size < MAX_FOLDER_DEPTH
             val newFolder = { dialog = LibraryDialog.NewFolder(state.selectedFolderId) }
             LibraryHeader(header, navigation, canAddFolder, newFolder, startImport)
         }
@@ -147,7 +147,7 @@ private fun LibraryList(
         state.documents.isEmpty() && state.scanFolders.isEmpty() -> LibraryEmpty(state, type, listActions)
         state.documents.all { it.type == DocumentType.SCANNED_PDF } ->
             ScanDocumentList(state, actions, batch, hiltViewModel(), listActions.onOpenFolder)
-        else -> DocumentList(state, actions, batch, hiltViewModel())
+        else -> DocumentList(state, actions, batch, hiltViewModel(), listActions.onOpenFolder)
     }
 }
 
