@@ -65,7 +65,7 @@ private fun backupFileName(scope: BackupScope): String {
 }
 
 @StringRes
-private fun BackupScope.labelRes(): Int = when (this) {
+internal fun BackupScope.labelRes(): Int = when (this) {
     BackupScope.ALL -> R.string.backup_scope_all
     BackupScope.SCAN -> R.string.library_name_scanned
     BackupScope.PDF -> R.string.library_name_pdf

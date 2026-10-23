@@ -16,6 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -52,7 +55,6 @@ fun SettingsScreen(
     val onExport = export.exportAll
     val busy = backup.busy || del.running
     val actions = BackupActions(
-        onExport = export.exportChosen,
         onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
         onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
     )
@@ -107,7 +109,7 @@ private fun ReadingCard(minutesToday: Int, dynamicColor: Boolean, onDynamicColor
 private val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/octet-stream")
 
 /** Callbacks of the Backup card, grouped to keep parameter counts small. */
-private class BackupActions(val onExport: () -> Unit, val onRestore: () -> Unit, val onCheck: () -> Unit)
+private class BackupActions(val onRestore: () -> Unit, val onCheck: () -> Unit)
 
 @Composable
 private fun BackupSection(
@@ -115,7 +117,15 @@ private fun BackupSection(
     actions: BackupActions,
     export: BackupExportUi,
     stats: Map<BackupScope, ScopeStat>,
+    destination: BackupDestinationViewModel = hiltViewModel(),
 ) {
+    var sheet by rememberSaveable { mutableStateOf<SheetMode?>(null) }
+    val dest by destination.state.collectAsStateWithLifecycle()
+    val last by destination.lastBackups.collectAsStateWithLifecycle()
+    val busy = state.busy || dest.busy
+    sheet?.let { mode ->
+        BackupTargetSheet(mode, export.chosen, destination, actions.onRestore) { sheet = null }
+    }
     CardHeader(R.string.settings_backup_header)
     Text(
         stringResource(R.string.settings_backup_hint),
@@ -126,20 +136,22 @@ private fun BackupSection(
     BackupScopeChips(export, stats)
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Button(
-            onClick = actions.onExport,
-            enabled = !state.busy && (stats[export.chosen]?.count ?: 0) > 0,
+            onClick = { sheet = SheetMode.BACKUP },
+            enabled = !busy && (stats[export.chosen]?.count ?: 0) > 0,
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
         ) { Text(stringResource(R.string.settings_backup_export)) }
         FilledTonalButton(
-            onClick = actions.onRestore,
-            enabled = !state.busy,
+            onClick = { sheet = SheetMode.RESTORE },
+            enabled = !busy,
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
         ) { Text(stringResource(R.string.settings_backup_restore)) }
     }
+    LastBackupLine(export.chosen, last)
     if (state.busy) Text(stringResource(R.string.settings_backup_working), Modifier.padding(top = 8.dp))
+    BackupDestinationStatus(destination)
     state.message?.let { Text(backupMessageText(it), Modifier.padding(top = 8.dp)) }
     SettingsDivider()
-    ArrowRow(stringResource(R.string.settings_backup_check), actions.onCheck, enabled = !state.busy)
+    ArrowRow(stringResource(R.string.settings_backup_check), actions.onCheck, enabled = !busy)
     SettingsDivider()
     NewPhoneGuideSection()
 }
