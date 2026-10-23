@@ -13,11 +13,35 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.domain.scanner.MAX_PAGE_TITLE
+import com.paperly.app.domain.scanner.ScanPageRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+
+/** Saved page titles of one scanned document. */
+class PageTitles(
+    private val repository: ScanPageRepository,
+    private val documentId: String,
+    private val scope: CoroutineScope,
+) {
+    /** Saved title of page [index] (0-based); "" = none. */
+    fun observe(index: Int): Flow<String> = repository.observe(documentId, index).map { it.title }
+
+    /** Renames page [index] (its note is kept); a blank title = back to "Page N". */
+    fun rename(index: Int, title: String) {
+        scope.launch {
+            val info = repository.observe(documentId, index).first()
+            repository.save(documentId, index, info.copy(title = title.trim().take(MAX_PAGE_TITLE)))
+        }
+    }
+}
 
 /** Saved title of page [index] (0-based) for the grid / list; "" = none. */
 @Composable
 internal fun rememberPageTitle(viewModel: ScanPagesViewModel, index: Int): String {
-    val title by remember(index) { viewModel.pageTitle(index) }.collectAsStateWithLifecycle(initialValue = "")
+    val title by remember(index) { viewModel.titles.observe(index) }.collectAsStateWithLifecycle(initialValue = "")
     return title
 }
 
@@ -28,7 +52,7 @@ internal class PageRename(val index: Int, val viewModel: ScanPagesViewModel, val
 @Composable
 internal fun PageRenameDialog(rename: PageRename, onClose: () -> Unit) {
     val index = rename.index
-    val saved: String? by remember(index) { rename.viewModel.pageTitle(index) }
+    val saved: String? by remember(index) { rename.viewModel.titles.observe(index) }
         .collectAsStateWithLifecycle(initialValue = null)
     saved?.let { initial ->
         var title by remember { mutableStateOf(initial) }
@@ -46,7 +70,7 @@ internal fun PageRenameDialog(rename: PageRename, onClose: () -> Unit) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        rename.viewModel.renamePage(index, title)
+                        rename.viewModel.titles.rename(index, title)
                         onClose()
                         rename.onDone()
                     },

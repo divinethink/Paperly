@@ -11,7 +11,6 @@ import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderStateRepository
-import com.paperly.app.domain.scanner.MAX_PAGE_TITLE
 import com.paperly.app.domain.scanner.ScanPageRepository
 import com.paperly.app.domain.scanner.ScanPagesViewSettings
 import com.paperly.app.feature.reader.PageBitmapCache
@@ -19,13 +18,11 @@ import com.paperly.app.feature.reader.ScanOpenPreview
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -76,16 +73,8 @@ class ScanPagesViewModel @Inject constructor(
     /** Stored picture size of each page in bytes (read after the grid is shown); empty = not known (no sizes shown). */
     val pageSizes: StateFlow<List<Long>> = _pageSizes.asStateFlow()
 
-    /** Saved title of page [index] (0-based); "" = none. */
-    fun pageTitle(index: Int): Flow<String> = pageInfo.observe(documentId, index).map { it.title }
-
-    /** Renames page [index] (its note is kept); a blank title = back to "Page N". */
-    fun renamePage(index: Int, title: String) {
-        viewModelScope.launch {
-            val info = pageInfo.observe(documentId, index).first()
-            pageInfo.save(documentId, index, info.copy(title = title.trim().take(MAX_PAGE_TITLE)))
-        }
-    }
+    /** Page titles of this document (read for the grid / list, written by Rename). */
+    val titles = PageTitles(pageInfo, documentId, viewModelScope)
 
     /** true = thumbnail grid (default), false = list. */
     val gridView: StateFlow<Boolean> =
