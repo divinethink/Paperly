@@ -546,7 +546,7 @@
     <string name="reader_minutes_and_percent">About %1$d min left · %2$s</string>
     <string name="delete_all_hint">Delete all my data removes your documents, folders, reading progress, bookmarks, annotations and settings from this phone. If you are signed in, it also deletes your cloud copies and your account.</string>
     <string name="delete_all_button">Delete all my data</string>
-    <string name="delete_scope_hint">Choose what to delete. Trash, Scanned, PDF and EPUB are separate; All removes everything, also in the cloud.</string>
+    <string name="delete_scope_hint">Choose what to delete. Trash, Scanned, PDF and EPUB are separate; Scanned, PDF and EPUB are removed from this phone only.</string>
     <string name="delete_scope_button">Delete %1$s</string>
     <string name="delete_scope_title">Delete %1$s?</string>
     <string name="delete_scope_what_trash">This permanently deletes everything in Trash. If you are signed in, their cloud copies are deleted too. It cannot be undone.</string>

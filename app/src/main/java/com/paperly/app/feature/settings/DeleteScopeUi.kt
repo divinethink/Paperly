@@ -39,14 +39,17 @@ internal fun DeleteScope.whatRes(): Int = when (this) {
     DeleteScope.ALL -> R.string.delete_all_what
 }
 
-/** Trash / Scanned / PDF / EPUB / All chips with a one-line "N documents · size" summary of the chosen one. */
+/**
+ * Trash / Scanned / PDF / EPUB chips with a one-line "N documents · size" summary of the chosen one.
+ * ALL is hidden on purpose: "delete all my data" is not offered.
+ */
 @Composable
 internal fun DeleteScopeChips(state: DeleteUiState, onChoose: (DeleteScope) -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(top = 12.dp).horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        DeleteScope.entries.forEach { scope ->
+        DeleteScope.entries.filter { it != DeleteScope.ALL }.forEach { scope ->
             FilterChip(
                 selected = state.scope == scope,
                 onClick = { onChoose(scope) },
