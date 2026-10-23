@@ -156,9 +156,7 @@ private fun ReaderContent(
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val doc = state.document
         when {
-            state.loading -> viewModel.openPreview?.let {
-                Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            } ?: CircularProgressIndicator()
+            state.loading -> OpeningPlaceholder(viewModel.openPreview)
             doc == null -> Text(stringResource(R.string.reader_missing))
             state.pageCount > 0 -> {
                 val highlights = if (search.open && search.submitted) search.rects else emptyMap()
@@ -391,4 +389,19 @@ private fun errorText(error: ReaderError): Int = when (error) {
     ReaderError.PASSWORD_REQUIRED -> R.string.reader_password_required
     ReaderError.UNSUPPORTED -> R.string.reader_unsupported
     else -> R.string.reader_open_failed
+}
+
+/** While the document opens: the tapped scan page's thumbnail if there is one, else the spinner. */
+@Composable
+private fun OpeningPlaceholder(preview: Bitmap?) {
+    if (preview == null) {
+        CircularProgressIndicator()
+    } else {
+        Image(
+            preview.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+        )
+    }
 }
