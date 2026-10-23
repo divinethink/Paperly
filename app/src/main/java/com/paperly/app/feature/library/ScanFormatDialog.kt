@@ -99,12 +99,3 @@ private fun ChoiceRow(text: String, selected: Boolean, onSelect: () -> Unit) {
         Text(text, Modifier.padding(start = 8.dp, end = 16.dp))
     }
 }
-
-@get:StringRes
-private val ExportSize.label: Int
-    get() = when (this) {
-        ExportSize.ACTUAL -> R.string.export_size_actual
-        ExportSize.MEDIUM -> R.string.export_size_medium
-        ExportSize.SMALL -> R.string.export_size_small
-        ExportSize.SMALLEST -> R.string.export_size_smallest
-    }
