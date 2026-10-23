@@ -3,11 +3,9 @@ package com.paperly.app.data.privacy
 import com.paperly.app.domain.sync.CloudFile
 import com.paperly.app.domain.sync.CloudInventory
 import com.paperly.app.domain.sync.CloudListing
-import com.paperly.app.domain.sync.DocumentMeta
 import com.paperly.app.domain.sync.DownloadTarget
 import com.paperly.app.domain.sync.FileSyncResult
 import com.paperly.app.domain.sync.ReadingMeta
-import com.paperly.app.domain.sync.RemoteDocument
 import com.paperly.app.domain.sync.RemoteFileStore
 import com.paperly.app.domain.sync.RemoteMetadataStore
 import com.paperly.app.domain.sync.RemoteReadingStore
@@ -54,12 +52,6 @@ internal class FakeCloud : CloudInventory, RemoteMetadataStore, RemoteReadingSto
     override suspend fun listDocumentIds(uid: String): Set<String>? = if (failList) null else docIds.toSet()
 
     override suspend fun listReadingIds(uid: String): Set<String>? = readingIds.toSet()
-
-    override suspend fun putDocument(uid: String, meta: DocumentMeta, baseUpdatedAt: Long?) = RemoteResult.OK
-
-    override suspend fun fetchDocument(uid: String, documentId: String): RemoteDocument = RemoteDocument.Absent
-
-    override suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>? = emptyList()
 
     override suspend fun putReading(uid: String, meta: ReadingMeta) = RemoteResult.OK
 

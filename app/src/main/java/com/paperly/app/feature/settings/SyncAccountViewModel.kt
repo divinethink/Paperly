@@ -10,9 +10,6 @@ import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.auth.DriveAuth
 import com.paperly.app.domain.auth.DriveToken
 import com.paperly.app.domain.auth.SignInResult
-import com.paperly.app.domain.sync.ConflictInfo
-import com.paperly.app.domain.sync.ConflictResolver
-import com.paperly.app.domain.sync.FileSyncCounts
 import com.paperly.app.domain.sync.SyncQueue
 import com.paperly.app.domain.sync.SyncQueueCounts
 import com.paperly.app.domain.sync.SyncSettings
@@ -33,7 +30,6 @@ data class SyncAccountUiState(
     val detail: String? = null,
     val consent: IntentSender? = null,
     val consentDenied: Boolean = false,
-    val resolveFailed: Boolean = false,
 )
 
 @Suppress("TooManyFunctions") // small state/event handlers, same pattern as ReaderViewModel
@@ -43,27 +39,17 @@ class SyncAccountViewModel @Inject constructor(
     private val syncQueue: SyncQueue,
     private val driveAuth: DriveAuth,
     private val syncSettings: SyncSettings,
-    private val conflictResolver: ConflictResolver,
     syncStatus: SyncStatus,
 ) : ViewModel() {
     /** null until the first emission, so the UI never flashes a wrong "signed out". */
     val account: StateFlow<AuthState?> = auth.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
-    val wifiOnly: StateFlow<Boolean> = syncSettings.wifiOnly
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
-
     val paused: StateFlow<Boolean> = syncSettings.paused
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
 
-    val fileCounts: StateFlow<FileSyncCounts> = syncStatus.fileCounts
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), FileSyncCounts(0, 0))
-
     val queueCounts: StateFlow<SyncQueueCounts> = syncStatus.queueCounts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SyncQueueCounts(0, 0, 0))
-
-    val conflicts: StateFlow<List<ConflictInfo>> = syncStatus.conflicts
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
     private val _ui = MutableStateFlow(SyncAccountUiState())
     val ui: StateFlow<SyncAccountUiState> = _ui
@@ -101,13 +87,6 @@ class SyncAccountViewModel @Inject constructor(
         viewModelScope.launch { apply(driveAuth.tokenFromConsent(data), afterConsent = true) }
     }
 
-    fun setWifiOnly(value: Boolean) {
-        viewModelScope.launch {
-            syncSettings.setWifiOnly(value)
-            syncQueue.kick() // re-schedule with the new network rule
-        }
-    }
-
     fun setPaused(value: Boolean) {
         viewModelScope.launch {
             syncSettings.setPaused(value)
@@ -117,18 +96,6 @@ class SyncAccountViewModel @Inject constructor(
 
     fun retryFailed() {
         viewModelScope.launch { syncQueue.retryFailed() }
-    }
-
-    fun keepThisDevice(documentId: String) = resolve { conflictResolver.keepThisDevice(documentId) }
-
-    fun keepCloud(documentId: String) = resolve { conflictResolver.keepCloud(documentId) }
-
-    private fun resolve(action: suspend () -> Boolean) {
-        viewModelScope.launch {
-            val ok = action()
-            _ui.update { it.copy(resolveFailed = !ok) }
-            if (ok) syncQueue.kick()
-        }
     }
 
     private suspend fun apply(token: DriveToken, afterConsent: Boolean) {

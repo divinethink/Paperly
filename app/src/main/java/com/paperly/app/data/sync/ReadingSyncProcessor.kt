@@ -18,6 +18,23 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/** `lastError` of an item parked until the user allows Drive access; `SyncQueue.resumeDeferred` releases them. */
+internal const val SYNC_ERROR_NEEDS_ACCESS = "needs drive access"
+
+enum class SyncRunResult {
+    /** Nothing left to do. */
+    DONE,
+
+    /** Items are waiting for a retry time: run again later. */
+    WAIT,
+
+    /** No signed-in account: the queue is left untouched. */
+    NOT_SIGNED_IN,
+
+    /** The user paused sync: the queue is left untouched. */
+    PAUSED,
+}
+
 /**
  * "Continue reading" sync: the only thing that goes to the cloud is where you stopped in each book (reading
  * position). Document details and files are no longer sent or fetched; a book reaches another device through

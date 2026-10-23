@@ -5,11 +5,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
-import com.google.firebase.firestore.Transaction
 import com.paperly.app.data.auth.await
-import com.paperly.app.domain.sync.ConflictCheck
-import com.paperly.app.domain.sync.DocumentMeta
-import com.paperly.app.domain.sync.RemoteDocument
 import com.paperly.app.domain.sync.RemoteMetadataStore
 import com.paperly.app.domain.sync.RemoteResult
 import dagger.Binds
@@ -32,73 +28,9 @@ class FirestoreMetadataStore @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : RemoteMetadataStore {
 
-    /**
-     * One transaction: read the cloud copy, let [ConflictCheck] decide, write only if allowed. A transaction needs
-     * the network, so offline it fails -> RETRY (never a silent local-only write).
-     */
-    override suspend fun putDocument(uid: String, meta: DocumentMeta, baseUpdatedAt: Long?): RemoteResult = call {
-        val ref = documents(uid).document(meta.documentId)
-        val written = FirebaseFirestore.getInstance().runTransaction(
-            Transaction.Function { tx ->
-                val snapshot = tx.get(ref)
-                val remote = if (snapshot.exists()) {
-                    (snapshot.get(MetaFields.UPDATED_AT) as? Number)?.toLong() ?: Long.MAX_VALUE // unreadable = doubt
-                } else {
-                    null
-                }
-                val allowed = ConflictCheck.canWrite(baseUpdatedAt, remote, meta.updatedAt)
-                if (allowed) tx.set(ref, meta.toFirestoreMap())
-                allowed
-            },
-        ).await()
-        if (written) RemoteResult.OK else RemoteResult.CONFLICT
-    }
-
     override suspend fun deleteDocument(uid: String, documentId: String): RemoteResult = call {
         documents(uid).document(documentId).delete().await()
         RemoteResult.OK
-    }
-
-    override suspend fun fetchDocument(uid: String, documentId: String): RemoteDocument = try {
-        if (!configured()) {
-            RemoteDocument.Failed
-        } else {
-            withTimeout(TIMEOUT_MS) {
-                val snapshot = documents(uid).document(documentId).get(Source.SERVER).await()
-                if (!snapshot.exists()) {
-                    RemoteDocument.Absent
-                } else {
-                    documentMetaFromMap(snapshot.id, snapshot.data.orEmpty())?.let { RemoteDocument.Found(it) }
-                        ?: RemoteDocument.Failed
-                }
-            }
-        }
-    } catch (e: TimeoutCancellationException) {
-        RemoteDocument.Failed
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        RemoteDocument.Failed
-    }
-
-    override suspend fun fetchDocumentsSince(uid: String, updatedAfter: Long): List<DocumentMeta>? = try {
-        if (!configured()) {
-            null
-        } else {
-            withTimeout(TIMEOUT_MS) {
-                val snapshot = documents(uid)
-                    .whereGreaterThan(MetaFields.UPDATED_AT, updatedAfter)
-                    .get(Source.SERVER) // server truth: an offline cache must not look like "nothing new"
-                    .await()
-                snapshot.documents.mapNotNull { documentMetaFromMap(it.id, it.data.orEmpty()) }
-            }
-        }
-    } catch (e: TimeoutCancellationException) {
-        null
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        null
     }
 
     override suspend fun listDocumentIds(uid: String): Set<String>? = try {
