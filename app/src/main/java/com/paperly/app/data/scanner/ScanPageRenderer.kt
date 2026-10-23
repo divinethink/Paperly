@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.media.ExifInterface
 import com.paperly.app.domain.scanner.LookFilters
+import com.paperly.app.domain.scanner.PaperlyFilter
 import com.paperly.app.domain.scanner.PixelFilters
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanFilter
@@ -123,6 +124,7 @@ internal object ScanPageRenderer {
             ScanFilter.PHOTO -> LookFilters.photo(px)
             ScanFilter.CLEAN -> LookFilters.clean(px, w, h)
             ScanFilter.SEPIA -> LookFilters.sepia(px, w, h)
+            ScanFilter.PAPERLY -> PaperlyFilter.apply(px, w, h)
             ScanFilter.ORIGINAL -> px
         }
         val out = LookFilters.adjust(filtered, page.brightness, page.contrast)

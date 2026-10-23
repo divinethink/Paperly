@@ -5,9 +5,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ScanFilterChoiceTest {
-    @Test fun offeredFiltersAreOriginalDocsCleanSepia() {
+    @Test fun offeredFiltersAreOriginalPaperlyDocsCleanSepia() {
         assertEquals(
-            listOf(ScanFilter.ORIGINAL, ScanFilter.DOCS, ScanFilter.CLEAN, ScanFilter.SEPIA),
+            listOf(ScanFilter.ORIGINAL, ScanFilter.PAPERLY, ScanFilter.DOCS, ScanFilter.CLEAN, ScanFilter.SEPIA),
             SCAN_FILTER_CHOICES,
         )
         // B/W is its own button; the old COLOR/GRAY still exist (older pages) but are not offered

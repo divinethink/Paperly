@@ -21,7 +21,7 @@ class ScanEditLogicTest {
     }
 
     @Test fun freshScanStartsWithDocsFilterButKeepsAnotherLook() {
-        assertEquals(ScanFilter.DOCS, ScanEditPage(index = 0).asFreshScan().filter)
+        assertEquals(ScanFilter.PAPERLY, ScanEditPage(index = 0).asFreshScan().filter)
         assertEquals(ScanFilter.BW, ScanEditPage(index = 0, filter = ScanFilter.BW).asFreshScan().filter)
     }
 
