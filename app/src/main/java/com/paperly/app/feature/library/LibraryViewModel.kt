@@ -146,7 +146,7 @@ class LibraryViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DocumentRepository,
     private val trashRepository: TrashRepository,
-    folderRepository: FolderRepository,
+    private val folderRepository: FolderRepository,
     private val incomingImports: IncomingImportRequests,
     viewStore: LibraryViewStore,
     readerState: ReaderStateRepository,
@@ -263,6 +263,7 @@ class LibraryViewModel @Inject constructor(
                         // Room can miss the change when the list was re-subscribed right as the file picker closed
                         // (the new row never appeared until restart); a fresh query is always correct.
                         reload.update { it + 1 }
+                        putInOpenFolder(result.documentId)
                         announceTab(result.documentId)
                         null
                     }
@@ -276,6 +277,14 @@ class LibraryViewModel @Inject constructor(
             } finally {
                 importing.value = false
             }
+        }
+    }
+
+    /** A file imported while a folder is open goes into that folder (same tab type only); at the root it stays out. */
+    private suspend fun putInOpenFolder(documentId: String) {
+        val folderId = uiState.value.selectedFolderId ?: return
+        if (repository.getDocument(documentId)?.type == type.docType) {
+            folderRepository.moveDocument(documentId, folderId)
         }
     }
 
