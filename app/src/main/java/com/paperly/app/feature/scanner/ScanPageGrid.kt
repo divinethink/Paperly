@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
@@ -119,7 +120,9 @@ private fun PageCell(
     viewModel: ScanPagesViewModel,
     taps: PageTaps,
 ) {
-    val label = stringResource(R.string.scan_page_desc, index + 1)
+    val title = rememberPageTitle(viewModel, index)
+    val desc = stringResource(R.string.scan_page_desc, index + 1)
+    val label = title.ifBlank { desc }
     Column(
         Modifier
             .fillMaxWidth()
@@ -135,7 +138,7 @@ private fun PageCell(
             PageThumb(index, ready, viewModel, Modifier.fillMaxWidth())
             stamp.checked?.let { SelectBox(it, Modifier.align(Alignment.TopEnd).padding(6.dp)) }
         }
-        PageFooter(index + 1, stamp)
+        PageFooter(index + 1, stamp, title)
     }
 }
 
@@ -181,25 +184,35 @@ internal fun PageThumb(index: Int, ready: ScanPagesUi.Ready, viewModel: ScanPage
 }
 
 @Composable
-private fun PageFooter(number: Int, stamp: PageStamp) {
+private fun PageFooter(number: Int, stamp: PageStamp, title: String) {
     val onBar = MaterialTheme.colorScheme.onPrimary
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
             .padding(horizontal = 4.dp, vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            stringResource(R.string.scan_page_number, number),
-            color = onBar,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.border(1.dp, onBar).padding(horizontal = 4.dp, vertical = 1.dp),
-        )
-        Spacer(Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(stamp.date, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-            stamp.size?.let { Text(it, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.scan_page_number, number),
+                color = onBar,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.border(1.dp, onBar).padding(horizontal = 4.dp, vertical = 1.dp),
+            )
+            Spacer(Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(stamp.date, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                stamp.size?.let { Text(it, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+            }
+        }
+        if (title.isNotBlank()) {
+            Text(
+                title,
+                color = onBar,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

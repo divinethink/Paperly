@@ -53,7 +53,9 @@ private fun PageRow(
     viewModel: ScanPagesViewModel,
     taps: PageTaps,
 ) {
-    val label = stringResource(R.string.scan_page_desc, index + 1)
+    val title = rememberPageTitle(viewModel, index)
+    val desc = stringResource(R.string.scan_page_desc, index + 1)
+    val label = title.ifBlank { desc }
     Row(
         Modifier
             .fillMaxWidth()

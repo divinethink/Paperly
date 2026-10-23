@@ -40,23 +40,34 @@ internal fun PagesSelectTopBar(count: Int, onClose: () -> Unit, onSelectAll: () 
     }
 }
 
-/** Selection mode bottom bar: Delete · Move · Copy · Share · More (email, print, save to device). */
+/** What the bar can do to the ticked pages besides export/transfer: delete, and rename (only when exactly one). */
+internal class PageEdits(val onDelete: () -> Unit, val rename: PageRename?)
+
+internal fun pageEdits(chosen: Set<Int>, viewModel: ScanPagesViewModel, selection: ScanPageSelectionViewModel) =
+    PageEdits(
+        onDelete = { selection.delete(viewModel::refresh) },
+        rename = chosen.singleOrNull()?.let { PageRename(it, viewModel, selection::clear) },
+    )
+
+/** Selection mode bottom bar: Delete · Move · Copy · Share · More (rename, email, print, save to device). */
 @Composable
 internal fun PagesSelectBar(
     count: Int,
     busy: Boolean,
     export: PageExport,
     onTransfer: (TransferMode) -> Unit,
-    onDelete: () -> Unit,
+    edits: PageEdits,
 ) {
     var confirm by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    if (renaming && edits.rename != null) PageRenameDialog(edits.rename) { renaming = false }
     if (confirm) {
         ConfirmDeleteDialog(
             count,
             onConfirm = {
                 confirm = false
-                onDelete()
+                edits.onDelete()
             },
             onDismiss = { confirm = false },
         )
@@ -81,15 +92,24 @@ internal fun PagesSelectBar(
                 BarButton(Icons.Filled.MoreVert, stringResource(R.string.doc_menu_more), Modifier.fillMaxWidth()) {
                     more = true
                 }
-                SelectMoreMenu(more, export) { more = false }
+                SelectMoreMenu(more, export, onRename = edits.rename?.let { { renaming = true } }) { more = false }
             }
         }
     }
 }
 
 @Composable
-private fun SelectMoreMenu(expanded: Boolean, export: PageExport, onDismiss: () -> Unit) {
+private fun SelectMoreMenu(expanded: Boolean, export: PageExport, onRename: (() -> Unit)?, onDismiss: () -> Unit) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        if (onRename != null) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.doc_rename)) },
+                onClick = {
+                    onDismiss()
+                    onRename()
+                },
+            )
+        }
         listOf(
             R.string.scan_pages_send_email to export.email,
             R.string.doc_print to export.print,

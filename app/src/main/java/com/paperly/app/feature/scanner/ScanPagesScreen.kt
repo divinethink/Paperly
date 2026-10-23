@@ -105,9 +105,13 @@ private fun ScanPagesReady(
             ScanPageList(ready, viewModel, chosen, taps, Modifier.weight(1f))
         }
         if (selecting) {
-            PagesSelectBar(chosen.size, busy || transfer.busy, pageExport, transfer.start) {
-                selection.delete(viewModel::refresh)
-            }
+            PagesSelectBar(
+                chosen.size,
+                busy || transfer.busy,
+                pageExport,
+                transfer.start,
+                pageEdits(chosen, viewModel, selection),
+            )
         } else {
             PagesBottomBar(
                 export,

@@ -11,16 +11,21 @@ import com.paperly.app.domain.document.DocumentRepository
 import com.paperly.app.domain.reader.OpenResult
 import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderStateRepository
+import com.paperly.app.domain.scanner.MAX_PAGE_TITLE
+import com.paperly.app.domain.scanner.ScanPageRepository
 import com.paperly.app.domain.scanner.ScanPagesViewSettings
 import com.paperly.app.feature.reader.PageBitmapCache
 import com.paperly.app.feature.reader.ScanOpenPreview
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -41,8 +46,8 @@ private const val CACHE_KB = 24 * 1024
 private const val STOP_TIMEOUT_MS = 5_000L
 
 /**
- * Page grid of one scanned document. Read-only: thumbnails come from the document's PDF (what the Reader shows),
- * nothing is written except the reading position when a page is tapped.
+ * Page grid of one scanned document. Thumbnails come from the document's PDF (what the Reader shows); the only
+ * writes are the reading position when a page is tapped and a page's title (Rename).
  */
 @HiltViewModel
 @Suppress("LongParameterList") // Hilt DI collaborators
@@ -53,6 +58,7 @@ class ScanPagesViewModel @Inject constructor(
     private val fileStore: DocumentFileStore,
     private val viewSettings: ScanPagesViewSettings,
     private val pageSizeReader: ScanPageSizes,
+    private val pageInfo: ScanPageRepository,
     // Provider = lazy: the engine is created only when the grid is opened.
     private val engineProvider: Provider<ReaderEngine>,
 ) : ViewModel() {
@@ -69,6 +75,17 @@ class ScanPagesViewModel @Inject constructor(
 
     /** Stored picture size of each page in bytes (read after the grid is shown); empty = not known (no sizes shown). */
     val pageSizes: StateFlow<List<Long>> = _pageSizes.asStateFlow()
+
+    /** Saved title of page [index] (0-based); "" = none. */
+    fun pageTitle(index: Int): Flow<String> = pageInfo.observe(documentId, index).map { it.title }
+
+    /** Renames page [index] (its note is kept); a blank title = back to "Page N". */
+    fun renamePage(index: Int, title: String) {
+        viewModelScope.launch {
+            val info = pageInfo.observe(documentId, index).first()
+            pageInfo.save(documentId, index, info.copy(title = title.trim().take(MAX_PAGE_TITLE)))
+        }
+    }
 
     /** true = thumbnail grid (default), false = list. */
     val gridView: StateFlow<Boolean> =
