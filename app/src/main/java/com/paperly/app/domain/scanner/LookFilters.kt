@@ -114,11 +114,11 @@ object LookFilters {
         }
     }
 
-    /** "Sepia": the [clean] page printed in warm tones: cream paper, dark brown ink. */
+    /** "Sepia": the [PaperlyFilter] page printed in warm tones: cream paper, dark brown ink. */
     fun sepia(px: IntArray, w: Int, h: Int): IntArray {
-        val base = clean(px, w, h)
+        val base = PaperlyFilter.apply(px, w, h)
         return IntArray(base.size) {
-            val v = base[it] and CHANNEL
+            val v = PixelFilters.luma(base[it])
             val r = mix(INK_R, PAPER_R, v)
             val g = mix(INK_G, PAPER_G, v)
             OPAQUE or (r shl SHIFT_R) or (g shl SHIFT_G) or mix(INK_B, PAPER_B, v)
