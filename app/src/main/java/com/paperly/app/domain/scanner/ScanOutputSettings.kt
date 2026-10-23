@@ -2,7 +2,7 @@ package com.paperly.app.domain.scanner
 
 import kotlinx.coroutines.flow.Flow
 
-/** Size/quality of saved scans, chosen once in the Scanned tab's menu and kept until changed (default MEDIUM). */
+/** Size/quality of saved scans, stored scan quality (default MEDIUM; no menu any more - Share / Save choose their own file size). */
 interface ScanOutputSettings {
     val size: Flow<ScanOutputSize>
 

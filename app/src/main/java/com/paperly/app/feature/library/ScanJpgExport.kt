@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import com.paperly.app.R
 import com.paperly.app.core.file.ExportFiles
+import com.paperly.app.domain.scanner.ExportSize
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,8 +27,8 @@ import kotlinx.coroutines.withContext
 private const val JPEG_MIME = "image/jpeg"
 private const val EMAIL_MIME = "message/rfc822"
 
-/** An action on rendered pages: file name base + 0-based pages to use (null = every page). */
-internal typealias PagesAction = (name: String, pages: Set<Int>?) -> Unit
+/** An action on rendered pages: file name base + 0-based pages to use (null = every page) + image size. */
+internal typealias PagesAction = (name: String, pages: Set<Int>?, size: ExportSize) -> Unit
 
 /** Scan "JPG" choice: pages are rendered, then shared or saved at once (no banner, nothing added to the Library). */
 internal class ScanJpgExport(
@@ -51,14 +52,14 @@ internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): 
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) scope.launch { toast(context, saveToFolder(context, ready, uri)) }
     }
-    suspend fun prepare(name: String, pages: Set<Int>?): List<File>? {
+    suspend fun prepare(name: String, pages: Set<Int>?, size: ExportSize): List<File>? {
         toast(context, R.string.export_jpg_preparing)
-        val files = viewModel.renderJpgs(documentId, name, pages)
+        val files = viewModel.renderJpgs(documentId, name, pages, size)
         if (files == null) toast(context, R.string.export_failed)
         return files
     }
-    fun action(block: suspend (List<File>) -> Unit): PagesAction = { name, pages ->
-        scope.launch { prepare(name, pages)?.let { block(it) } }
+    fun action(block: suspend (List<File>) -> Unit): PagesAction = { name, pages, size ->
+        scope.launch { prepare(name, pages, size)?.let { block(it) } }
     }
     return ScanJpgExport(
         share = action { shareImages(context, it) },

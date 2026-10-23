@@ -2,7 +2,6 @@ package com.paperly.app.feature.library
 
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -32,8 +31,6 @@ internal fun ColumnScope.LibraryMenuItems(isScanTab: Boolean, navigation: Librar
                 navigation.onScanGallery()
             },
         )
-        HorizontalDivider()
-        ScanQualityItems(onDismiss = close)
     }
 }
 

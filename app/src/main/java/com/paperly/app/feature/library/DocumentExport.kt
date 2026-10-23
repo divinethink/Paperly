@@ -11,23 +11,36 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperly.app.R
 import com.paperly.app.core.file.ExportFiles
 import com.paperly.app.domain.document.Document
+import com.paperly.app.domain.scanner.ExportSize
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,10 +68,12 @@ internal fun rememberDocumentExport(
 
     // [marked] = a quick-view PDF with marks: Save / Share / Print then use a copy that has them (null result = failed)
     suspend fun fileOf(): File? = if (marked != null) marked() else viewModel.file(doc.id)
+    var sizedPdf by remember { mutableStateOf<File?>(null) } // scan Save: the copy made at the chosen size
     val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(mime)) { uri ->
         if (uri != null) {
             scope.launch {
-                val message = saveTo(context, fileOf(), uri)
+                val message = saveTo(context, sizedPdf ?: fileOf(), uri)
+                sizedPdf = null
                 toast(context, message)
                 if (message == R.string.export_saved) onSaved()
             }
@@ -68,7 +83,10 @@ internal fun rememberDocumentExport(
     val isPdf = ExportFiles.isPdf(doc.type)
     val isScan = doc.type == SCAN_TYPE
     val sharePdf: (String) -> Unit = { shareName -> scope.launch { shareFile(context, fileOf(), shareName, mime) } }
-    val scan = rememberScanChoice(doc, viewModel, sharePdf) { saver.launch(it) }
+    val scan = rememberScanChoice(doc, viewModel) { file, fileName ->
+        sizedPdf = file
+        saver.launch(fileName)
+    }
     return DocumentExport(
         share = { if (isScan) scan.share() else sharePdf(name) },
         saveCopy = { if (isScan) scan.save() else saver.launch(name) },
@@ -98,28 +116,38 @@ private fun rememberImagesAsk(doc: Document, viewModel: ExportViewModel): () -> 
     return { ask = true }
 }
 
-/** Scan Share / Save a copy: asks PDF or JPG first; JPG renders the pages and shares/saves them right away. */
+/** Scan Share / Save a copy: one dialog asks name, PDF or JPG and file size; JPG renders the pages right away. */
 private class ScanChoice(val share: () -> Unit, val save: () -> Unit)
 
 @Composable
 private fun rememberScanChoice(
     doc: Document,
     viewModel: ExportViewModel,
-    sharePdf: (String) -> Unit,
-    savePdf: (String) -> Unit,
+    savePdf: (file: File, fileName: String) -> Unit,
 ): ScanChoice {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var ask by remember { mutableStateOf<ScanAction?>(null) }
     val jpg = rememberJpgExport(doc.id, viewModel)
     ScanFormatPrompt(
         action = ask,
         doc = doc,
         viewModel = viewModel,
-        onChoose = { action, format, base ->
+        onChoose = { action, format, name, size ->
             val share = action == ScanAction.SHARE
             when (format) {
-                ScanFormat.PDF -> ExportFiles.fileName(base, doc.type).let { if (share) sharePdf(it) else savePdf(it) }
-                ScanFormat.JPG -> ExportFiles.baseName(base).let {
-                    if (share) jpg.share(it, null) else jpg.save(it, null)
+                ScanFormat.PDF -> scope.launch {
+                    toast(context, R.string.export_pdf_preparing)
+                    val file = viewModel.sizedPdf(doc.id, ExportFiles.baseName(name), null, size)
+                    val fileName = ExportFiles.fileName(name, doc.type)
+                    if (!share && file != null) {
+                        savePdf(file, fileName)
+                    } else {
+                        shareFile(context, file, fileName, ExportFiles.mimeType(doc.type))
+                    }
+                }
+                ScanFormat.JPG -> ExportFiles.baseName(name).let {
+                    if (share) jpg.share(it, null, size) else jpg.save(it, null, size)
                 }
             }
         },
@@ -130,69 +158,111 @@ private fun rememberScanChoice(
 
 private const val SCAN_TYPE = "scanned-pdf"
 
-private enum class ScanAction { SHARE, SAVE }
+private enum class ScanAction(@StringRes val label: Int) {
+    SHARE(R.string.export_action_share),
+    SAVE(R.string.export_action_save),
+}
 
-private enum class ScanFormat { PDF, JPG }
+internal enum class ScanFormat(@StringRes val label: Int) {
+    PDF(R.string.export_format_pdf),
+    JPG(R.string.export_format_jpg),
+}
 
 @Composable
 private fun ScanFormatPrompt(
     action: ScanAction?,
     doc: Document,
     viewModel: ExportViewModel,
-    onChoose: (ScanAction, ScanFormat, String) -> Unit,
+    onChoose: (ScanAction, ScanFormat, String, ExportSize) -> Unit,
     onClose: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val size = remember(doc.id, action != null) {
-        val length = if (action == null) null else viewModel.file(doc.id)?.length()
-        length?.let { Formatter.formatShortFileSize(context, it) }
-    }
     if (action == null) return
     ScanFormatDialog(
         initialName = ExportFiles.baseName(doc.title),
-        sizeText = size,
-        onPdf = { name ->
+        confirmLabel = action.label,
+        estimate = { pdf -> viewModel.sizeEstimates(doc.id, null, pdf) },
+        onConfirm = { name, format, size ->
             onClose()
-            onChoose(action, ScanFormat.PDF, name)
-        },
-        onJpg = { name ->
-            onClose()
-            onChoose(action, ScanFormat.JPG, name)
+            onChoose(action, format, name, size)
         },
         onDismiss = onClose,
     )
 }
 
-/** PDF or JPG, with an editable file name (made safe by [ExportFiles.baseName]) and the current PDF size. */
+/**
+ * One dialog for Share / Send email / Save: editable file name (made safe by [ExportFiles.baseName]), PDF or JPG,
+ * and the file size (Actual or smaller) with an estimated size for each option.
+ */
 @Composable
 internal fun ScanFormatDialog(
     initialName: String,
-    sizeText: String?,
-    onPdf: (String) -> Unit,
-    onJpg: (String) -> Unit,
+    @StringRes confirmLabel: Int,
+    estimate: suspend (pdf: Boolean) -> Map<ExportSize, Long>,
+    onConfirm: (name: String, format: ScanFormat, size: ExportSize) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(initialName) }
+    var format by remember { mutableStateOf(ScanFormat.PDF) }
+    var size by remember { mutableStateOf(ExportSize.ACTUAL) }
+    val estimates by produceState<Map<ExportSize, Long>>(emptyMap(), format) {
+        value = emptyMap()
+        value = runCatching { estimate(format == ScanFormat.PDF) }.getOrDefault(emptyMap())
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.export_choose_format)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.export_file_name)) },
                     singleLine = true,
                 )
-                if (sizeText != null) Text(stringResource(R.string.export_file_size, sizeText))
-                TextButton(onClick = { onPdf(name) }) { Text(stringResource(R.string.export_format_pdf)) }
-                TextButton(onClick = { onJpg(name) }) { Text(stringResource(R.string.export_format_jpg)) }
+                Text(stringResource(R.string.export_format_label), Modifier.padding(top = 12.dp))
+                Row {
+                    ScanFormat.entries.forEach { option ->
+                        ChoiceRow(stringResource(option.label), format == option) { format = option }
+                    }
+                }
+                Text(stringResource(R.string.export_size_label), Modifier.padding(top = 12.dp))
+                ExportSize.entries.forEach { option ->
+                    val bytes = estimates[option]?.let { Formatter.formatShortFileSize(context, it) }
+                    val label = stringResource(option.label)
+                    ChoiceRow(
+                        text = if (bytes == null) label else stringResource(R.string.export_size_option, label, bytes),
+                        selected = size == option,
+                    ) { size = option }
+                }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name, format, size) }) { Text(stringResource(confirmLabel)) }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.export_cancel)) } },
     )
 }
+
+@Composable
+private fun ChoiceRow(text: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        Modifier.heightIn(min = 48.dp).selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(text, Modifier.padding(start = 8.dp, end = 16.dp))
+    }
+}
+
+@get:StringRes
+private val ExportSize.label: Int
+    get() = when (this) {
+        ExportSize.ACTUAL -> R.string.export_size_actual
+        ExportSize.MEDIUM -> R.string.export_size_medium
+        ExportSize.SMALL -> R.string.export_size_small
+        ExportSize.SMALLEST -> R.string.export_size_smallest
+    }
 
 internal fun toast(context: Context, @StringRes message: Int) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()

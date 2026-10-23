@@ -40,7 +40,8 @@ class ScanPdfBuilder @Inject constructor(@ApplicationContext private val context
         }
     }
 
-    private fun addPage(doc: PDDocument, bitmap: Bitmap, quality: Int) {
+    /** One page image as a JPEG page (also used to shrink a PDF for Share / Save). */
+    internal fun addPage(doc: PDDocument, bitmap: Bitmap, quality: Int) {
         val jpeg = ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }
         val scale = PAGE_LONG_SIDE_PT / maxOf(bitmap.width, bitmap.height)
         val width = bitmap.width * scale

@@ -260,7 +260,7 @@ class ScanEditViewModel @Inject constructor(
         }
     }
 
-    /** Saves with the size chosen once in the Scanned tab's menu (no question each time). */
+    /** Saves with the stored scan quality (no question each time). */
     fun save() {
         val state = _state.value
         if (state.saving) return

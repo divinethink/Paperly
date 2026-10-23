@@ -2,6 +2,7 @@ package com.paperly.app.feature.library
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,8 +20,12 @@ import kotlinx.coroutines.launch
 private const val PDF_MIME = "application/pdf"
 private const val EMAIL_MIME = "message/rfc822"
 
-/** Share, Send email and Save to device ask PDF or JPG (with an editable file name) first. */
-private enum class PageSend { SHARE, EMAIL, SAVE }
+/** Share, Send email and Save to device ask file name, PDF or JPG and file size in one dialog first. */
+private enum class PageSend(@StringRes val label: Int) {
+    SHARE(R.string.export_action_share),
+    EMAIL(R.string.export_action_email),
+    SAVE(R.string.export_action_save),
+}
 
 /**
  * Export actions for [chosen] (0-based pages) of the scanned document [doc]; the document itself is only read.
@@ -42,29 +47,28 @@ internal fun rememberPageExport(doc: Document, chosen: Set<Int>, onDone: () -> U
     if (send != null) {
         ScanFormatDialog(
             initialName = base,
-            sizeText = null,
-            onPdf = { name ->
+            confirmLabel = send.label,
+            estimate = { pdf -> viewModel.sizeEstimates(doc.id, chosen, pdf) },
+            onConfirm = { name, format, size ->
                 ask = null
-                scope.launch {
-                    toast(context, R.string.export_pdf_preparing)
-                    val file = viewModel.pagesPdf(doc.id, ExportFiles.baseName(name), chosen)
-                    val fileName = ExportFiles.baseName(name) + ".pdf"
-                    if (send == PageSend.SAVE) {
-                        pdfReady = file
-                        pdfSaver.launch(fileName)
-                    } else {
-                        shareFile(context, file, fileName, if (send == PageSend.SHARE) PDF_MIME else EMAIL_MIME)
+                val clean = ExportFiles.baseName(name)
+                when (format) {
+                    ScanFormat.PDF -> scope.launch {
+                        toast(context, R.string.export_pdf_preparing)
+                        val file = viewModel.sizedPdf(doc.id, clean, chosen, size)
+                        val fileName = "$clean.pdf"
+                        if (send == PageSend.SAVE && file != null) {
+                            pdfReady = file
+                            pdfSaver.launch(fileName)
+                        } else {
+                            shareFile(context, file, fileName, if (send == PageSend.EMAIL) EMAIL_MIME else PDF_MIME)
+                        }
                     }
-                }
-                onDone()
-            },
-            onJpg = { name ->
-                ask = null
-                val jpgBase = ExportFiles.baseName(name)
-                when (send) {
-                    PageSend.SHARE -> jpg.share(jpgBase, chosen)
-                    PageSend.EMAIL -> jpg.email(jpgBase, chosen)
-                    PageSend.SAVE -> jpg.save(jpgBase, chosen)
+                    ScanFormat.JPG -> when (send) {
+                        PageSend.SHARE -> jpg.share(clean, chosen, size)
+                        PageSend.EMAIL -> jpg.email(clean, chosen, size)
+                        PageSend.SAVE -> jpg.save(clean, chosen, size)
+                    }
                 }
                 onDone()
             },

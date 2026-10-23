@@ -7,6 +7,7 @@ import android.graphics.Color
 import com.paperly.app.core.file.ExportFiles
 import com.paperly.app.data.reader.PdfReaderEngine
 import com.paperly.app.domain.reader.OpenResult
+import com.paperly.app.domain.scanner.ExportSize
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileOutputStream
@@ -28,7 +29,12 @@ class PdfJpgRenderer @Inject constructor(@ApplicationContext private val context
      * The page files in page order, or null when anything failed (nothing is left behind then). [only] = 0-based
      * pages to render (null = every page); file names keep the page's own number.
      */
-    suspend fun render(source: File, base: String, only: Set<Int>? = null): List<File>? = lock.withLock {
+    suspend fun render(
+        source: File,
+        base: String,
+        only: Set<Int>? = null,
+        size: ExportSize = ExportSize.ACTUAL,
+    ): List<File>? = lock.withLock {
         val dir = ExportFiles.imagesDir(context)
         dir.listFiles()?.forEach { it.delete() }
         val engine = PdfReaderEngine(context)
@@ -37,7 +43,8 @@ class PdfJpgRenderer @Inject constructor(@ApplicationContext private val context
             val wanted = (0 until pages).filter { only == null || it in only }
             val files = ArrayList<File>()
             for (index in wanted) {
-                files += renderPage(engine, File(dir, ExportFiles.imageName(base, index, pages)), index) ?: break
+                val target = File(dir, ExportFiles.imageName(base, index, pages))
+                files += renderPage(engine, target, index, size) ?: break
             }
             if (wanted.isNotEmpty() && files.size == wanted.size) files else cleanUp(dir)
         } catch (ignored: IOException) {
@@ -54,11 +61,11 @@ class PdfJpgRenderer @Inject constructor(@ApplicationContext private val context
         return null
     }
 
-    private suspend fun renderPage(engine: PdfReaderEngine, target: File, index: Int): File? {
-        val bitmap = engine.renderPage(index, MAX_WIDTH) ?: return null
+    private suspend fun renderPage(engine: PdfReaderEngine, target: File, index: Int, size: ExportSize): File? {
+        val bitmap = engine.renderPage(index, size.widthPx) ?: return null
         val flat = flattenOnWhite(bitmap)
         bitmap.recycle()
-        val ok = FileOutputStream(target).use { flat.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
+        val ok = FileOutputStream(target).use { flat.compress(Bitmap.CompressFormat.JPEG, size.jpegQuality, it) }
         flat.recycle()
         return target.takeIf { ok && it.length() > 0 }
     }
@@ -70,10 +77,5 @@ class PdfJpgRenderer @Inject constructor(@ApplicationContext private val context
         canvas.drawColor(Color.WHITE)
         canvas.drawBitmap(source, 0f, 0f, null)
         return result
-    }
-
-    private companion object {
-        const val MAX_WIDTH = 1600
-        const val JPEG_QUALITY = 90
     }
 }
