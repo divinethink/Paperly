@@ -13,6 +13,7 @@ import com.paperly.app.domain.reader.ReaderEngine
 import com.paperly.app.domain.reader.ReaderStateRepository
 import com.paperly.app.domain.scanner.ScanPagesViewSettings
 import com.paperly.app.feature.reader.PageBitmapCache
+import com.paperly.app.feature.reader.ScanOpenPreview
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
@@ -151,6 +152,7 @@ class ScanPagesViewModel @Inject constructor(
     /** Saves [index] as the reading position of this document, then [onReady] (the Reader reads it on open). */
     fun openPage(index: Int, onReady: () -> Unit) {
         val count = (_state.value as? ScanPagesUi.Ready)?.pageCount ?: return
+        cache.get(index, THUMB_WIDTH_PX)?.let { ScanOpenPreview.put(documentId, it) } // Reader shows it while loading
         viewModelScope.launch {
             runCatching { readerState.saveProgress(documentId, index, count) }
             onReady()

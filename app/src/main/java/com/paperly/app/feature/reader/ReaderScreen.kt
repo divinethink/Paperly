@@ -156,7 +156,9 @@ private fun ReaderContent(
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val doc = state.document
         when {
-            state.loading -> CircularProgressIndicator()
+            state.loading -> viewModel.openPreview?.let {
+                Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            } ?: CircularProgressIndicator()
             doc == null -> Text(stringResource(R.string.reader_missing))
             state.pageCount > 0 -> {
                 val highlights = if (search.open && search.submitted) search.rects else emptyMap()

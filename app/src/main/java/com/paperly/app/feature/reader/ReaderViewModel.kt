@@ -82,6 +82,9 @@ class ReaderViewModel @Inject constructor(
 
     /** Quick view: a PDF opened from outside and not (yet) in the Library — no progress, bookmarks or annotations. */
     val isQuick: Boolean = QuickViewStore.isToken(documentId)
+
+    /** Thumbnail of the tapped scan page (from the page grid), shown instead of a black screen while the PDF opens. */
+    val openPreview: Bitmap? = ScanOpenPreview.take(documentId)
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
     private var engine: ReaderEngine? = null

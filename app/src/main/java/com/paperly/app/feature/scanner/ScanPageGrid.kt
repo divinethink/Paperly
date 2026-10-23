@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 
-private const val THUMB_WIDTH_PX = 360
+internal const val THUMB_WIDTH_PX = 360
 private const val GRID_COLUMNS = 3 // 6-9 pages on one phone screen
 private const val MIN_THUMB_ASPECT = 0.7f // very tall/wide pages are fitted into a box of normal proportions
 private const val MAX_THUMB_ASPECT = 1f
