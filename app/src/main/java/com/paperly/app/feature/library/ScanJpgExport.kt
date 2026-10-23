@@ -1,14 +1,10 @@
 package com.paperly.app.feature.library
 
 import android.content.ClipData
-import android.content.ContentResolver
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Environment
 import android.provider.DocumentsContract
-import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -29,7 +25,6 @@ import kotlinx.coroutines.withContext
 
 private const val JPEG_MIME = "image/jpeg"
 private const val EMAIL_MIME = "message/rfc822"
-private const val GALLERY_FOLDER = "Paperly"
 
 /** An action on rendered pages: file name base + 0-based pages to use (null = every page). */
 internal typealias PagesAction = (name: String, pages: Set<Int>?) -> Unit
@@ -39,12 +34,11 @@ internal class ScanJpgExport(
     val share: PagesAction,
     val save: PagesAction,
     val email: PagesAction,
-    val gallery: PagesAction,
 )
 
 /**
- * Share = the system share sheet, Email = e-mail apps only, Gallery = Pictures/Paperly. Save = one page: "save as"
- * file; several pages: a folder pick.
+ * Share = the system share sheet, Email = e-mail apps only. Save = one page: "save as" file; several pages: a
+ * folder pick.
  */
 @Composable
 internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): ScanJpgExport {
@@ -69,7 +63,6 @@ internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): 
     return ScanJpgExport(
         share = action { shareImages(context, it) },
         email = action { shareImages(context, it, EMAIL_MIME) },
-        gallery = action { toast(context, saveToGallery(context, it)) },
         save = action { files ->
             ready = files
             if (files.size == 1) filePicker.launch(files[0].name) else folderPicker.launch(null)
@@ -107,29 +100,4 @@ private suspend fun saveToFolder(context: Context, files: List<File>, tree: Uri)
         }.getOrDefault(false)
     }
     if (allWritten) R.string.export_saved else R.string.export_failed
-}
-
-/** Adds every page picture to the phone's Gallery (Pictures/Paperly); no permission needed on Android 10+. */
-@StringRes
-private suspend fun saveToGallery(context: Context, files: List<File>): Int = withContext(Dispatchers.IO) {
-    val resolver = context.contentResolver
-    val allSaved = files.isNotEmpty() && files.all { runCatching { insertImage(resolver, it) }.getOrDefault(false) }
-    if (allSaved) R.string.export_saved_gallery else R.string.export_failed
-}
-
-private fun insertImage(resolver: ContentResolver, file: File): Boolean {
-    val values = ContentValues().apply {
-        put(MediaStore.Images.Media.DISPLAY_NAME, file.name)
-        put(MediaStore.Images.Media.MIME_TYPE, JPEG_MIME)
-        put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/$GALLERY_FOLDER")
-        put(MediaStore.Images.Media.IS_PENDING, 1) // hidden from other apps until fully written
-    }
-    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
-    val written = resolver.openOutputStream(uri, "w")?.use { out -> file.inputStream().use { it.copyTo(out) } }
-    if (written != file.length()) {
-        resolver.delete(uri, null, null)
-        return false
-    }
-    resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
-    return true
 }

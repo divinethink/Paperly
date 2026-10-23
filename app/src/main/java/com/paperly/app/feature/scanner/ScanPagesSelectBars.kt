@@ -40,7 +40,7 @@ internal fun PagesSelectTopBar(count: Int, onClose: () -> Unit, onSelectAll: () 
     }
 }
 
-/** Selection mode bottom bar: Delete · Move · Copy · Share · More (email, print, Gallery, storage). */
+/** Selection mode bottom bar: Delete · Move · Copy · Share · More (email, print, save to device). */
 @Composable
 internal fun PagesSelectBar(
     count: Int,
@@ -93,8 +93,7 @@ private fun SelectMoreMenu(expanded: Boolean, export: PageExport, onDismiss: () 
         listOf(
             R.string.scan_pages_send_email to export.email,
             R.string.doc_print to export.print,
-            R.string.scan_pages_save_gallery to export.gallery,
-            R.string.scan_pages_save_storage to export.storage,
+            R.string.scan_pages_save_device to export.save,
         ).forEach { (label, action) ->
             DropdownMenuItem(
                 text = { Text(stringResource(label)) },

@@ -7,13 +7,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -21,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -30,6 +36,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.ArticleGlyph
+import com.paperly.app.core.ui.icons.ChevronGlyph
 import com.paperly.app.domain.auth.AuthState
 import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.domain.backup.BackupTarget
@@ -211,23 +219,17 @@ private fun destinationText(m: DestinationMessage): String = when (m) {
 
 @Composable
 private fun DriveBackupPicker(backups: List<StoredBackup>, onPick: (StoredBackup) -> Unit, onDismiss: () -> Unit) {
-    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.backup_drive_pick_title)) },
         text = {
-            Column {
-                backups.forEach { backup ->
-                    Column(Modifier.fillMaxWidth().clickable { onPick(backup) }.padding(vertical = 12.dp)) {
-                        Text(backup.name, style = MaterialTheme.typography.bodyLarge)
-                        val size = Formatter.formatShortFileSize(context, backup.size)
-                        Text(
-                            formatDate(backup.modifiedAt) + " · " + size,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.backup_drive_pick_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                backups.forEach { backup -> BackupChoiceRow(backup, onClick = { onPick(backup) }) }
             }
         },
         confirmButton = {},
@@ -235,4 +237,31 @@ private fun DriveBackupPicker(backups: List<StoredBackup>, onPick: (StoredBackup
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_backup_confirm_cancel)) }
         },
     )
+}
+
+/** One backup as a tappable card (file icon, name, date and size, arrow) so it is clear that it can be chosen. */
+@Composable
+private fun BackupChoiceRow(backup: StoredBackup, onClick: () -> Unit) {
+    val context = LocalContext.current
+    Row(
+        Modifier.fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(ArticleGlyph, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(backup.name, style = MaterialTheme.typography.bodyLarge)
+            val size = Formatter.formatShortFileSize(context, backup.size)
+            Text(
+                formatDate(backup.modifiedAt) + " \u00b7 " + size,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(ChevronGlyph, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }

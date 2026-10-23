@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.core.ui.icons.CopyGlyph
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanEditResult
 import com.paperly.app.domain.scanner.cropReset
@@ -45,7 +48,6 @@ fun ScanEditScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var askDiscard by remember { mutableStateOf(false) }
-    var askDelete by remember { mutableStateOf(false) }
     val leave = { onDone(viewModel.exitDocumentId) }
     EditExitEffects(state, leave, onCancelAdd) { onDiscarded(viewModel.fromCamera) }
     // Back on a fresh scan always asks first (same answer every time); an older document asks only after edits.
@@ -64,24 +66,17 @@ fun ScanEditScreen(
             onKeep = { askDiscard = false },
         )
     }
-    if (askDelete) {
-        DeleteDialog(
-            onDelete = {
-                askDelete = false
-                viewModel.deleteCurrent()
-            },
-            onCancel = { askDelete = false },
-        )
-    }
     ErrorDialogs(state, viewModel)
     var adjusting by remember { mutableStateOf(false) }
+    val copyText = rememberCopyText(viewModel)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        EditTopBar(state, onClose = close, onSave = viewModel::save)
+        EditTopBar(state, onClose = close, onSave = viewModel::save, onCopyText = copyText)
         EditStage(state, viewModel)
         if (state.notEditable) {
             Text(stringResource(R.string.scan_edit_unavailable), Modifier.padding(16.dp).navigationBarsPadding())
         } else {
-            EditControls(state, viewModel, adjusting, onDelete = { askDelete = true })
+            if (!state.cropping) PageAddEffects(state, viewModel)
+            EditControls(state, viewModel, adjusting)
             EditBottomBar(state, viewModel) { adjusting = !adjusting }
         }
     }
@@ -95,13 +90,19 @@ private fun editTitle(cropping: Boolean): Int =
     if (cropping) R.string.scan_edit_border_title else R.string.scan_edit_page_title
 
 @Composable
-private fun EditTopBar(state: ScanEditUi, onClose: () -> Unit, onSave: () -> Unit) {
+private fun EditTopBar(state: ScanEditUi, onClose: () -> Unit, onSave: () -> Unit, onCopyText: () -> Unit) {
     PaperlyTopBar(stringResource(editTitle(state.cropping)), onBack = { if (!state.saving) onClose() }) {
-        Button(
-            onClick = onSave,
-            enabled = state.dirty && !state.saving,
-            modifier = Modifier.padding(end = 8.dp),
-        ) { Text(stringResource(R.string.scan_save)) }
+        // Crop step: only "Next" (bottom bar). Copy text + Save belong to the page step.
+        if (!state.cropping) {
+            IconButton(onClick = onCopyText, enabled = !state.saving && !state.loading) {
+                Icon(CopyGlyph, contentDescription = stringResource(R.string.scan_text_copy))
+            }
+            Button(
+                onClick = onSave,
+                enabled = state.dirty && !state.saving,
+                modifier = Modifier.padding(end = 8.dp),
+            ) { Text(stringResource(R.string.scan_save)) }
+        }
     }
 }
 
@@ -125,7 +126,7 @@ internal fun EditCanvas(state: ScanEditUi, viewModel: ScanEditViewModel) {
 }
 
 @Composable
-private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjusting: Boolean, onDelete: () -> Unit) {
+private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjusting: Boolean) {
     val page = state.page ?: return
     Column(
         Modifier.heightIn(max = ControlsMaxHeight)
@@ -141,19 +142,17 @@ private fun EditControls(state: ScanEditUi, viewModel: ScanEditViewModel, adjust
             FilterRow(state, page, viewModel)
             if (adjusting) AdjustPanel(page, viewModel)
             if (state.pages.size > 1) PageStrip(state, viewModel)
-            PageManagementRow(state, viewModel, onDelete)
         }
     }
 }
 
-/** Step 1 (crop): only "Full image" and "Next" - the filters and B/W come on the next step, on the cropped page. */
+/** Step 1 (crop): "Full image" here; "Next" is in the bottom bar - the filters come on the next step. */
 @Composable
 private fun CropStepRow(viewModel: ScanEditViewModel) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
         TextButton(onClick = { viewModel.edit(ScanEditPage::cropReset) }, colors = actionTextColors()) {
             Text(stringResource(R.string.scan_edit_full_image))
         }
-        Button(onClick = viewModel::toggleCrop) { Text(stringResource(R.string.scan_edit_crop_next)) }
     }
 }
 

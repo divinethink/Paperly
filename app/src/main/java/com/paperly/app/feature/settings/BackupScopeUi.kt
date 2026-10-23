@@ -5,7 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
@@ -40,8 +41,8 @@ internal class BackupExportUi(
 /** One system "save file" picker; remembers which scope the user was exporting when the picker returns. */
 @Composable
 internal fun rememberBackupExport(viewModel: BackupViewModel): BackupExportUi {
-    var chosen by rememberSaveable { mutableStateOf(BackupScope.ALL) }
-    var pending by rememberSaveable { mutableStateOf(BackupScope.ALL) }
+    var chosen by rememberSaveable { mutableStateOf(BackupScope.SCAN) }
+    var pending by rememberSaveable { mutableStateOf(BackupScope.SCAN) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) {
         it?.let { uri -> viewModel.export(uri, pending) }
     }
@@ -73,15 +74,18 @@ internal fun BackupScope.labelRes(): Int = when (this) {
 }
 
 /** Scanned / PDF / EPUB / All chips with a one-line "N documents · size" summary of the chosen one. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun BackupScopeChips(export: BackupExportUi, stats: Map<BackupScope, ScopeStat>) {
-    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         listOf(BackupScope.SCAN, BackupScope.PDF, BackupScope.EPUB, BackupScope.ALL).forEach { scope ->
             FilterChip(
                 selected = export.chosen == scope,
                 onClick = { export.onChoose(scope) },
-                label = { Text(stringResource(scope.labelRes()), maxLines = 1) },
-                modifier = Modifier.weight(1f),
+                label = { Text(stringResource(scope.labelRes()), maxLines = 1, softWrap = false) },
             )
         }
     }

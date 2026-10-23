@@ -55,8 +55,8 @@ internal fun EditBottomBar(state: ScanEditUi, viewModel: ScanEditViewModel, onAd
                 viewModel.edit(ScanEditPage::rotated)
             }
             ToolItem(
-                if (state.cropping) ScanEditIcons.Done else ScanEditIcons.Crop,
-                if (state.cropping) R.string.scan_edit_crop_done else R.string.scan_edit_crop,
+                if (state.cropping) ScanEditIcons.Next else ScanEditIcons.Crop,
+                if (state.cropping) R.string.scan_edit_crop_next else R.string.scan_edit_crop,
                 !page.locked,
                 viewModel::toggleCrop,
             )
