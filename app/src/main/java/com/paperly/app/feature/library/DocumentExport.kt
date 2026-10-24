@@ -114,9 +114,8 @@ private fun rememberScanChoice(
     val jpg = rememberJpgExport(doc.id, viewModel)
     ScanFormatPrompt(
         action = ask,
-        doc = doc,
         initialName = firstName,
-        viewModel = viewModel,
+        estimate = { pdf -> viewModel.sizeEstimates(doc.id, null, pdf) },
         onChoose = { action, format, name, size ->
             val share = action == ScanAction.SHARE
             when (format) {
@@ -159,9 +158,8 @@ private enum class ScanAction(@StringRes val label: Int) {
 @Composable
 private fun ScanFormatPrompt(
     action: ScanAction?,
-    doc: Document,
     initialName: String,
-    viewModel: ExportViewModel,
+    estimate: suspend (pdf: Boolean) -> Map<ExportSize, Long>,
     onChoose: (ScanAction, ScanFormat, String, ExportSize) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -169,7 +167,7 @@ private fun ScanFormatPrompt(
     ScanFormatDialog(
         initialName = initialName,
         confirmLabel = action.label,
-        estimate = { pdf -> viewModel.sizeEstimates(doc.id, null, pdf) },
+        estimate = estimate,
         onConfirm = { name, format, size ->
             onClose()
             onChoose(action, format, name, size)

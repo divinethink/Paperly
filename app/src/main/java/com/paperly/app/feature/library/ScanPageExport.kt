@@ -57,7 +57,8 @@ internal fun rememberPageExport(doc: Document, chosen: Set<Int>, onDone: () -> U
                 val clean = ExportFiles.baseName(name)
                 when (format) {
                     ScanFormat.PDF -> scope.launch {
-                        val file = preparedPdf(context, viewModel, doc.id, clean, chosen, size)
+                        toast(context, R.string.export_pdf_preparing)
+                        val file = viewModel.sizedPdf(doc.id, clean, chosen, size)
                         if (send == PageSend.SAVE && file != null) {
                             pdfReady = file
                             pdfSaver.launch("$clean.pdf")
@@ -96,18 +97,6 @@ private suspend fun singlePageName(viewModel: ExportViewModel, doc: Document, ch
 
 private suspend fun sharePagesPdf(context: Context, file: File?, name: String, email: Boolean) =
     shareFile(context, file, "$name.pdf", if (email) EMAIL_MIME else PDF_MIME)
-
-private suspend fun preparedPdf(
-    context: Context,
-    viewModel: ExportViewModel,
-    docId: String,
-    name: String,
-    chosen: Set<Int>,
-    size: ExportSize,
-): File? {
-    toast(context, R.string.export_pdf_preparing)
-    return viewModel.sizedPdf(docId, name, chosen, size)
-}
 
 private fun sendJpgs(jpg: ScanJpgExport, send: PageSend, name: String, chosen: Set<Int>, size: ExportSize) =
     when (send) {
