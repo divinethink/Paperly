@@ -109,10 +109,13 @@ private fun rememberScanChoice(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ask by remember { mutableStateOf<ScanAction?>(null) }
+    val covers: CoverViewModel = hiltViewModel()
+    var firstName by remember { mutableStateOf(ExportFiles.baseName(doc.title)) }
     val jpg = rememberJpgExport(doc.id, viewModel)
     ScanFormatPrompt(
         action = ask,
         doc = doc,
+        initialName = firstName,
         viewModel = viewModel,
         onChoose = { action, format, name, size ->
             val share = action == ScanAction.SHARE
@@ -134,7 +137,16 @@ private fun rememberScanChoice(
         },
         onClose = { ask = null },
     )
-    return ScanChoice(share = { ask = ScanAction.SHARE }, save = { ask = ScanAction.SAVE })
+    // A one-page scan with its own page title: that title is the default file name (else the document name)
+    fun prompt(action: ScanAction) {
+        scope.launch {
+            val only = if (covers.pageCount(doc.id) == 1) 0 else null
+            firstName = viewModel.pageName(doc.id, only)?.let { ExportFiles.baseName(it) }
+                ?: ExportFiles.baseName(doc.title)
+            ask = action
+        }
+    }
+    return ScanChoice(share = { prompt(ScanAction.SHARE) }, save = { prompt(ScanAction.SAVE) })
 }
 
 private const val SCAN_TYPE = "scanned-pdf"
@@ -148,13 +160,14 @@ private enum class ScanAction(@StringRes val label: Int) {
 private fun ScanFormatPrompt(
     action: ScanAction?,
     doc: Document,
+    initialName: String,
     viewModel: ExportViewModel,
     onChoose: (ScanAction, ScanFormat, String, ExportSize) -> Unit,
     onClose: () -> Unit,
 ) {
     if (action == null) return
     ScanFormatDialog(
-        initialName = ExportFiles.baseName(doc.title),
+        initialName = initialName,
         confirmLabel = action.label,
         estimate = { pdf -> viewModel.sizeEstimates(doc.id, null, pdf) },
         onConfirm = { name, format, size ->

@@ -1,5 +1,6 @@
 package com.paperly.app.feature.library
 
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -14,6 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperly.app.R
 import com.paperly.app.core.file.ExportFiles
 import com.paperly.app.domain.document.Document
+import com.paperly.app.domain.scanner.ExportSize
 import java.io.File
 import kotlinx.coroutines.launch
 
@@ -39,6 +41,7 @@ internal fun rememberPageExport(doc: Document, chosen: Set<Int>, onDone: () -> U
     val jpg = rememberJpgExport(doc.id, viewModel)
     val base = ExportFiles.baseName(doc.title)
     var ask by remember { mutableStateOf<PageSend?>(null) }
+    var firstName by remember { mutableStateOf(base) }
     var pdfReady by remember { mutableStateOf<File?>(null) }
     val pdfSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF_MIME)) { uri ->
         if (uri != null) scope.launch { toast(context, saveTo(context, pdfReady, uri)) }
@@ -46,7 +49,7 @@ internal fun rememberPageExport(doc: Document, chosen: Set<Int>, onDone: () -> U
     val send = ask
     if (send != null) {
         ScanFormatDialog(
-            initialName = base,
+            initialName = firstName,
             confirmLabel = send.label,
             estimate = { pdf -> viewModel.sizeEstimates(doc.id, chosen, pdf) },
             onConfirm = { name, format, size ->
@@ -54,37 +57,72 @@ internal fun rememberPageExport(doc: Document, chosen: Set<Int>, onDone: () -> U
                 val clean = ExportFiles.baseName(name)
                 when (format) {
                     ScanFormat.PDF -> scope.launch {
-                        toast(context, R.string.export_pdf_preparing)
-                        val file = viewModel.sizedPdf(doc.id, clean, chosen, size)
-                        val fileName = "$clean.pdf"
+                        val file = preparedPdf(context, viewModel, doc.id, clean, chosen, size)
                         if (send == PageSend.SAVE && file != null) {
                             pdfReady = file
-                            pdfSaver.launch(fileName)
+                            pdfSaver.launch("$clean.pdf")
                         } else {
-                            shareFile(context, file, fileName, if (send == PageSend.EMAIL) EMAIL_MIME else PDF_MIME)
+                            sharePagesPdf(context, file, clean, send == PageSend.EMAIL)
                         }
                     }
-                    ScanFormat.JPG -> when (send) {
-                        PageSend.SHARE -> jpg.share(clean, chosen, size)
-                        PageSend.EMAIL -> jpg.email(clean, chosen, size)
-                        PageSend.SAVE -> jpg.save(clean, chosen, size)
-                    }
+                    ScanFormat.JPG -> sendJpgs(jpg, send, clean, chosen, size)
                 }
                 onDone()
             },
             onDismiss = { ask = null },
         )
     }
+    val prompt: (PageSend) -> Unit = { action ->
+        scope.launch {
+            firstName = singlePageName(viewModel, doc, chosen)
+            ask = action
+        }
+    }
     return PageExport(
-        share = { ask = PageSend.SHARE },
-        email = { ask = PageSend.EMAIL },
-        save = { ask = PageSend.SAVE },
+        share = { prompt(PageSend.SHARE) },
+        email = { prompt(PageSend.EMAIL) },
+        save = { prompt(PageSend.SAVE) },
         print = {
-            scope.launch {
-                toast(context, R.string.export_jpg_preparing)
-                printFile(context, viewModel.pagesPdf(doc.id, base, chosen), base)
-            }
+            scope.launch { printPages(context, viewModel, doc.id, base, chosen) }
             onDone()
         },
     )
+}
+
+/** One page chosen and it has its own title: that title is the default file name; otherwise the document name. */
+private suspend fun singlePageName(viewModel: ExportViewModel, doc: Document, chosen: Set<Int>): String =
+    viewModel.pageName(doc.id, chosen.singleOrNull())?.let { ExportFiles.baseName(it) }
+        ?: ExportFiles.baseName(doc.title)
+
+private suspend fun sharePagesPdf(context: Context, file: File?, name: String, email: Boolean) =
+    shareFile(context, file, "$name.pdf", if (email) EMAIL_MIME else PDF_MIME)
+
+private suspend fun preparedPdf(
+    context: Context,
+    viewModel: ExportViewModel,
+    docId: String,
+    name: String,
+    chosen: Set<Int>,
+    size: ExportSize,
+): File? {
+    toast(context, R.string.export_pdf_preparing)
+    return viewModel.sizedPdf(docId, name, chosen, size)
+}
+
+private fun sendJpgs(jpg: ScanJpgExport, send: PageSend, name: String, chosen: Set<Int>, size: ExportSize) =
+    when (send) {
+        PageSend.SHARE -> jpg.share(name, chosen, size)
+        PageSend.EMAIL -> jpg.email(name, chosen, size)
+        PageSend.SAVE -> jpg.save(name, chosen, size)
+    }
+
+private suspend fun printPages(
+    context: Context,
+    viewModel: ExportViewModel,
+    docId: String,
+    base: String,
+    chosen: Set<Int>,
+) {
+    toast(context, R.string.export_jpg_preparing)
+    printFile(context, viewModel.pagesPdf(docId, base, chosen), base)
 }
