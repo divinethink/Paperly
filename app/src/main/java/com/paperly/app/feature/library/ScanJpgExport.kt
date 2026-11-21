@@ -46,7 +46,7 @@ internal fun rememberJpgExport(documentId: String, viewModel: ExportViewModel): 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf<List<File>>(emptyList()) }
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(JPEG_MIME)) { uri ->
+    val filePicker = rememberLauncherForActivityResult(CreateInDownloads(JPEG_MIME)) { uri ->
         if (uri != null) scope.launch { toast(context, saveTo(context, ready.firstOrNull(), uri)) }
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->

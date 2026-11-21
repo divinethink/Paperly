@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -125,7 +124,7 @@ private fun ExportReady(info: WorkInfo, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val file = info.outputData.getString(ImageExportWorker.KEY_PATH)?.let(::File)?.takeIf { it.isFile }
     val mime = info.outputData.getString(ImageExportWorker.KEY_MIME).orEmpty()
-    val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(mime)) { uri ->
+    val saver = rememberLauncherForActivityResult(CreateInDownloads(mime)) { uri ->
         if (uri != null) scope.launch { toast(context, saveTo(context, file, uri)) }
     }
     if (file == null) {

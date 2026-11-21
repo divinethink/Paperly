@@ -2,7 +2,6 @@ package com.paperly.app.feature.library
 
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,7 +42,7 @@ internal fun rememberPageExport(doc: Document, chosen: Set<Int>, onDone: () -> U
     var ask by remember { mutableStateOf<PageSend?>(null) }
     var firstName by remember { mutableStateOf(base) }
     var pdfReady by remember { mutableStateOf<File?>(null) }
-    val pdfSaver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PDF_MIME)) { uri ->
+    val pdfSaver = rememberLauncherForActivityResult(CreateInDownloads(PDF_MIME)) { uri ->
         if (uri != null) scope.launch { toast(context, saveTo(context, pdfReady, uri)) }
     }
     val send = ask

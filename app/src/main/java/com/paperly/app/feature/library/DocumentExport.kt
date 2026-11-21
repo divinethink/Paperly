@@ -7,7 +7,6 @@ import android.net.Uri
 import android.print.PrintManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,7 +49,7 @@ internal fun rememberDocumentExport(
     // [marked] = a quick-view PDF with marks: Save / Share / Print then use a copy that has them (null result = failed)
     suspend fun fileOf(): File? = if (marked != null) marked() else viewModel.file(doc.id)
     var sizedPdf by remember { mutableStateOf<File?>(null) } // scan Save: the copy made at the chosen size
-    val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(mime)) { uri ->
+    val saver = rememberLauncherForActivityResult(CreateInDownloads(mime)) { uri ->
         if (uri != null) {
             scope.launch {
                 val message = saveTo(context, sizedPdf ?: fileOf(), uri)
