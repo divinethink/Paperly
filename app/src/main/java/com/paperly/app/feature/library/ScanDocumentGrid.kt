@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
 import com.paperly.app.feature.scanner.LocalOpenScanPages
@@ -70,6 +73,10 @@ internal fun ScanDocumentGrid(
         items(state.scanFolders, key = { "folder:" + it.id }) {
             ScanFolderCell(it, ScanGridCoverHeight + ScanStackStep * 2, onOpenFolder)
         }
+        // Folders and documents never share a row: a full-width empty item ends the folder row.
+        if (state.scanFolders.isNotEmpty() && state.documents.isNotEmpty()) {
+            item(key = "folders-end", span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(0.dp)) }
+        }
         items(state.documents, key = { it.id }) { doc -> ScanGridCell(doc, actions, batch, covers) }
     }
 }
@@ -92,6 +99,7 @@ private fun ScanGridCell(doc: Document, actions: DocumentActions, batch: BatchSt
         Text(
             doc.title,
             style = MaterialTheme.typography.labelMedium,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -100,8 +108,9 @@ private fun ScanGridCell(doc: Document, actions: DocumentActions, batch: BatchSt
         Text(
             gridDetail(doc, pages),
             style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }

@@ -1,6 +1,9 @@
 package com.paperly.app.navigation
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -182,12 +185,20 @@ fun PaperlyRoot(hasIncomingImport: Boolean = false) {
                 navController = navController,
                 startDestination = Routes.library(LibraryType.SCAN), // the app always opens on Scanned
                 modifier = Modifier.weight(1f),
+                // Fade-through: the old screen fades out first, then the new one fades in, so two never overlap.
+                enterTransition = { fadeIn(tween(FADE_IN_MS, delayMillis = FADE_OUT_MS)) },
+                exitTransition = { fadeOut(tween(FADE_OUT_MS)) },
+                popEnterTransition = { fadeIn(tween(FADE_IN_MS, delayMillis = FADE_OUT_MS)) },
+                popExitTransition = { fadeOut(tween(FADE_OUT_MS)) },
             ) {
                 paperlyDestinations(navController)
             }
         }
     }
 }
+
+private const val FADE_OUT_MS = 90
+private const val FADE_IN_MS = 210
 
 /** Cream bar: muted labels/icons, selected item gets a tint pill. */
 @Composable

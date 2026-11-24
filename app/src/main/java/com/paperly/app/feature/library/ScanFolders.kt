@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.paperly.app.R
 import com.paperly.app.core.ui.icons.ChevronGlyph
 import com.paperly.app.core.ui.icons.FolderGlyph
@@ -210,7 +211,8 @@ internal fun ScanFolderCell(item: ScanFolderItem, height: Dp, onOpen: (String) -
             )
             Text(
                 item.name,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -220,6 +222,7 @@ internal fun ScanFolderCell(item: ScanFolderItem, height: Dp, onOpen: (String) -
             Text(
                 pluralStringResource(R.plurals.scan_folder_documents, item.count, item.count),
                 style = MaterialTheme.typography.labelSmall,
+                fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

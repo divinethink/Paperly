@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -34,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +53,7 @@ private const val GRID_COLUMNS = 3 // 6-9 pages on one phone screen
 private const val MIN_THUMB_ASPECT = 0.7f // very tall/wide pages are fitted into a box of normal proportions
 private const val MAX_THUMB_ASPECT = 1f
 private const val BOX_ALPHA = 0.8f
+private const val BADGE_ALPHA = 0.6f
 
 /** "Today" / "Yesterday" / a short date; one value for the whole document (pages have no date of their own). */
 @Composable
@@ -88,7 +90,7 @@ internal fun rememberPageStamp(
     }
 }
 
-/** Three-column page grid (Notebloc style): page thumbnail with a teal footer — page number left, date right. */
+/** Three-column page grid (Notebloc style): page thumbnail with a small number chip, then a quiet caption. */
 @Composable
 internal fun ScanPageGrid(
     ready: ScanPagesUi.Ready,
@@ -126,7 +128,6 @@ private fun PageCell(
     Column(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
             .pageSemantics(label, stamp.checked)
             .combinedClickable(
                 role = Role.Button,
@@ -134,11 +135,12 @@ private fun PageCell(
                 onClick = { taps.onTap(index) },
             ),
     ) {
-        Box {
+        Box(Modifier.clip(RoundedCornerShape(4.dp)).border(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
             PageThumb(index, ready, viewModel, Modifier.fillMaxWidth())
+            PageNumberBadge(index + 1, Modifier.align(Alignment.BottomStart).padding(4.dp))
             stamp.checked?.let { SelectBox(it, Modifier.align(Alignment.TopEnd).padding(6.dp)) }
         }
-        PageFooter(index + 1, stamp, title)
+        PageCaption(stamp, title)
     }
 }
 
@@ -183,36 +185,38 @@ internal fun PageThumb(index: Int, ready: ScanPagesUi.Ready, viewModel: ScanPage
     }
 }
 
+/** Page number as a small dark chip on the thumbnail's corner. */
 @Composable
-private fun PageFooter(number: Int, stamp: PageStamp, title: String) {
-    val onBar = MaterialTheme.colorScheme.onPrimary
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 4.dp, vertical = 3.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(R.string.scan_page_number, number),
-                color = onBar,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.border(1.dp, onBar).padding(horizontal = 4.dp, vertical = 1.dp),
-            )
-            Spacer(Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(stamp.date, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                stamp.size?.let { Text(it, color = onBar, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
-            }
-        }
-        if (title.isNotBlank()) {
-            Text(
-                title,
-                color = onBar,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+private fun PageNumberBadge(number: Int, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(R.string.scan_page_number, number),
+        color = Color.White,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = modifier.background(Color.Black.copy(alpha = BADGE_ALPHA), RoundedCornerShape(4.dp))
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
+}
+
+/** Quiet caption under the thumbnail: the page's title (if any) and its picture size. No date: it is the document's. */
+@Composable
+private fun PageCaption(stamp: PageStamp, title: String) {
+    val quiet = MaterialTheme.colorScheme.onSurfaceVariant
+    if (title.isNotBlank()) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+    stamp.size?.let {
+        Text(
+            it,
+            color = quiet,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }

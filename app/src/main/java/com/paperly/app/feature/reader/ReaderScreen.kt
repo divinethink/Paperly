@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -90,8 +91,10 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     if (isScan) {
-        // Scanned documents: black page background and the app's teal bars (the reading themes stay for PDF/EPUB).
-        Surface(Modifier.fillMaxSize(), color = Color.Black, contentColor = Color.White) {
+        // Scanned documents: soft grey desk behind white sheets, with the app's bars (reading themes stay for PDF/EPUB).
+        val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        val desk = if (dark) ScanDeskDark else ScanDeskLight
+        Surface(Modifier.fillMaxSize(), color = desk, contentColor = if (dark) Color.White else Color.Black) {
             ReaderContent(state, viewModel, listState, null, leave)
         }
     } else {
@@ -103,6 +106,8 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     }
 }
 
+private val ScanDeskLight = Color(0xFFE3E4E8) // soft grey behind scanned sheets
+private val ScanDeskDark = Color(0xFF2A2B2F)
 private val PageDividerColor = Color(0x80808080) // thin grey line closing each page
 private val HighlightColor = Color(0x66FFEB3B) // translucent yellow, readable on every reader theme
 

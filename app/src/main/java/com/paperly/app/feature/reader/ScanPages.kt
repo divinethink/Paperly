@@ -2,6 +2,7 @@ package com.paperly.app.feature.reader
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -32,9 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,6 +54,8 @@ private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val RENDER_WIDTH_FACTOR = 1.5f
 private const val MAX_RENDER_WIDTH_PX = 2048
 private val BOTTOM_BAR_ROOM = 56.dp // the scan bottom bar floats over the page area
+private val SHEET_MARGIN = 8.dp // air around the white sheet so its shadow shows
+private val SHEET_SHADOW = 3.dp
 
 /**
  * Scanned documents in view mode: one page per screen, swipe left / right (like Notebloc). It uses the Reader's own
@@ -106,7 +112,7 @@ private fun LazyItemScope.ScanPage(
         when {
             page != null -> {
                 val ratio = page.width.toFloat() / page.height
-                val fitWidth = minOf(maxWidth, maxHeight * ratio)
+                val fitWidth = minOf(maxWidth - SHEET_MARGIN * 2, (maxHeight - SHEET_MARGIN * 2) * ratio)
                 SideEffect { zoom.image = with(density) { Size(fitWidth.toPx(), (fitWidth / ratio).toPx()) } }
                 val marks = hooks.items[index].orEmpty()
                 Image(
@@ -118,7 +124,7 @@ private fun LazyItemScope.ScanPage(
                         scaleY = zoom.scale
                         translationX = zoom.offset.x
                         translationY = zoom.offset.y
-                    }.drawWithContent {
+                    }.shadow(SHEET_SHADOW, RectangleShape).background(Color.White).drawWithContent {
                         drawContent()
                         drawAnnotations(marks, zoom.scale)
                     },
