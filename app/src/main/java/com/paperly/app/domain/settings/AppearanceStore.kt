@@ -21,7 +21,11 @@ interface AppearanceStore {
 
     val themeMode: Flow<AppThemeMode>
 
+    val palette: Flow<AppPalette>
+
     suspend fun setDynamicColor(enabled: Boolean)
 
     suspend fun setThemeMode(mode: AppThemeMode)
+
+    suspend fun setPalette(palette: AppPalette)
 }

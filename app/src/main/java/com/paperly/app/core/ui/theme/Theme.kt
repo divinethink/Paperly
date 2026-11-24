@@ -9,6 +9,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.paperly.app.domain.settings.AppPalette
 
 private val LightColors = lightColorScheme(
     primary = Accent,
@@ -67,16 +68,19 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
- * Brand palette is the default. Dynamic Color (Material You) is optional and OFF by default
- * (toggle arrives in P7). minSdk 31 so no API-level check is needed.
+ * Brand palette is the default. An extra [palette] (Meadow, Glacier, Neon Night) wins over Dynamic Color; Dynamic Color
+ * (Material You) is optional and OFF by default. minSdk 31 so no API-level check is needed.
  */
 @Composable
 fun PaperlyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    palette: AppPalette = AppPalette.PAPERLY,
     content: @Composable () -> Unit,
 ) {
+    val picked = paletteColors(palette)
     val colors = when {
+        picked != null -> picked
         dynamicColor -> {
             val ctx = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)

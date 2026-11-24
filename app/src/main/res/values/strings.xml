@@ -542,6 +542,12 @@
     <string name="settings_dynamic_color">System colours</string>
     <string name="settings_app_theme">App theme</string>
     <string name="settings_app_theme_summary">Light, dark, or the same as your phone</string>
+    <string name="settings_palette">App palette</string>
+    <string name="settings_palette_summary">Colours of the app screens. Meadow and Glacier are light, Neon Night is dark; they replace System colours.</string>
+    <string name="settings_palette_paperly">Paperly</string>
+    <string name="settings_palette_meadow">Meadow</string>
+    <string name="settings_palette_glacier">Glacier</string>
+    <string name="settings_palette_neon_night">Neon Night</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>

@@ -52,11 +52,13 @@ class MainActivity : FragmentActivity() {
             val appearance: AppearanceViewModel = hiltViewModel()
             val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
             val themeMode by appearance.themeMode.collectAsStateWithLifecycle()
-            val dark = when (themeMode) {
+            val palette by appearance.palette.collectAsStateWithLifecycle()
+            val modeDark = when (themeMode) {
                 AppThemeMode.SYSTEM -> isSystemInDarkTheme()
                 AppThemeMode.LIGHT -> false
                 AppThemeMode.DARK -> true
             }
+            val dark = palette.isDark(modeDark) // an extra palette brings its own light / dark
             // Bar icons follow the chosen look, not only the phone's (they would vanish on a forced theme).
             DisposableEffect(dark) {
                 enableEdgeToEdge(
@@ -65,7 +67,7 @@ class MainActivity : FragmentActivity() {
                 )
                 onDispose {}
             }
-            PaperlyTheme(darkTheme = dark, dynamicColor = dynamicColor) {
+            PaperlyTheme(darkTheme = dark, dynamicColor = dynamicColor, palette = palette) {
                 val pendingImport by incomingImports.pending.collectAsStateWithLifecycle()
                 PaperlyRoot(hasIncomingImport = pendingImport != null)
                 // consume() runs once per fresh process; rememberSaveable keeps the notice across rotation.

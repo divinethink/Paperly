@@ -93,6 +93,8 @@ private fun ReadingCard(minutesToday: Int, dynamicColor: Boolean, onDynamicColor
         SettingsDivider()
         AppThemeRow()
         SettingsDivider()
+        AppPaletteRow()
+        SettingsDivider()
         ReadingThemeRow()
         SettingsDivider()
         val colorText = SwitchText(
