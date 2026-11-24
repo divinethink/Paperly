@@ -81,7 +81,13 @@ class AppPrivateDocumentFileStore @Inject constructor(
         File(dir, documentId).takeIf { it.isFile }
 
     override suspend fun delete(documentId: String): Boolean =
-        withContext(Dispatchers.IO) { File(dir, documentId).delete() }
+        withContext(Dispatchers.IO) {
+            val target = File(dir, documentId)
+            val deleted = target.delete()
+            // The 7-day safety copy is a full copy of the user's file: it goes with the document.
+            if (deleted || !target.exists()) File(File(context.filesDir, PDF_BACKUP_DIR), "$documentId.bak").delete()
+            deleted
+        }
 
     private companion object {
         const val BUFFER_SIZE = 64 * 1024
