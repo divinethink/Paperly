@@ -99,7 +99,7 @@ private fun ScanGridCell(doc: Document, actions: DocumentActions, batch: BatchSt
         Text(
             doc.title,
             style = MaterialTheme.typography.labelMedium,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -108,7 +108,7 @@ private fun ScanGridCell(doc: Document, actions: DocumentActions, batch: BatchSt
         Text(
             gridDetail(doc, pages),
             style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

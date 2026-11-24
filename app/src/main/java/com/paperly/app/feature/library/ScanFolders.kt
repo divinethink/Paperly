@@ -212,7 +212,7 @@ internal fun ScanFolderCell(item: ScanFolderItem, height: Dp, onOpen: (String) -
             Text(
                 item.name,
                 style = MaterialTheme.typography.labelMedium,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -222,7 +222,7 @@ internal fun ScanFolderCell(item: ScanFolderItem, height: Dp, onOpen: (String) -
             Text(
                 pluralStringResource(R.plurals.scan_folder_documents, item.count, item.count),
                 style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
