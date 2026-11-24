@@ -52,7 +52,7 @@ private val ScanGridCoverHeight = 100.dp
 private val GridMenuButton = 30.dp
 private val ScanStackStep = 4.dp
 
-/** Scanned tab, Grid view: small covers in four columns, folders are tiles in the same grid. Tap opens the page grid. */
+/** Scanned tab, Grid view: small covers in four columns, folders are tiles in the same grid. Tap opens pages. */
 @Composable
 internal fun ScanDocumentGrid(
     state: LibraryUiState,

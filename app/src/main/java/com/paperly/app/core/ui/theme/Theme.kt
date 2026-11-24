@@ -68,8 +68,8 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
- * Brand palette is the default. An extra [palette] (Meadow, Nord Frost, Neon Night) wins over Dynamic Color; Dynamic Color
- * (Material You) is optional and OFF by default. minSdk 31 so no API-level check is needed.
+ * Brand palette is the default. An extra [palette] (Meadow, Glacier, Neon Night) wins over Dynamic Color;
+ * Dynamic Color (Material You) is optional and OFF by default. minSdk 31 so no API-level check is needed.
  */
 @Composable
 fun PaperlyTheme(

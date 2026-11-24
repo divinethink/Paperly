@@ -49,7 +49,11 @@ internal fun CardMenu(
                 contentDescription = stringResource(R.string.doc_more),
                 tint = if (onCover) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = if (onCover) {
-                    Modifier.size(20.dp).clip(CircleShape).background(Color.Black.copy(alpha = SCRIM_ALPHA)).padding(2.dp)
+                    Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = SCRIM_ALPHA))
+                        .padding(2.dp)
                 } else {
                     Modifier
                 },
