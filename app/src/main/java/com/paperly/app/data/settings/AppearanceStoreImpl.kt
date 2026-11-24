@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.paperly.app.domain.settings.AppThemeMode
 import com.paperly.app.domain.settings.AppearanceStore
 import dagger.Binds
 import dagger.Module
@@ -27,12 +29,22 @@ class AppearanceStoreImpl @Inject constructor(
         .catch { if (it is IOException) emptyFlow<Preferences>() else throw it }
         .map { it[DYNAMIC_COLOR_KEY] ?: false }
 
+    // Additive key; missing or unknown = follow the phone.
+    override val themeMode: Flow<AppThemeMode> = store.data
+        .catch { if (it is IOException) emptyFlow<Preferences>() else throw it }
+        .map { AppThemeMode.fromKey(it[THEME_MODE_KEY]) }
+
     override suspend fun setDynamicColor(enabled: Boolean) {
         store.edit { it[DYNAMIC_COLOR_KEY] = enabled }
     }
 
+    override suspend fun setThemeMode(mode: AppThemeMode) {
+        store.edit { it[THEME_MODE_KEY] = mode.key }
+    }
+
     private companion object {
         val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        val THEME_MODE_KEY = stringPreferencesKey("app_theme_mode")
     }
 }
 

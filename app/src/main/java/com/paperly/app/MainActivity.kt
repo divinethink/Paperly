@@ -1,9 +1,13 @@
 package com.paperly.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +26,7 @@ import com.paperly.app.core.intent.extractImportUri
 import com.paperly.app.core.intent.isContinueReading
 import com.paperly.app.core.intent.isQuickOpen
 import com.paperly.app.core.ui.theme.PaperlyTheme
+import com.paperly.app.domain.settings.AppThemeMode
 import com.paperly.app.feature.reader.EpubFragmentHost
 import com.paperly.app.feature.settings.AppearanceViewModel
 import com.paperly.app.navigation.PaperlyRoot
@@ -46,7 +51,21 @@ class MainActivity : FragmentActivity() {
         setContent {
             val appearance: AppearanceViewModel = hiltViewModel()
             val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
-            PaperlyTheme(dynamicColor = dynamicColor) {
+            val themeMode by appearance.themeMode.collectAsStateWithLifecycle()
+            val dark = when (themeMode) {
+                AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+                AppThemeMode.LIGHT -> false
+                AppThemeMode.DARK -> true
+            }
+            // Bar icons follow the chosen look, not only the phone's (they would vanish on a forced theme).
+            DisposableEffect(dark) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },
+                    navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },
+                )
+                onDispose {}
+            }
+            PaperlyTheme(darkTheme = dark, dynamicColor = dynamicColor) {
                 val pendingImport by incomingImports.pending.collectAsStateWithLifecycle()
                 PaperlyRoot(hasIncomingImport = pendingImport != null)
                 // consume() runs once per fresh process; rememberSaveable keeps the notice across rotation.

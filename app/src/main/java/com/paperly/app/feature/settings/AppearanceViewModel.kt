@@ -2,6 +2,7 @@ package com.paperly.app.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.domain.settings.AppThemeMode
 import com.paperly.app.domain.settings.AppearanceStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -16,6 +17,13 @@ class AppearanceViewModel @Inject constructor(
 ) : ViewModel() {
     val dynamicColor: StateFlow<Boolean> =
         store.dynamicColor.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val themeMode: StateFlow<AppThemeMode> =
+        store.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, AppThemeMode.SYSTEM)
+
+    fun setThemeMode(mode: AppThemeMode) {
+        viewModelScope.launch { store.setThemeMode(mode) }
+    }
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { store.setDynamicColor(enabled) }

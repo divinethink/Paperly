@@ -91,6 +91,10 @@ private fun ReadingCard(minutesToday: Int, dynamicColor: Boolean, onDynamicColor
             stringResource(R.string.settings_read_today_value, minutesToday),
         )
         SettingsDivider()
+        AppThemeRow()
+        SettingsDivider()
+        ReadingThemeRow()
+        SettingsDivider()
         val colorText = SwitchText(
             stringResource(R.string.settings_dynamic_color),
             stringResource(R.string.settings_dynamic_color_summary),

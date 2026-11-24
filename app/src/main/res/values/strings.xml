@@ -540,6 +540,13 @@
     <string name="epub_menu_tip">Tap anywhere on the page to show or hide the menu.</string>
     <string name="epub_menu_tip_ok">Got it</string>
     <string name="settings_dynamic_color">System colours</string>
+    <string name="settings_app_theme">App theme</string>
+    <string name="settings_app_theme_summary">Light, dark, or the same as your phone</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_reading_theme">Reading theme</string>
+    <string name="settings_reading_theme_summary">Page colours in the reader</string>
     <string name="settings_dynamic_color_hint">Off by default. Applies to the app screens; reading themes are unchanged.</string>
     <string name="settings_pdf_write">Save highlights in the PDF</string>
     <string name="settings_pdf_write_hint">On by default. After you close a PDF, new highlights are also saved inside the file, so other PDF apps show them. A PDF opened from your device is changed in place when Android allows it; otherwise it is kept in your Library. Later edits or deletes are not written. Not for files over 50 MB. The file changes, so it is uploaded again if cloud sync is on.</string>
