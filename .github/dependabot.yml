@@ -4,7 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0 # সাপ্তাহিক আপডেট-PR বন্ধ; নিরাপত্তা-সতর্কতা (alerts) আলাদা, চালু থাকে
     ignore:
       - dependency-name: "org.jetbrains.kotlin.*"
       - dependency-name: "com.google.devtools.ksp"
@@ -14,3 +14,4 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
