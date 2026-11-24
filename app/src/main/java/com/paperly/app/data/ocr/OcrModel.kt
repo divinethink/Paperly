@@ -10,7 +10,6 @@ import java.nio.file.StandardCopyOption
 
 private const val MIN_BYTES = 100_000L
 private const val TIMEOUT_MS = 20_000
-private const val KB = 1024L
 
 /** Bengali + English `tessdata_fast` models (Apache-2.0), downloaded once into app-private storage; not in the APK. */
 object OcrModel {
@@ -25,8 +24,6 @@ object OcrModel {
         File(File(dataDir(context), "tessdata"), "$lang.traineddata")
 
     fun isReady(context: Context) = languages.all { modelFile(context, it).length() >= MIN_BYTES }
-
-    fun sizeKb(context: Context) = languages.sumOf { modelFile(context, it).length() } / KB
 
     /** Blocking (call off the main thread). Fetches the missing models; true when all are usable. */
     fun download(context: Context): Boolean =

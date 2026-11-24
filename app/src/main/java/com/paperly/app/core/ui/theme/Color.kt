@@ -13,10 +13,8 @@ val InkText = Color(0xFF1F1A17)
 
 // Accent: warm sepia/amber
 val Sepia = Color(0xFFB07A3A)
-val PaperVariant = Color(0xFFEFE9DF)
 
 // Dark theme
-val InkOnDark = Color(0xFFDDD8CE)
 val NightBackground = Color(0xFF121212)
 val NightSurfaceVariant = Color(0xFF232323)
 val SepiaOnDark = Color(0xFFD9A55B)

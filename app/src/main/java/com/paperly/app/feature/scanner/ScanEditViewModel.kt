@@ -67,7 +67,6 @@ data class ScanEditUi(
     val discarded: Boolean = false,
 ) {
     val page: ScanEditPage? get() = pages.getOrNull(current)
-    val canDelete: Boolean get() = pages.canDeleteAt(current)
 }
 
 private const val SOURCE_SIDE = 1400
@@ -211,15 +210,6 @@ class ScanEditViewModel @Inject constructor(
         val to = state.current + delta
         if (state.saving || to !in state.pages.indices) return
         _state.update { it.copy(pages = it.pages.moved(it.current, to), current = to, dirty = true) }
-    }
-
-    /** S4: removes the shown page (the screen asks first). A highlighted page or the last page stays. */
-    fun deleteCurrent() {
-        val state = _state.value
-        if (state.saving || !state.canDelete) return
-        val next = state.current.coerceAtMost(state.pages.size - 2)
-        _state.update { it.copy(pages = it.pages.withoutAt(it.current), dirty = true) }
-        showPage(next)
     }
 
     /**
