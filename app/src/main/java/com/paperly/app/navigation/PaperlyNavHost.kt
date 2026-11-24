@@ -214,6 +214,24 @@ private fun ContinueReadingEffect(
     }
 }
 
+/** Settings hub and its pages (an unknown page key just goes back). */
+private fun NavGraphBuilder.settingsDestinations(navController: NavHostController) {
+    composable(Routes.SETTINGS) {
+        SettingsScreen(onOpenPage = { navController.navigate(Routes.settingsPage(it)) })
+    }
+    composable(
+        Routes.SETTINGS_PAGE,
+        arguments = listOf(navArgument("page") { type = NavType.StringType }),
+    ) { entry ->
+        val page = SettingsPage.fromKey(entry.arguments?.getString("page"))
+        if (page == null) {
+            LaunchedEffect(Unit) { navController.popBackStack() }
+        } else {
+            SettingsPageScreen(page, onBack = { navController.popBackStack() })
+        }
+    }
+}
+
 private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController) {
     LibraryType.entries.forEach { libraryType ->
         composable(
@@ -242,20 +260,7 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         }
     }
     scanDestinations(navController)
-    composable(Routes.SETTINGS) {
-        SettingsScreen(onOpenPage = { navController.navigate(Routes.settingsPage(it)) })
-    }
-    composable(
-        Routes.SETTINGS_PAGE,
-        arguments = listOf(navArgument("page") { type = NavType.StringType }),
-    ) { entry ->
-        val page = SettingsPage.fromKey(entry.arguments?.getString("page"))
-        if (page == null) {
-            LaunchedEffect(Unit) { navController.popBackStack() }
-        } else {
-            SettingsPageScreen(page, onBack = { navController.popBackStack() })
-        }
-    }
+    settingsDestinations(navController)
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
     composable(Routes.STORAGE) { StorageScreen(onBack = { navController.popBackStack() }) }
     composable(
