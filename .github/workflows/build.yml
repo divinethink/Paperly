@@ -85,14 +85,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Room schema JSON (প্রতি DB-সংস্করণ): migration-ইতিহাস রিপোতে রাখতে app/schemas হাতে আপলোডের জন্য
-      - uses: actions/upload-artifact@v4
-        with:
-          name: room-schemas
-          path: app/schemas
-          if-no-files-found: warn
-          retention-days: 14
-
   # R8/shrink check: the release build (minify + shrinkResources) must at least compile. Unsigned, never shipped.
   # Its own job so it runs at the same time as `build` (same checks, shorter wait).
   release-check:

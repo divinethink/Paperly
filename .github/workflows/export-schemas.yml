@@ -1,0 +1,38 @@
+name: Export Room schemas
+
+# ম্যানুয়াল (Run workflow): Room-এর schema JSON বানিয়ে artifact দেয়, যাতে হাতে app/schemas/-এ রিপোতে রাখা যায়।
+# --rerun: Gradle cache থেকে নয়, KSP সত্যিই চালায় (cache-হিটে schema ফাইল লেখা হয় না)।
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schemas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.14.3
+
+      - name: Generate schemas (forced KSP run)
+        run: gradle :app:kspDebugKotlin --rerun --no-build-cache --stacktrace
+
+      - name: Show generated schemas
+        run: ls -R app/schemas
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: room-schemas
+          path: app/schemas
+          if-no-files-found: error
+          retention-days: 14
