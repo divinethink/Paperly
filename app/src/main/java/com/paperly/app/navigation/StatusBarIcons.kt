@@ -12,7 +12,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private const val LIGHT_BAR_LUMINANCE = 0.5f
-private val TealBarRoutes = setOf(Routes.SETTINGS, Routes.TRASH, Routes.STORAGE, Routes.SCAN_PAGES, Routes.SCAN_EDIT)
+private val TealBarRoutes =
+    setOf(Routes.SETTINGS, Routes.SETTINGS_PAGE, Routes.TRASH, Routes.STORAGE, Routes.SCAN_PAGES, Routes.SCAN_EDIT)
 
 private fun usesTealBar(route: String?) = Routes.isLibrary(route) || route in TealBarRoutes
 

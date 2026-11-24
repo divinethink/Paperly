@@ -48,23 +48,28 @@ import com.paperly.app.feature.scanner.LocalOpenScanEditor
 import com.paperly.app.feature.scanner.LocalOpenScanEditorAt
 import com.paperly.app.feature.scanner.LocalOpenScanPages
 import com.paperly.app.feature.scanner.ScanEditStart
+import com.paperly.app.feature.settings.SettingsPage
+import com.paperly.app.feature.settings.SettingsPageScreen
 import com.paperly.app.feature.settings.SettingsScreen
 import com.paperly.app.feature.storage.StorageScreen
 import com.paperly.app.feature.trash.TrashScreen
 
 /** The Reader handles the system bars itself (edge-to-edge, bars float over the page). */
 private val NoInsets = WindowInsets(0)
-private val FullScreenRoutes = setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT, Routes.SCAN_PAGES)
+private val FullScreenRoutes =
+    setOf(Routes.READER, Routes.TRASH, Routes.STORAGE, Routes.SCAN_EDIT, Routes.SCAN_PAGES, Routes.SETTINGS_PAGE)
 
 /** Full-screen routes whose teal bar paints the status bar (and which pad the navigation bar themselves). */
 private val SelfInsetRoutes =
-    setOf(Routes.READER, Routes.SCAN_PAGES, Routes.SCAN_EDIT, Routes.TRASH, Routes.STORAGE)
+    setOf(Routes.READER, Routes.SCAN_PAGES, Routes.SCAN_EDIT, Routes.TRASH, Routes.STORAGE, Routes.SETTINGS_PAGE)
 
 object Routes {
     private const val LIBRARY_PREFIX = "library_"
     const val SCAN = "scan"
     const val SCAN_GALLERY = "scan-gallery"
     const val SETTINGS = "settings"
+    const val SETTINGS_PAGE = "settings-page/{page}"
+    fun settingsPage(page: SettingsPage) = "settings-page/${page.key}"
     const val TRASH = "trash"
     const val STORAGE = "storage"
     const val READER = "reader/{documentId}"
@@ -237,7 +242,20 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
         }
     }
     scanDestinations(navController)
-    composable(Routes.SETTINGS) { SettingsScreen() }
+    composable(Routes.SETTINGS) {
+        SettingsScreen(onOpenPage = { navController.navigate(Routes.settingsPage(it)) })
+    }
+    composable(
+        Routes.SETTINGS_PAGE,
+        arguments = listOf(navArgument("page") { type = NavType.StringType }),
+    ) { entry ->
+        val page = SettingsPage.fromKey(entry.arguments?.getString("page"))
+        if (page == null) {
+            LaunchedEffect(Unit) { navController.popBackStack() }
+        } else {
+            SettingsPageScreen(page, onBack = { navController.popBackStack() })
+        }
+    }
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }
     composable(Routes.STORAGE) { StorageScreen(onBack = { navController.popBackStack() }) }
     composable(

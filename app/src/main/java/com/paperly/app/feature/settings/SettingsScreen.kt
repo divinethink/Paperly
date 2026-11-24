@@ -1,17 +1,23 @@
 package com.paperly.app.feature.settings
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,106 +25,106 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.PaperlyTopBar
+import com.paperly.app.core.ui.icons.ChevronGlyph
 import com.paperly.app.domain.backup.BackupScope
 import com.paperly.app.feature.reader.ReadingTimeViewModel
 
-/** Settings: Reading, Data (storage, sync, backup), Privacy and the Danger zone. */
+private const val ICON_TINT_ALPHA = 0.12f
+private val HubRowMinHeight = 64.dp
+private val HubIconBox = 40.dp
+private val HubIconSize = 22.dp
+
+/**
+ * Settings hub: today's reading time, then one row per section (Appearance, Reading & scan, Storage,
+ * Backup & restore, Privacy) and the Danger zone. Each row opens its own page ([SettingsPageScreen]).
+ */
 @Composable
-fun SettingsScreen(
-    viewModel: SettingsViewModel = hiltViewModel(),
-    backupViewModel: BackupViewModel = hiltViewModel(),
-    readingTime: ReadingTimeViewModel = hiltViewModel(),
-    appearance: AppearanceViewModel = hiltViewModel(),
-    deleteViewModel: DeleteDataViewModel = hiltViewModel(),
-) {
-    val usage by viewModel.usage.collectAsStateWithLifecycle()
+fun SettingsScreen(onOpenPage: (SettingsPage) -> Unit, readingTime: ReadingTimeViewModel = hiltViewModel()) {
     val minutesToday by readingTime.todayMinutes.collectAsStateWithLifecycle()
-    val backup by backupViewModel.state.collectAsStateWithLifecycle()
-    val del by deleteViewModel.state.collectAsStateWithLifecycle()
-    val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
-    val stats by backupViewModel.stats.collectAsStateWithLifecycle()
-    val export = rememberBackupExport(backupViewModel)
-    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
-        it?.let(backupViewModel::previewRestore)
-    }
-    val checkLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
-        it?.let(backupViewModel::check)
-    }
-    backup.confirm?.let { RestoreConfirmDialog(it, backupViewModel::confirmRestore, backupViewModel::cancelRestore) }
-    val onExport = export.exportAll
-    val busy = backup.busy || del.running
-    val actions = BackupActions(
-        onRestore = { restoreLauncher.launch(BACKUP_MIME_TYPES) },
-        onCheck = { checkLauncher.launch(BACKUP_MIME_TYPES) },
-    )
     Column(Modifier.fillMaxWidth()) {
         PaperlyTopBar(stringResource(R.string.nav_settings))
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
-            GroupLabel(R.string.settings_group_preferences)
-            ReadingCard(minutesToday, dynamicColor, appearance::setDynamicColor)
-            GroupLabel(R.string.settings_group_data)
-            SettingsCard { StorageCardContent(usage) }
-            SettingsCard { SyncSection() }
-            SettingsCard { BackupSection(backup.copy(busy = busy), actions, export, stats) }
-            GroupLabel(R.string.settings_group_privacy)
-            SettingsCard { PrivacySection(busy = busy, onExport = onExport) }
-            GroupLabel(R.string.settings_group_danger, danger = true)
-            SettingsCard(danger = true) {
-                DeleteDataSection(
-                    state = del,
-                    viewModel = deleteViewModel,
-                    onExport = onExport,
-                    backupBusy = backup.busy,
-                )
+            TodayCard(minutesToday)
+            SettingsCard {
+                SettingsPage.regular.forEachIndexed { index, page ->
+                    if (index > 0) SettingsDivider()
+                    HubRow(page) { onOpenPage(page) }
+                }
             }
+            SettingsCard(danger = true) { HubRow(SettingsPage.Danger) { onOpenPage(SettingsPage.Danger) } }
         }
     }
 }
 
 @Composable
-private fun ReadingCard(minutesToday: Int, dynamicColor: Boolean, onDynamicColor: (Boolean) -> Unit) {
-    SettingsCard {
-        ValueRow(
-            stringResource(R.string.settings_read_today),
-            stringResource(R.string.settings_read_today_summary),
-            stringResource(R.string.settings_read_today_value, minutesToday),
-        )
-        SettingsDivider()
-        AppThemeRow()
-        SettingsDivider()
-        AppPaletteRow()
-        SettingsDivider()
-        ReadingThemeRow()
-        SettingsDivider()
-        val colorText = SwitchText(
-            stringResource(R.string.settings_dynamic_color),
-            stringResource(R.string.settings_dynamic_color_summary),
-            R.string.settings_dynamic_color_hint,
-        )
-        SettingSwitchRow(colorText, dynamicColor, onDynamicColor)
-        SettingsDivider()
-        PdfFileWriteRow()
-        SettingsDivider()
-        ScanEditorRow()
-        SettingsDivider()
-        ScanOcrRow()
+private fun TodayCard(minutes: Int) {
+    val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    Card(Modifier.fillMaxWidth().padding(bottom = 12.dp), shape = MaterialTheme.shapes.large, colors = colors) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_read_today), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(R.string.settings_read_today_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Text(
+                stringResource(R.string.settings_read_today_value, minutes),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
-private val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/octet-stream")
+/** Icon in a soft tinted circle, title + one-line summary, chevron. Red tint for the Danger zone. */
+@Composable
+private fun HubRow(page: SettingsPage, onClick: () -> Unit) {
+    val tint = if (page.danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = HubRowMinHeight).clip(MaterialTheme.shapes.medium)
+            .clickable(role = Role.Button, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(HubIconBox).clip(CircleShape).background(tint.copy(alpha = ICON_TINT_ALPHA)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(page.icon, contentDescription = null, tint = tint, modifier = Modifier.size(HubIconSize))
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(stringResource(page.title), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(page.summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(ChevronGlyph, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+internal val BACKUP_MIME_TYPES = arrayOf("application/zip", "application/octet-stream")
 
 /** Callbacks of the Backup card, grouped to keep parameter counts small. */
-private class BackupActions(val onRestore: () -> Unit, val onCheck: () -> Unit)
+internal class BackupActions(val onRestore: () -> Unit, val onCheck: () -> Unit)
 
 @Composable
-private fun BackupSection(
+internal fun BackupSection(
     state: BackupUiState,
     actions: BackupActions,
     export: BackupExportUi,

@@ -523,9 +523,6 @@
     <string name="continue_reading_label">Continue reading</string>
     <string name="device_continue_label">Continue from device</string>
     <string name="device_continue_page">Page %1$d</string>
-    <string name="settings_group_preferences">Reading</string>
-    <string name="settings_group_data">Data</string>
-    <string name="settings_group_privacy">Privacy</string>
     <string name="settings_reading_header">Reading</string>
     <string name="settings_reading_today">Read today: %1$d min</string>
     <string name="reader_comfort">Brightness and comfort</string>
@@ -645,6 +642,17 @@
     <string name="library_name_epub">EPUB</string>
     <string name="continue_reading_pct">%1$d%%</string>
     <string name="doc_is_favorite">Favourite</string>
+    <string name="settings_hub_appearance">Appearance</string>
+    <string name="settings_hub_appearance_summary">Theme, palette and reading colours</string>
+    <string name="settings_hub_reading">Reading and scan</string>
+    <string name="settings_hub_reading_summary">PDF highlights, scan editor, text recognition</string>
+    <string name="settings_hub_storage">Storage</string>
+    <string name="settings_hub_storage_summary">Space used and unused files</string>
+    <string name="settings_hub_backup">Backup and restore</string>
+    <string name="settings_hub_backup_summary">Back up, restore, move to a new phone</string>
+    <string name="settings_hub_privacy">Privacy</string>
+    <string name="settings_hub_privacy_summary">Export your data, what leaves this phone</string>
+    <string name="settings_hub_danger_summary">Delete data from this phone</string>
     <string name="settings_group_danger">Danger zone</string>
     <string name="settings_read_today">Read today</string>
     <string name="settings_read_today_summary">Time you spent reading</string>

@@ -34,29 +34,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import com.paperly.app.R
 import com.paperly.app.core.ui.icons.ChevronGlyph
 
 private const val DANGER_BORDER_ALPHA = 0.5f
 private const val CHEVRON_DOWN = 90f
-private const val LABEL_TRACKING = 0.06f
 private val RowMinHeight = 56.dp
-
-/** Small caps label above a group of cards (Reading / Data / Privacy / Danger zone). */
-@Composable
-internal fun GroupLabel(@StringRes label: Int, danger: Boolean = false) {
-    Text(
-        stringResource(label).uppercase(),
-        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = LABEL_TRACKING.em),
-        color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp).semantics { heading() },
-    )
-}
 
 /** One settings group: a rounded card (outlined in red for the danger zone). */
 @Composable
