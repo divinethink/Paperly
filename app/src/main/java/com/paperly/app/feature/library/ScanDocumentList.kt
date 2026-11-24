@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
+import com.paperly.app.domain.document.LibraryLayout
 import com.paperly.app.feature.scanner.LocalAddScanPages
 import com.paperly.app.feature.scanner.LocalOpenScanPages
 
@@ -59,7 +60,7 @@ private val RowCoverWidth = 72.dp
 private val RowCoverHeight = 96.dp
 private val StackStep = 4.dp
 
-/** Scanned tab: one document per row (cover, name on up to two lines, date, size), so names are not cut off. */
+/** Scanned tab: Grid view = covers in columns ([ScanDocumentGrid]); List view = one document per row. */
 @Composable
 internal fun ScanDocumentList(
     state: LibraryUiState,
@@ -69,6 +70,10 @@ internal fun ScanDocumentList(
     onOpenFolder: (String) -> Unit,
 ) {
     // Section labels only when both kinds are on screen; with just one kind they would be clutter.
+    if (state.view.layout == LibraryLayout.GRID) {
+        ScanDocumentGrid(state, actions, batch, covers, onOpenFolder)
+        return
+    }
     val labels = state.scanFolders.isNotEmpty() && state.documents.isNotEmpty()
     LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         if (labels) item(key = "label:folders") { SectionLabel(R.string.scan_section_folders) }
@@ -148,7 +153,7 @@ private fun ScanCoverStack(doc: Document, pages: Int?, covers: CoverViewModel, b
 
 /** Decorative: the row text already says "N pages". */
 @Composable
-private fun PageCountChip(pages: Int, modifier: Modifier) {
+internal fun PageCountChip(pages: Int, modifier: Modifier) {
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.inverseSurface,
