@@ -14,6 +14,7 @@ import javax.inject.Inject
 class EpubFileOps @Inject constructor(
     val fileSync: EpubHighlightFileSync,
     val quickWrite: QuickEpubWriteBack,
+    val deviceRecent: DeviceRecentStore,
 )
 
 /** File / quick-view collaborators of [EpubReaderViewModel] (keeps its constructor small). */
@@ -24,5 +25,4 @@ class EpubQuickDeps @Inject constructor(
     val redirects: ReaderRedirects,
     val annotationRepository: EpubAnnotationRepository,
     val fileOps: EpubFileOps,
-    val deviceRecent: DeviceRecentStore,
 )

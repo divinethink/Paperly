@@ -270,7 +270,7 @@ class EpubReaderViewModel @Inject constructor(
                 fresh = result is ImportResult.Success,
             )
             savedTargetId = target
-            deps.deviceRecent.hide(documentId) // now in the Library: "Continue from device" no longer needs it
+            deps.fileOps.deviceRecent.hide(documentId) // now in the Library: "Continue from device" no longer needs it
             persistJob?.cancel() // the marks now live in the Library; stop remembering them by file
             quickChecksum?.let { deps.quickMarks.delete(it) }
             quickChecksum = null
