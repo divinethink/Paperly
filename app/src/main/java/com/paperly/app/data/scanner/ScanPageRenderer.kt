@@ -116,21 +116,23 @@ internal object ScanPageRenderer {
         val h = bitmap.height
         val px = IntArray(w * h)
         bitmap.getPixels(px, 0, w, 0, 0, w, h)
-        val filtered = when (filter) {
-            ScanFilter.COLOR -> PixelFilters.enhanceColor(px)
-            ScanFilter.GRAY -> PixelFilters.gray(px)
-            ScanFilter.BW -> PixelFilters.blackWhite(px, w, h)
-            ScanFilter.DOCS -> LookFilters.docs(px, w, h)
-            ScanFilter.AUTO -> LookFilters.autoEnhance(px)
-            ScanFilter.PHOTO -> LookFilters.photo(px)
-            ScanFilter.CLEAN -> LookFilters.clean(px, w, h)
-            ScanFilter.SEPIA -> LookFilters.sepia(px, w, h)
-            ScanFilter.PAPERLY -> PaperlyFilter.apply(px, w, h)
-            ScanFilter.ORIGINAL -> px
-        }
+        val filtered = filterOf(filter, px, w, h)
         if (filter in SHARPENED) Sharpen.apply(filtered, w, h) // [filtered] is a new array for these filters
         val out = LookFilters.adjust(filtered, page.brightness, page.contrast)
         bitmap.setPixels(out, 0, w, 0, 0, w, h)
+    }
+
+    private fun filterOf(filter: ScanFilter, px: IntArray, w: Int, h: Int): IntArray = when (filter) {
+        ScanFilter.COLOR -> PixelFilters.enhanceColor(px)
+        ScanFilter.GRAY -> PixelFilters.gray(px)
+        ScanFilter.BW -> PixelFilters.blackWhite(px, w, h)
+        ScanFilter.DOCS -> LookFilters.docs(px, w, h)
+        ScanFilter.AUTO -> LookFilters.autoEnhance(px)
+        ScanFilter.PHOTO -> LookFilters.photo(px)
+        ScanFilter.CLEAN -> LookFilters.clean(px, w, h)
+        ScanFilter.SEPIA -> LookFilters.sepia(px, w, h)
+        ScanFilter.PAPERLY -> PaperlyFilter.apply(px, w, h)
+        ScanFilter.ORIGINAL -> px
     }
 
     private const val POLY_VALUES = ScanQuad.CORNERS * 2
