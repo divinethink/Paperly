@@ -3,11 +3,9 @@ package com.paperly.app.feature.reader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import com.paperly.app.R
 import kotlinx.coroutines.launch
 

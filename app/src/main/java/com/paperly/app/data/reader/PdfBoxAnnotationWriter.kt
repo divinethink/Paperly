@@ -1,6 +1,7 @@
 package com.paperly.app.data.reader
 
 import android.content.Context
+import com.paperly.app.core.file.PDF_BACKUP_DIR
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
@@ -187,7 +188,7 @@ class PdfBoxAnnotationWriter @Inject constructor(
     companion object {
         /** Above this the file is not touched (PdfBox memory). Raise only after a device test with a large PDF. */
         const val MAX_BYTES = 50L * 1024 * 1024
-        const val BACKUP_DIR = "pdf_backups"
+        const val BACKUP_DIR = PDF_BACKUP_DIR
         private const val BACKUP_SUFFIX = ".bak"
         private const val BACKUP_KEEP_MS = 7L * 24 * 60 * 60 * 1000
         private const val TMP_SUFFIX = ".annot.tmp" // ends with ".tmp": OrphanFiles removes a stale one

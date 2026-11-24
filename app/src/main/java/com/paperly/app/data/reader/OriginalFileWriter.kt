@@ -3,6 +3,7 @@ package com.paperly.app.data.reader
 import android.content.Context
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import com.paperly.app.core.file.QUICK_BACKUP_DIR
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileInputStream
@@ -15,7 +16,6 @@ import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val BACKUP_DIR = "quick_backups"
 private const val BUFFER = 64 * 1024
 private const val KEEP_MS = 7L * 24 * 60 * 60 * 1000
 
@@ -68,7 +68,7 @@ class OriginalFileWriter @Inject constructor(@ApplicationContext private val con
     }.getOrNull()
 
     private fun backupOf(uri: Uri, checksum: String, name: String, extension: String): File? = runCatching {
-        val dir = File(context.filesDir, BACKUP_DIR).apply { mkdirs() }
+        val dir = File(context.filesDir, QUICK_BACKUP_DIR).apply { mkdirs() }
         pruneBackups(dir)
         val target = File(dir, "$name.$extension")
         val copied = context.contentResolver.openInputStream(uri)?.use { src ->

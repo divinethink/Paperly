@@ -4,6 +4,7 @@ import android.content.Context
 import com.paperly.app.core.di.ApplicationScope
 import com.paperly.app.domain.privacy.LocalWipe
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,10 +28,18 @@ class StartupMaintenance @Inject constructor(
                 val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(EXPORT_CACHE_DAYS)
                 ExportFiles.pruneOlderThan(ExportFiles.exportsDir(context), cutoff)
             }
+            runCatching {
+                // Safety copies made before a file is rewritten are kept 7 days, even if nothing is written again.
+                val backupCutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(BACKUP_KEEP_DAYS)
+                listOf(PDF_BACKUP_DIR, QUICK_BACKUP_DIR).forEach {
+                    ExportFiles.pruneOlderThan(File(context.filesDir, it), backupCutoff)
+                }
+            }
         }
     }
 
     private companion object {
         const val EXPORT_CACHE_DAYS = 7L
+        const val BACKUP_KEEP_DAYS = 7L
     }
 }
