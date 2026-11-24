@@ -54,7 +54,8 @@ internal fun PdfAnnotateStrip(
     style: AnnotateStyle,
     lookFor: (AnnotationType) -> AnnotateStyle,
     onStyle: (AnnotateStyle) -> Unit,
-) = AnnotateStrip(style, PDF_STRIP_TYPES, lookFor, onStyle)
+    extra: @Composable () -> Unit = {},
+) = AnnotateStrip(style, PDF_STRIP_TYPES, lookFor, onStyle, extra)
 
 @Composable
 private fun AnnotateStrip(
@@ -62,6 +63,7 @@ private fun AnnotateStrip(
     types: List<Pair<AnnotationType, Int>>,
     lookFor: (AnnotationType) -> AnnotateStyle, // a tool comes back with the colour and thickness it had last
     onStyle: (AnnotateStyle) -> Unit,
+    extra: @Composable () -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth().background(barColor()).padding(horizontal = 8.dp)) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -72,6 +74,7 @@ private fun AnnotateStrip(
                     label = { Text(stringResource(label)) },
                 )
             }
+            extra()
         }
         Row(Modifier.fillMaxWidth()) {
             AnnotationColor.entries.forEach { color ->

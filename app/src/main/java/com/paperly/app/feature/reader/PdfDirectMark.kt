@@ -78,7 +78,10 @@ internal fun AnnotationHooks.withDirectMark(
 ): AnnotationHooks {
     val controller = viewModel.annotations
     val style by controller.style.collectAsStateWithLifecycle()
+    val box by controller.boxMode.collectAsStateWithLifecycle()
     if (!enabled) return this
+    // Box mode: the normal pending-box gesture (draw, handles, move); one box, saved from the floating menu
+    if (box) return copy(onCreate = { page, rect -> controller.quickStart(page, rect) })
     return copy(
         onCreate = { page, rect ->
             controller.quickStart(page, rect)

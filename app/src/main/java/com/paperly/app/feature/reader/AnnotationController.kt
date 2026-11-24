@@ -56,9 +56,20 @@ class AnnotationController(
     /** Unsaved parts of the annotation being built (one page only); empty = null. Not persisted. */
     val pending: StateFlow<PendingParts?> = pendingState.asStateFlow()
 
+    private val boxOn = MutableStateFlow(false)
+
+    /** Image pages, annotate mode: a drag draws one resizable box with the floating mark menu (off = direct marks). */
+    val boxMode: StateFlow<Boolean> = boxOn.asStateFlow()
+
     fun toggleMode() {
         pendingState.value = null // also drops a quick box (long-press on an image page) when entering annotate mode
+        boxOn.value = false
         annotateOn.update { !it }
+    }
+
+    fun toggleBox() {
+        pendingState.value = null
+        boxOn.update { !it }
     }
 
     /** Type + color chosen in the pencil strip; persisted, so no per-annotation color prompt. */

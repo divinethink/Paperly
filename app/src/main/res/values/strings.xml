@@ -489,6 +489,7 @@
     <string name="reader_annotation_stroke_medium">Medium</string>
     <string name="reader_annotation_stroke_thick">Thick</string>
     <string name="reader_annotation_note">Note</string>
+    <string name="reader_annotate_box">Box</string>
     <string name="reader_annotation_note_hint">Note text</string>
     <string name="reader_annotation_delete">Delete</string>
     <string name="reader_pending_parts">Parts: %1$d</string>

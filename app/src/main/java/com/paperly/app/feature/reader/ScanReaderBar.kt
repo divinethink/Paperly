@@ -86,7 +86,7 @@ internal fun BoxScope.ReaderTopSurface(
             Column(Modifier.windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)) {
                 ReaderTopBar(viewModel, listState, fit, onBack)
                 if (search.open) SearchBar(viewModel.search, search)
-                PdfAnnotateBars(viewModel.annotations, annotate, onEditor)
+                PdfAnnotateBars(viewModel.annotations, annotate, search.probed && !search.available, onEditor)
             }
         }
     }

@@ -3,6 +3,7 @@ package com.paperly.app.feature.reader
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,13 +20,24 @@ import com.paperly.app.R
 internal fun PdfAnnotateBars(
     controller: AnnotationController,
     annotate: Boolean,
+    imagePage: Boolean,
     onEditor: (AnnotationEditor) -> Unit,
 ) {
     if (!annotate) return
     val style by controller.style.collectAsStateWithLifecycle()
     val pending by controller.pending.collectAsStateWithLifecycle()
-    PdfAnnotateStrip(style, controller::styleFor, controller::setStyle)
-    pending?.let { parts ->
+    val box by controller.boxMode.collectAsStateWithLifecycle()
+    PdfAnnotateStrip(style, controller::styleFor, controller::setStyle) {
+        if (imagePage) {
+            FilterChip(
+                selected = box,
+                onClick = controller::toggleBox,
+                label = { Text(stringResource(R.string.reader_annotate_box)) },
+            )
+        }
+    }
+    // in box mode the floating menu saves the box and the red cross removes it, so no Done/Cancel bar
+    pending?.takeUnless { box }?.let { parts ->
         PendingBar(
             count = parts.rects.size,
             onDone = { controller.commitPending()?.let(onEditor) },

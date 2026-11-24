@@ -148,8 +148,9 @@ internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, o
     val reflow by viewModel.reflow.collectAsStateWithLifecycle()
     val style by controller.style.collectAsStateWithLifecycle()
     val tools by controller.tools.collectAsStateWithLifecycle()
+    val box by controller.boxMode.collectAsStateWithLifecycle()
     val parts = pending ?: return
-    if (annotate || reflow || parts.rects.isEmpty()) return
+    if ((annotate && !box) || reflow || parts.rects.isEmpty()) return
     val copyPage = rememberOcrCopy(viewModel)
     val density = LocalDensity.current
     val gap = with(density) { QuickGap.toPx() }
