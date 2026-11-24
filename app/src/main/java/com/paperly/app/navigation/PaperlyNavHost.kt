@@ -1,19 +1,11 @@
 package com.paperly.app.navigation
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,18 +16,14 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -111,7 +99,6 @@ object Routes {
 private enum class TopLevel(val route: String, @StringRes val label: Int, val icon: ImageVector) {
     Scanned(Routes.library(LibraryType.SCAN), R.string.nav_scanned, ScannedIcon),
     Pdf(Routes.library(LibraryType.PDF), R.string.nav_pdf, PdfIcon),
-    Scan(Routes.SCAN, R.string.nav_scan, Icons.Filled.Add),
     Epub(Routes.library(LibraryType.EPUB), R.string.nav_epub, EpubIcon),
     Settings(Routes.SETTINGS, R.string.nav_settings, Icons.Filled.Settings),
 }
@@ -140,17 +127,13 @@ private fun PaperlyBottomBar(currentRoute: String?, navController: NavHostContro
         TopLevel.entries.forEach { item ->
             val selected = currentRoute == item.route
             val go = { navController.navigateTopLevel(item.route) }
-            if (item == TopLevel.Scan) {
-                ScanNavItem(selected, stringResource(item.label), go)
-            } else {
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = go,
-                    icon = { Icon(item.icon, contentDescription = null) },
-                    label = { Text(stringResource(item.label)) },
-                    colors = itemColors,
-                )
-            }
+            NavigationBarItem(
+                selected = selected,
+                onClick = go,
+                icon = { Icon(item.icon, contentDescription = null) },
+                label = { Text(stringResource(item.label)) },
+                colors = itemColors,
+            )
         }
     }
 }
@@ -210,27 +193,6 @@ private fun barItemColors() = NavigationBarItemDefaults.colors(
     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
 )
-
-/** The middle Scan destination: a round filled button instead of a plain nav item. */
-@Composable
-private fun RowScope.ScanNavItem(selected: Boolean, label: String, onClick: () -> Unit) {
-    Column(
-        Modifier.weight(1f).selectable(selected = selected, role = Role.Tab, onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            shadowElevation = 4.dp,
-            modifier = Modifier.size(52.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, contentDescription = null) }
-        }
-        Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
-    }
-}
 
 /** Launcher shortcut "Continue reading": opens the most recently opened document (nothing if none yet). */
 @Composable

@@ -3,7 +3,6 @@
     <string name="app_name">Paperly</string>
 
     <string name="nav_library">Library</string>
-    <string name="nav_scan">Scan</string>
     <string name="nav_scanned">Scanned</string>
     <string name="scan_row_today">Today, %1$s</string>
     <string name="scan_row_yesterday">Yesterday, %1$s</string>
