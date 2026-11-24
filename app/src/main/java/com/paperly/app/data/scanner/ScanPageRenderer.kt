@@ -13,6 +13,7 @@ import com.paperly.app.domain.scanner.PixelFilters
 import com.paperly.app.domain.scanner.ScanEditPage
 import com.paperly.app.domain.scanner.ScanFilter
 import com.paperly.app.domain.scanner.ScanQuad
+import com.paperly.app.domain.scanner.Sharpen
 import java.io.File
 import java.io.IOException
 
@@ -127,9 +128,13 @@ internal object ScanPageRenderer {
             ScanFilter.PAPERLY -> PaperlyFilter.apply(px, w, h)
             ScanFilter.ORIGINAL -> px
         }
+        if (filter in SHARPENED) Sharpen.apply(filtered, w, h) // [filtered] is a new array for these filters
         val out = LookFilters.adjust(filtered, page.brightness, page.contrast)
         bitmap.setPixels(out, 0, w, 0, 0, w, h)
     }
 
     private const val POLY_VALUES = ScanQuad.CORNERS * 2
+
+    /** The text looks: letters get a light sharpen. Original / colour / photo looks stay untouched. */
+    private val SHARPENED = setOf(ScanFilter.PAPERLY, ScanFilter.DOCS, ScanFilter.CLEAN)
 }

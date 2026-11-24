@@ -29,15 +29,23 @@ class ScanPdfBuilder @Inject constructor(@ApplicationContext private val context
         PDFBoxResourceLoader.init(context)
         PDDocument(MemoryUsageSetting.setupTempFileOnly()).use { doc ->
             pages.forEach { page ->
-                val bitmap = ScanPageRenderer.renderFile(source(page), page, size.maxSide)
+                val (bitmap, quality) = renderPage(source(page), page, size)
                 try {
-                    addPage(doc, bitmap, size.jpegQuality)
+                    addPage(doc, bitmap, quality)
                 } finally {
                     bitmap.recycle()
                 }
             }
             doc.save(out)
         }
+    }
+
+    /** The page bitmap and the JPEG quality that goes with its size; out of memory -> one retry at the safer size. */
+    private fun renderPage(file: File, page: ScanEditPage, size: ScanOutputSize): Pair<Bitmap, Int> = try {
+        ScanPageRenderer.renderFile(file, page, size.maxSide) to size.jpegQuality
+    } catch (oom: OutOfMemoryError) {
+        val safer = size.saferOnMemory() ?: throw oom
+        ScanPageRenderer.renderFile(file, page, safer.maxSide) to safer.jpegQuality
     }
 
     /** One page image as a JPEG page (also used to shrink a PDF for Share / Save). */

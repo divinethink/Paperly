@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import com.paperly.app.core.file.SAFE_DOCUMENT_ID
+import com.paperly.app.domain.scanner.ScanOutputSize
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.IOException
@@ -193,7 +194,7 @@ class ScanSourceStore @Inject constructor(@ApplicationContext private val contex
     private companion object {
         const val GALLERY_DIR = "scan_gallery"
         const val ADD_DIR = "scan_add"
-        const val KEEP_SIDE = 2480 // = the largest output size's long side
+        val KEEP_SIDE = ScanOutputSize.MAX.maxSide // = the largest output size's long side
         const val KEEP_QUALITY = 90
         val STAGED_NAME = Regex("a[0-9a-f-]{36}\\.img")
     }

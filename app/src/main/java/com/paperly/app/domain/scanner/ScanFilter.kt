@@ -35,8 +35,22 @@ enum class ScanOutputSize(val maxSide: Int, val jpegQuality: Int) {
     SMALL(SMALL_SIDE, SMALL_QUALITY),
     MEDIUM(MEDIUM_SIDE, MEDIUM_QUALITY),
     LARGE(LARGE_SIDE, LARGE_QUALITY),
+
+    /** A4 at 300 dpi: for small print and maps. Needs a lot of memory, so it is only used with [outputSizeForHeap]. */
+    MAX(MAX_SIDE, MAX_QUALITY),
+    ;
+
+    /** The size to retry with when memory runs out at this one: [MAX] falls back to [LARGE], the rest have none. */
+    fun saferOnMemory(): ScanOutputSize? = if (this == MAX) LARGE else null
 }
 
+/** Best stored-scan size the device's memory allows: [ScanOutputSize.MAX] needs ~200 MB for one page at once. */
+fun outputSizeForHeap(maxHeapBytes: Long): ScanOutputSize =
+    if (maxHeapBytes >= MAX_SIZE_MIN_HEAP) ScanOutputSize.MAX else ScanOutputSize.LARGE
+
+private const val MAX_SIZE_MIN_HEAP = 400L * 1024 * 1024
+private const val MAX_SIDE = 3508
+private const val MAX_QUALITY = 85
 private const val SMALL_SIDE = 1280
 private const val SMALL_QUALITY = 60
 private const val MEDIUM_SIDE = 1754

@@ -37,6 +37,8 @@ object LookFilters {
     private const val HALF = 0.5f
     private const val PERCENT = 100f
     private const val BRIGHTNESS_STEP = 1.28f
+    private const val PAPER_WHITE_FROM = 235
+    private const val PAPER_WHITE_FULL = 250
     private val SHIFT_FOR = intArrayOf(SHIFT_R, SHIFT_G, 0)
 
     /**
@@ -163,13 +165,19 @@ object LookFilters {
 
     /**
      * Manual adjustment: [brightness] -100..100 shifts every channel (up to +-128), [contrast] -50..100 scales it
-     * around mid-grey (0.5x..2x). 0/0 returns the pixels unchanged.
+     * around mid-grey (0.5x..2x). 0/0 returns the pixels unchanged. A negative brightness darkens the ink but never
+     * greys paper that is already white (values from [PAPER_WHITE_FROM] fade the shift out to nothing at
+     * [PAPER_WHITE_FULL]), so a scan stays white after "less bright".
      */
     fun adjust(px: IntArray, brightness: Int, contrast: Int): IntArray {
         if (brightness == 0 && contrast == 0) return px.copyOf()
         val factor = 1f + contrast / PERCENT
         val shift = brightness * BRIGHTNESS_STEP
-        val lut = IntArray(CHANNEL + 1) { ((it - MID) * factor + MID + shift).toInt().coerceIn(0, CHANNEL) }
+        val lut = IntArray(CHANNEL + 1) {
+            val fade = (PAPER_WHITE_FULL - it).toFloat() / (PAPER_WHITE_FULL - PAPER_WHITE_FROM)
+            val weight = if (shift < 0f) fade.coerceIn(0f, 1f) else 1f
+            ((it - MID) * factor + MID + shift * weight).toInt().coerceIn(0, CHANNEL)
+        }
         return IntArray(px.size) {
             val p = px[it]
             OPAQUE or (lut[channel(p, 0)] shl SHIFT_R) or (lut[channel(p, 1)] shl SHIFT_G) or lut[channel(p, 2)]

@@ -2,6 +2,7 @@ package com.paperly.app.data.scanner
 
 import com.paperly.app.domain.scanner.ScanOutputSettings
 import com.paperly.app.domain.scanner.ScanOutputSize
+import com.paperly.app.domain.scanner.outputSizeForHeap
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -14,7 +15,8 @@ import kotlinx.coroutines.flow.flowOf
 @Singleton
 class ScanOutputSettingsImpl @Inject constructor() : ScanOutputSettings {
     // The old "scan_output_size" preference is no longer read (nothing is deleted from the data store).
-    override val size: Flow<ScanOutputSize> = flowOf(ScanOutputSize.LARGE)
+    // MAX only on devices with a big enough app heap (else LARGE as before); the PDF builder also falls back on OOM.
+    override val size: Flow<ScanOutputSize> = flowOf(outputSizeForHeap(Runtime.getRuntime().maxMemory()))
 }
 
 @Module
