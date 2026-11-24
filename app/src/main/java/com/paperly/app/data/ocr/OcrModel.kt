@@ -8,7 +8,6 @@ import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-private const val MODEL_BASE = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/"
 private const val MIN_BYTES = 100_000L
 private const val TIMEOUT_MS = 20_000
 private const val KB = 1024L
@@ -33,12 +32,12 @@ object OcrModel {
     fun download(context: Context): Boolean =
         languages.all { modelFile(context, it).length() >= MIN_BYTES || fetch(modelFile(context, it), it) }
 
-    /** Writes `.part`, checks the size, then renames, so a broken download never looks like a model. */
+    /** Writes `.part`, checks the pinned size and SHA-256, then renames: a wrong or broken download is never kept. */
     private fun fetch(target: File, lang: String): Boolean {
         val part = File(target.parentFile, target.name + ".part")
         val ok = try {
             target.parentFile?.mkdirs()
-            copyTo(part, "$MODEL_BASE$lang.traineddata") && part.length() >= MIN_BYTES && part.renameTo(target)
+            copyTo(part, OcrModelPin.url(lang)) && OcrModelPin.matches(lang, part) && part.renameTo(target)
         } catch (e: IOException) {
             false
         }
