@@ -117,6 +117,9 @@ fun LibraryScreen(
         // "Continue reading" is a reading shortcut: not shown on the Scanned tab
         if (viewModel.type != LibraryType.SCAN) {
             ContinueSection(viewModel.continueReading, state.query, navigation.onOpenReader)
+            DeviceContinueSection(viewModel.deviceRecent, state.query) {
+                viewModel.openDeviceRecent(navigation.onOpenReader)
+            }
         }
         ImageExportStatus()
         DocxConversionStatus(navigation.onOpenReader)

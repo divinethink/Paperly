@@ -63,7 +63,7 @@ class QuickEpubWriteBackImpl @Inject constructor(
         val backup = "$token-${System.currentTimeMillis()}"
         return when (original.overwrite(Uri.parse(uri), checksum, work, newChecksum, backup)) {
             OriginalWriteResult.WRITTEN -> {
-                store.updateChecksum(token, newChecksum)
+                store.updateChecksum(token, newChecksum, work)
                 R.string.quick_replace_ok
             }
             OriginalWriteResult.NO_PERMISSION -> R.string.quick_replace_no_permission

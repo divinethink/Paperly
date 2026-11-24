@@ -1,6 +1,7 @@
 package com.paperly.app.data.reader
 
 import android.net.Uri
+import com.paperly.app.core.file.DeviceRecentStore
 import com.paperly.app.core.file.QuickViewStore
 import com.paperly.app.core.model.DocumentType
 import com.paperly.app.domain.document.DocumentRepository
@@ -23,6 +24,7 @@ class QuickLibraryFallback @Inject constructor(
     private val repository: DocumentRepository,
     private val annotations: AnnotationRepository,
     private val fileSync: PdfHighlightFileSync,
+    private val recent: DeviceRecentStore,
 ) {
     suspend fun keep(token: String, pristine: File, items: List<PdfAnnotationItem>): Boolean {
         val title = store.document(token)?.title ?: "Document"
@@ -36,6 +38,7 @@ class QuickLibraryFallback @Inject constructor(
             annotations.add(id, a.page, rect, AnnotationContent(a.type, a.color, a.noteText, a.stroke), a.rects)
         }
         fileSync.schedule(id)
+        recent.hide(token) // the Library holds it now
         return true
     }
 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperly.app.R
+import com.paperly.app.core.file.DeviceRecentStore
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.QuickViewStore
 import com.paperly.app.core.intent.ReaderRedirects
@@ -76,6 +77,7 @@ class ReaderViewModel @Inject constructor(
     private val redirects: ReaderRedirects,
     private val highlightFileSync: PdfHighlightFileSync,
     private val quickWriteBack: QuickPdfWriteBack,
+    private val deviceRecent: DeviceRecentStore,
 ) : ViewModel() {
 
     private val documentId: String = savedStateHandle.get<String>("documentId").orEmpty()
@@ -171,8 +173,10 @@ class ReaderViewModel @Inject constructor(
         return try {
             when (val result = PerfTrace.span("reader.pdf.open") { pdf.open(file) }) {
                 is OpenResult.Success -> {
-                    val start = (readerState.getSavedPage(document.id) ?: 0).coerceIn(0, result.pageCount - 1)
+                    val saved = if (isQuick) deviceRecent.page(document.id) else readerState.getSavedPage(document.id)
+                    val start = (saved ?: 0).coerceIn(0, result.pageCount - 1)
                     lastSaved = start
+                    if (isQuick) quick.page = start // so closing straight away keeps the remembered page
                     val aspect = PerfTrace.span("reader.pdf.page0") { pdf.pageAspect(0) }
                     if (aspect == null) {
                         failed(document, ReaderError.FAILED)
@@ -216,7 +220,10 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun flush() {
-        if (isQuick) return
+        if (isQuick) {
+            deviceRecent.savePage(documentId, quick.page)
+            return
+        }
         viewModelScope.launch {
             currentPage.value?.let { save(it) }
             readerState.flushSync(documentId)
@@ -336,6 +343,7 @@ class ReaderViewModel @Inject constructor(
                 fresh = result is ImportResult.Success,
             )
             savedTargetId = target
+            deviceRecent.hide(documentId) // now in the Library: "Continue from device" no longer needs it
             _saved.value = true
             redirects.post(target)
         }
@@ -347,6 +355,7 @@ class ReaderViewModel @Inject constructor(
         cache.clear()
         // Quick view: engine closed -> highlights into the original (if allowed); the temp copy is deleted after.
         if (isQuick) {
+            deviceRecent.savePage(documentId, quick.page)
             quickWriteBack.finish(documentId, if (writeOnClose) quickItems() else emptyList(), savedTargetId != null)
         }
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).

@@ -3,6 +3,11 @@ package com.paperly.app.feature.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperly.app.core.file.DeviceRecent
+import com.paperly.app.core.file.DeviceRecentStore
+import com.paperly.app.core.file.QuickStage
+import com.paperly.app.core.file.QuickViewStore
+import com.paperly.app.core.file.RecentKind
 import com.paperly.app.core.intent.IncomingImportRequests
 import com.paperly.app.core.perf.PerfTrace
 import com.paperly.app.domain.document.Document
@@ -152,6 +157,8 @@ class LibraryViewModel @Inject constructor(
     readerState: ReaderStateRepository,
     scanOcr: ScanOcrRepository,
     private val scanFolder: ScanFolderTarget,
+    private val quickStore: QuickViewStore,
+    deviceRecentStore: DeviceRecentStore,
 ) : ViewModel() {
 
     /** Each Library tab shows exactly one document type; the persisted type filter no longer applies. */
@@ -238,6 +245,29 @@ class LibraryViewModel @Inject constructor(
             if (doc == null) flowOf(null) else readerState.observeProgress(doc.id).map { ContinueInfo(doc, it) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val recentKind: RecentKind? = when (type) {
+        LibraryType.PDF -> RecentKind.PDF
+        LibraryType.EPUB -> RecentKind.EPUB
+        LibraryType.SCAN -> null
+    }
+
+    /** The last file read straight from the phone (not in the Library), for the "Continue from device" card. */
+    val deviceRecent: StateFlow<DeviceRecent?> =
+        recentKind?.let(deviceRecentStore::observe) ?: MutableStateFlow(null)
+
+    /** Opens that kept file like Open-With does (marks and position come back); [onOpen] gets the Reader id. */
+    fun openDeviceRecent(onOpen: (String) -> Unit) {
+        val kind = recentKind ?: return
+        viewModelScope.launch {
+            when (val staged = quickStore.stageRecent(kind)) {
+                is QuickStage.Temp -> onOpen(staged.token)
+                is QuickStage.Library -> onOpen(staged.documentId)
+                QuickStage.Failed -> error.value = ImportError.Failed
+                QuickStage.NotPdf -> Unit // the kept file is gone: the card disappears by itself
+            }
+        }
+    }
 
     /**
      * Open-With / Share: wait for any running import (the double-tap guard would drop it), then import.

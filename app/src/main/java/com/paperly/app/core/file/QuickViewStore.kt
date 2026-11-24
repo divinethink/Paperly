@@ -37,6 +37,8 @@ fun quickViewDir(context: Context): File = File(context.cacheDir, QUICK_DIR)
 /** What a quick-view file is; decides the cache extension and the header check. */
 private enum class QuickKind(val ext: String) { PDF("pdf"), EPUB("epub") }
 
+private fun recentOf(kind: QuickKind): RecentKind = RecentKind.entries.first { it.ext == kind.ext }
+
 private fun kindOf(name: String?, mime: String?): QuickKind? = when {
     name?.endsWith(".pdf", ignoreCase = true) == true || mime == PDF_MIME -> QuickKind.PDF
     name?.endsWith(".epub", ignoreCase = true) == true || mime == EPUB_MIME -> QuickKind.EPUB
@@ -65,6 +67,7 @@ data class QuickSource(val uri: String, val checksum: String)
 class QuickViewStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: DocumentDao,
+    private val recent: DeviceRecentStore,
 ) {
     private val dir: File get() = quickViewDir(context).apply { mkdirs() }
     private val sources = ConcurrentHashMap<String, QuickSource>() // in memory only: gone with the process
@@ -91,6 +94,8 @@ class QuickViewStore @Inject constructor(
                 val title = name?.substringBeforeLast('.')?.trim().orEmpty().ifBlank { "Document" }.take(MAX_TITLE)
                 runCatching { File(dir, "$token.txt").writeText(title) } // best-effort; title falls back
                 sources[token] = QuickSource(sourceUri, checksum)
+                // "Continue from device": the last file read from the phone is kept (best-effort)
+                recent.record(recentOf(kind), token, File(dir, "$token.${kind.ext}"), title, checksum)
                 QuickStage.Temp(token)
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
@@ -98,6 +103,38 @@ class QuickViewStore @Inject constructor(
             throw e
         } catch (e: Exception) {
             delete(token) // any failure (I/O, permission): no half copy is left behind
+            QuickStage.Failed
+        }
+    }
+
+    /** "Continue from device": reopens the kept copy as a quick-view session; later writes go into that copy. */
+    suspend fun stageRecent(recentKind: RecentKind): QuickStage = withContext(Dispatchers.IO) {
+        val entry = recent.observe(recentKind).value
+        if (entry == null || !entry.file.isFile) {
+            recent.drop(recentKind)
+            return@withContext QuickStage.NotPdf
+        }
+        val kind = QuickKind.entries.first { it.ext == recentKind.ext }
+        val token = QUICK_PREFIX + UUID.randomUUID()
+        try {
+            val uri = Uri.fromFile(entry.file)
+            val checksum = copyChecked(uri, File(dir, "$token.${kind.ext}"), kind)
+            val existing = dao.findActiveByChecksum(checksum)
+            if (existing != null) {
+                delete(token)
+                recent.drop(recentKind) // it is in the Library now: that copy is the one to continue
+                QuickStage.Library(existing.documentId)
+            } else {
+                runCatching { File(dir, "$token.txt").writeText(entry.title) }
+                sources[token] = QuickSource(uri.toString(), checksum)
+                recent.adopt(token, recentKind, checksum)
+                QuickStage.Temp(token)
+            }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            delete(token)
+            throw e
+        } catch (e: Exception) {
+            delete(token)
             QuickStage.Failed
         }
     }
@@ -116,13 +153,15 @@ class QuickViewStore @Inject constructor(
     fun source(token: String): QuickSource? = sources[token]
 
     /** The original's bytes changed (we wrote our marks into it): later writes must expect the new checksum. */
-    fun updateChecksum(token: String, checksum: String) {
+    suspend fun updateChecksum(token: String, checksum: String, written: File) {
         sources.computeIfPresent(token) { _, old -> old.copy(checksum = checksum) }
+        recent.onWritten(token, checksum, written)
     }
 
     fun delete(token: String) {
         if (!isToken(token)) return
         sources.remove(token)
+        recent.unlink(token)
         QuickKind.entries.forEach { kind -> runCatching { File(dir, "$token.${kind.ext}").delete() } }
         runCatching { File(dir, "$token.txt").delete() }
     }

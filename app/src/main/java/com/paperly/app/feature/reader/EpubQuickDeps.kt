@@ -1,5 +1,6 @@
 package com.paperly.app.feature.reader
 
+import com.paperly.app.core.file.DeviceRecentStore
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.core.file.QuickMarksStore
 import com.paperly.app.core.file.QuickViewStore
@@ -23,4 +24,5 @@ class EpubQuickDeps @Inject constructor(
     val redirects: ReaderRedirects,
     val annotationRepository: EpubAnnotationRepository,
     val fileOps: EpubFileOps,
+    val deviceRecent: DeviceRecentStore,
 )

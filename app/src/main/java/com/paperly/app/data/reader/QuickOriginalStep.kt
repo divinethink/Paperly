@@ -34,7 +34,7 @@ class QuickOriginalStep @Inject constructor(
             is PdfWriteResult.NothingToWrite -> null
             is PdfWriteResult.Written ->
                 original.overwrite(Uri.parse(source.uri), source.checksum, file, result.checksum, backupName)
-                    .also { if (it == OriginalWriteResult.WRITTEN) store.updateChecksum(token, result.checksum) }
+                    .also { if (it == OriginalWriteResult.WRITTEN) store.updateChecksum(token, result.checksum, file) }
             else -> OriginalWriteResult.FAILED
         }
     }
