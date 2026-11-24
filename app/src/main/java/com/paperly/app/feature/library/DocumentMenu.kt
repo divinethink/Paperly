@@ -3,6 +3,7 @@ package com.paperly.app.feature.library
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -39,13 +40,16 @@ internal fun CardMenu(
     var open by remember { mutableStateOf(false) }
     val export = rememberDocumentExport(doc)
     Box(modifier) {
-        IconButton(onClick = { open = true }) {
+        IconButton(
+            onClick = { open = true },
+            modifier = if (onCover) Modifier.size(32.dp) else Modifier,
+        ) {
             Icon(
                 Icons.Filled.MoreVert,
                 contentDescription = stringResource(R.string.doc_more),
                 tint = if (onCover) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = if (onCover) {
-                    Modifier.clip(CircleShape).background(Color.Black.copy(alpha = SCRIM_ALPHA)).padding(2.dp)
+                    Modifier.size(20.dp).clip(CircleShape).background(Color.Black.copy(alpha = SCRIM_ALPHA)).padding(2.dp)
                 } else {
                     Modifier
                 },

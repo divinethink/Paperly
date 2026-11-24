@@ -38,7 +38,7 @@ private val MeadowColors = lightColorScheme(
     surfaceContainerHighest = Color(0xFFE6EEDE),
 )
 
-/** Glacier: calm blue-grey (light). */
+/** Nord Frost (key "glacier"): calm blue-grey (light). */
 private val GlacierColors = lightColorScheme(
     primary = Color(0xFF3E6092),
     onPrimary = Color.White,

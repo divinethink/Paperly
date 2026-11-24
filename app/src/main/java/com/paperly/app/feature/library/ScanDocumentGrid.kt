@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -45,12 +45,14 @@ import com.paperly.app.R
 import com.paperly.app.domain.document.Document
 import com.paperly.app.feature.scanner.LocalOpenScanPages
 
-private const val SCAN_GRID_COLUMNS = 3
+/** Columns of every Grid view (Scanned, PDF, EPUB): small covers, 4 per row. */
+internal const val LIBRARY_GRID_COLUMNS = 4
 private const val MENU_BUTTON_ALPHA = 0.85f
-private val ScanGridCoverHeight = 132.dp
+private val ScanGridCoverHeight = 100.dp
+private val GridMenuButton = 30.dp
 private val ScanStackStep = 4.dp
 
-/** Scanned tab, Grid view: covers in three columns (folders stay full-width rows on top). Tap opens the page grid. */
+/** Scanned tab, Grid view: small covers in four columns, folders are tiles in the same grid. Tap opens the page grid. */
 @Composable
 internal fun ScanDocumentGrid(
     state: LibraryUiState,
@@ -60,13 +62,13 @@ internal fun ScanDocumentGrid(
     onOpenFolder: (String) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(SCAN_GRID_COLUMNS),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        columns = GridCells.Fixed(LIBRARY_GRID_COLUMNS),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(state.scanFolders, key = { "folder:" + it.id }, span = { GridItemSpan(maxLineSpan) }) {
-            ScanFolderRow(it, onOpenFolder)
+        items(state.scanFolders, key = { "folder:" + it.id }) {
+            ScanFolderCell(it, ScanGridCoverHeight + ScanStackStep * 2, onOpenFolder)
         }
         items(state.documents, key = { it.id }) { doc -> ScanGridCell(doc, actions, batch, covers) }
     }
@@ -89,15 +91,15 @@ private fun ScanGridCell(doc: Document, actions: DocumentActions, batch: BatchSt
         ScanGridCover(doc, pages, covers, batch, actions)
         Text(
             doc.title,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = 4.dp),
         )
         Text(
             gridDetail(doc, pages),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -164,8 +166,12 @@ private fun ScanGridCover(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surface.copy(alpha = MENU_BUTTON_ALPHA),
                     ) {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.doc_more))
+                        IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(GridMenuButton)) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.doc_more),
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                     }
                     ScanDocumentMenu(menuOpen, doc, actions, export) { menuOpen = false }

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -51,12 +50,11 @@ import com.paperly.app.domain.document.Document
 import com.paperly.app.domain.document.LibraryLayout
 import com.paperly.app.feature.common.documentMeta
 
-private const val GRID_COLUMNS = 3
-private val GridCoverHeight = 120.dp
+private val GridCoverHeight = 96.dp
 private val RowCoverWidth = 56.dp
 private val RowCoverHeight = 76.dp
 
-/** PDF / EPUB tabs: small 3-column covers or one row per document (the choice is saved in the sort menu). */
+/** PDF / EPUB tabs: small 4-column covers or one row per document (the choice is saved in the sort menu). */
 @Composable
 internal fun DocumentList(
     state: LibraryUiState,
@@ -81,13 +79,13 @@ private fun DocumentGrid(
     onOpenFolder: (String) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(GRID_COLUMNS),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        columns = GridCells.Fixed(LIBRARY_GRID_COLUMNS),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(state.scanFolders, key = { "folder:" + it.id }, span = { GridItemSpan(maxLineSpan) }) {
-            ScanFolderRow(it, onOpenFolder)
+        items(state.scanFolders, key = { "folder:" + it.id }) {
+            ScanFolderCell(it, GridCoverHeight, onOpenFolder)
         }
         items(state.documents, key = { it.id }) { doc ->
             GridCard(doc, doc.id in state.finishedIds, actions, batch, covers)
@@ -118,7 +116,7 @@ private fun GridCard(
                 doc,
                 covers,
                 Modifier.fillMaxWidth().height(GridCoverHeight),
-                cornerRadius = 10.dp,
+                cornerRadius = 8.dp,
                 letterStyle = MaterialTheme.typography.headlineMedium,
             )
             CoverBadges(doc, finished, batch)
@@ -126,11 +124,11 @@ private fun GridCard(
         }
         Text(
             doc.title,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 2.dp, top = 6.dp),
+            modifier = Modifier.padding(start = 2.dp, top = 4.dp),
         )
         Text(
             documentMeta(context, doc),
