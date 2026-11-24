@@ -1,0 +1,23 @@
+name: OCR model hash
+
+# হাতে চালান (Actions > OCR model hash > Run workflow)। শুধু পড়ে ও ছাপে; কিছু বদলায় না।
+# ফল: tessdata_fast-এর বর্তমান commit এবং ben/eng ফাইলের size ও SHA-256।
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hash:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Print commit and SHA-256
+        run: |
+          SHA=$(git ls-remote https://github.com/tesseract-ocr/tessdata_fast.git refs/heads/main | cut -f1)
+          echo "commit: $SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+          for L in ben eng; do
+            curl -fsSL -o "$L.traineddata" "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/$SHA/$L.traineddata"
+            echo "$L size=$(stat -c%s "$L.traineddata") sha256=$(sha256sum "$L.traineddata" | cut -d' ' -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
