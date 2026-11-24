@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# নতুন push এলে একই branch-এর চলতি পুরনো রান বাতিল (অপেক্ষা কমে; যাচাই কমে না)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-24.04
@@ -63,6 +68,12 @@ jobs:
 
       - name: Check fixed debug key
         run: test -f app/paperly-debug.keystore || echo "::warning::app/paperly-debug.keystore missing - APK signed with a random key, Google sign-in will fail"
+
+      # Robolectric-এর Android jar একবার নামিয়ে রাখা: নেটওয়ার্ক গোলমালে সব test একসাথে ফেল করা ঠেকায়, রানও দ্রুত হয়
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
 
       - name: Unit tests + debug APK
         run: gradle testDebugUnitTest assembleDebug --stacktrace
