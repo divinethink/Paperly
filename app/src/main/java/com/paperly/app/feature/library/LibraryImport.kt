@@ -30,8 +30,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.paperly.app.R
+import com.paperly.app.core.ui.icons.ArticleGlyph
+import com.paperly.app.core.ui.icons.CameraGlyph
 import com.paperly.app.core.ui.icons.DownloadGlyph
 import com.paperly.app.domain.document.LibraryType
+import com.paperly.app.feature.common.EmptyIcon
 import com.paperly.app.feature.common.EmptyState
 
 /** What a Library tab can bring in: a PDF, an EPUB, or a Word file that is converted to EPUB. */
@@ -114,14 +117,17 @@ internal fun EmptyWithActions(
     onScan: () -> Unit,
 ) {
     when (type) {
-        LibraryType.SCAN -> EmptyState(message, stringResource(R.string.scan_cta), onScan)
-        LibraryType.PDF -> EmptyState(message, stringResource(R.string.import_pdf)) { onImport(ImportKind.PDF) }
+        LibraryType.SCAN -> EmptyState(message, stringResource(R.string.scan_cta), CameraGlyph, onScan)
+        LibraryType.PDF -> EmptyState(message, stringResource(R.string.import_pdf), ArticleGlyph) {
+            onImport(ImportKind.PDF)
+        }
         LibraryType.EPUB -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(
                 Modifier.padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                EmptyIcon(ArticleGlyph)
                 Text(message, style = MaterialTheme.typography.bodyLarge)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { onImport(ImportKind.EPUB) }, modifier = Modifier.weight(1f)) {

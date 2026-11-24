@@ -63,6 +63,7 @@ import com.paperly.app.feature.common.documentMeta
 import kotlin.math.ceil
 
 private const val RENDER_WIDTH_FACTOR = 1.5f
+private const val DARK_LUMINANCE_THRESHOLD = 0.5f
 private const val MAX_RENDER_WIDTH_PX = 2048
 internal val TOP_BAR_HEIGHT = 56.dp
 
@@ -91,8 +92,9 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     if (isScan) {
-        // Scanned documents: soft grey desk behind white sheets, with the app's bars (reading themes stay for PDF/EPUB).
-        val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        // Scanned documents: soft grey desk behind white sheets, with the app's bars.
+        // Reading themes stay for PDF/EPUB.
+        val dark = MaterialTheme.colorScheme.background.luminance() < DARK_LUMINANCE_THRESHOLD
         val desk = if (dark) ScanDeskDark else ScanDeskLight
         Surface(Modifier.fillMaxSize(), color = desk, contentColor = if (dark) Color.White else Color.Black) {
             ReaderContent(state, viewModel, listState, null, leave)

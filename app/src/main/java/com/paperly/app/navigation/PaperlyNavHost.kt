@@ -243,7 +243,7 @@ private fun NavGraphBuilder.settingsDestinations(navController: NavHostControlle
     }
 }
 
-private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController) {
+private fun NavGraphBuilder.libraryDestinations(navController: NavHostController) {
     LibraryType.entries.forEach { libraryType ->
         composable(
             Routes.library(libraryType),
@@ -270,6 +270,10 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
             }
         }
     }
+}
+
+private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController) {
+    libraryDestinations(navController)
     scanDestinations(navController)
     settingsDestinations(navController)
     composable(Routes.TRASH) { TrashScreen(onBack = { navController.popBackStack() }) }

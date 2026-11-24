@@ -71,20 +71,20 @@ private fun TodayCard(minutes: Int) {
     val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     Card(Modifier.fillMaxWidth().padding(bottom = 12.dp), shape = MaterialTheme.shapes.large, colors = colors) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.settings_read_today), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_read_today), style = MaterialTheme.typography.titleSmall)
                 Text(
                     stringResource(R.string.settings_read_today_summary),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
             Text(
                 stringResource(R.string.settings_read_today_value, minutes),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
