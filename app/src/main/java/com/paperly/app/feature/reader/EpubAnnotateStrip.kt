@@ -67,14 +67,14 @@ private fun AnnotateStrip(
 ) {
     Column(Modifier.fillMaxWidth().background(barColor()).padding(horizontal = 8.dp)) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            types.forEach { (type, label) ->
+            types.forEachIndexed { index, (type, label) ->
                 FilterChip(
                     selected = style.type == type,
                     onClick = { onStyle(lookFor(type)) },
                     label = { Text(stringResource(label)) },
                 )
+                if (index == 0) extra() // extra chips (PDF "Box") sit right after Highlight, before Underline
             }
-            extra()
         }
         Row(Modifier.fillMaxWidth()) {
             AnnotationColor.entries.forEach { color ->
