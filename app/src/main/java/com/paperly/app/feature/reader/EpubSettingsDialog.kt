@@ -95,6 +95,10 @@ internal fun ColumnScope.EpubSettingsRows(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         StepperRow(R.string.epub_margin, "%.2f×".format(typography.margin)) { onTypography(typography.stepMargin(it)) }
     }
+    BlockLabel(R.string.epub_align)
+    PillSegmented(listOf(R.string.epub_align_left, R.string.epub_align_justify), if (typography.justify) 1 else 0) {
+        onTypography(typography.copy(justify = it == 1))
+    }
     BlockLabel(R.string.reader_theme)
     ThemeRow(theme, onTheme)
 }

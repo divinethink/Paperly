@@ -464,6 +464,9 @@
     <string name="epub_font_size">Text size</string>
     <string name="epub_line_spacing">Line spacing</string>
     <string name="epub_margin">Margins</string>
+    <string name="epub_align">Alignment</string>
+    <string name="epub_align_left">Left</string>
+    <string name="epub_align_justify">Justify</string>
     <string name="reader_bookmark_add">Bookmark</string>
     <string name="reader_bookmark_remove">Bookmarked</string>
     <string name="reader_search">Search in document</string>

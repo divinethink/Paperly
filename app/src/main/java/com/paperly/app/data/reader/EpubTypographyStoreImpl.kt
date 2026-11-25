@@ -36,6 +36,7 @@ class EpubTypographyStoreImpl @Inject constructor(
                 lineSpacing = it[LINE_KEY] ?: EpubTypography.DEFAULT_LINE,
                 margin = it[MARGIN_KEY] ?: EpubTypography.DEFAULT_MARGIN,
                 scroll = it[SCROLL_KEY] ?: false,
+                justify = it[JUSTIFY_KEY] ?: false,
             ).coerced()
         }
 
@@ -47,6 +48,7 @@ class EpubTypographyStoreImpl @Inject constructor(
             it[LINE_KEY] = safe.lineSpacing
             it[MARGIN_KEY] = safe.margin
             it[SCROLL_KEY] = safe.scroll
+            it[JUSTIFY_KEY] = safe.justify
         }
     }
 
@@ -56,6 +58,7 @@ class EpubTypographyStoreImpl @Inject constructor(
         val LINE_KEY = floatPreferencesKey("epub_line_spacing")
         val MARGIN_KEY = floatPreferencesKey("epub_margin")
         val SCROLL_KEY = booleanPreferencesKey("epub_scroll")
+        val JUSTIFY_KEY = booleanPreferencesKey("epub_justify")
     }
 }
 

@@ -77,7 +77,8 @@ private fun EpubReaderScreen(
     val minutesLeft = rememberMinutesLeft(position, pace)
     val pinch = rememberEpubPinch(settingsViewModel)
     val selection = remember { EpubSelectionTracker() }
-    val prefs = typography.copy(fontScale = pinch.live ?: typography.fontScale).toReadium(theme, isSystemInDarkTheme())
+    // While the fingers are down only the % badge changes; the book gets the new size once, after the save.
+    val prefs = typography.toReadium(theme, isSystemInDarkTheme())
     val toc = remember(state.publication) { state.publication?.let { flattenToc(it.tableOfContents) }.orEmpty() }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showContents by rememberSaveable { mutableStateOf(false) }
@@ -188,7 +189,7 @@ private fun EpubNavigatorHost(
     }
     // Later changes (settings dialog, theme) are pushed to the live navigator.
     LaunchedEffect(prefs) {
-        EpubFragmentHost.navigator(activity)?.submitPreferences(prefs)
+        EpubFragmentHost.navigator(activity)?.submitKeepingPosition(prefs)
     }
     AndroidView(
         modifier = Modifier.fillMaxSize(),

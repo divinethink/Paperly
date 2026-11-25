@@ -27,6 +27,7 @@ data class EpubTypography(
     val lineSpacing: Float = DEFAULT_LINE,
     val margin: Float = DEFAULT_MARGIN,
     val scroll: Boolean = false,
+    val justify: Boolean = false,
 ) {
     fun coerced() = copy(
         fontScale = fontScale.coerceIn(MIN_SCALE, MAX_SCALE),

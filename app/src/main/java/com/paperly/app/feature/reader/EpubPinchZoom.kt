@@ -81,7 +81,7 @@ internal class PinchLayout(context: Context) : FrameLayout(context) {
     }
 }
 
-/** Live text size while pinching ([live], applied to the book at once) and the save when the fingers lift. */
+/** Text size shown in the badge while pinching ([live]) and the save when the fingers lift (the book changes then). */
 @Stable
 internal class EpubPinchState(
     private val current: () -> EpubTypography,

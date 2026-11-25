@@ -23,8 +23,8 @@ internal fun EpubTypography.toReadium(theme: ReaderTheme, systemDark: Boolean) =
     lineHeight = lineSpacing.toDouble(),
     pageMargins = margin.toDouble(),
     publisherStyles = false,
-    // Left-aligned: justify opens huge word gaps at larger text sizes.
-    textAlign = TextAlign.START,
+    // Left by default: justify opens big word gaps at larger text sizes, so it is opt-in.
+    textAlign = if (justify) TextAlign.JUSTIFY else TextAlign.START,
     scroll = scroll,
     backgroundColor = ReadiumColor(epubPageColor(theme, systemDark)),
     theme = when (theme) {
