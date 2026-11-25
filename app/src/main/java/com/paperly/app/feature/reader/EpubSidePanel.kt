@@ -79,7 +79,7 @@ internal fun EpubSettingsPage(visible: Boolean, settings: EpubSettingsViewModel,
     SidePanel(visible, fromStart = false, title = R.string.epub_settings, onDismiss = onDismiss) {
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             EpubSettingsRows(typography, theme, settings::updateTypography, settings::setTheme, showMode = true)
             ComfortRowsHost()

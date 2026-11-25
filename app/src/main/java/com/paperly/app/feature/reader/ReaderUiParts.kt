@@ -51,7 +51,7 @@ internal fun SettingsCard(modifier: Modifier = Modifier, content: @Composable Co
         shape = RoundedCornerShape(CardRadius),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), content = content)
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), content = content)
     }
 }
 
@@ -63,7 +63,7 @@ internal fun BlockLabel(text: Int) {
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(top = 12.dp),
+        modifier = Modifier.padding(top = 8.dp),
     )
 }
 
@@ -130,7 +130,7 @@ private fun CountBadge(count: Int) {
 @Composable
 internal fun StepperRow(label: Int, value: String, onStep: (up: Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
@@ -169,13 +169,13 @@ internal fun ThemeRow(theme: ReaderTheme, onTheme: (ReaderTheme) -> Unit) {
             val name = stringResource(themeName(option))
             Column(
                 Modifier.weight(1f).selectable(isSelected, role = Role.RadioButton, onClick = { onTheme(option) })
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 2.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 ThemeDot(option, isSelected)
                 Text(
                     name,
-                    Modifier.padding(top = 6.dp),
+                    Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.labelMedium,
                     color = selectedColor(isSelected),
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,

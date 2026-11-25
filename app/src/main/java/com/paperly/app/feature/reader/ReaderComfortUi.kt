@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -50,7 +52,9 @@ import kotlin.math.roundToInt
 
 private const val DEFAULT_BRIGHTNESS = 0.6f
 private const val PERCENT = 100
-private const val SWITCH_ROW_MIN_HEIGHT = 56
+private const val SWITCH_ROW_MIN_HEIGHT = 48
+private const val SLIDER_WEIGHT = 1.2f
+private const val VALUE_MIN_WIDTH = 44
 private const val NO_BRIGHTNESS_OVERRIDE = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
 private const val BLUE_LIGHT_MAX_ALPHA = 0.4f
 private val BlueLightTint = Color(0xFFFF8C00)
@@ -91,7 +95,7 @@ internal fun BlueLightOverlay(intensity: Float) {
 @Composable
 internal fun ColumnScope.ComfortRows(comfort: ReaderComfort, onChange: (ReaderComfort) -> Unit) {
     val brightness = comfort.brightness
-    SettingsCard(Modifier.padding(top = 16.dp)) {
+    SettingsCard(Modifier.padding(top = 8.dp, bottom = 12.dp)) {
         SwitchRow(R.string.reader_brightness_auto, brightness == null) {
             onChange(comfort.copy(brightness = if (it) null else DEFAULT_BRIGHTNESS))
         }
@@ -103,8 +107,6 @@ internal fun ColumnScope.ComfortRows(comfort: ReaderComfort, onChange: (ReaderCo
         SliderRow(R.string.reader_blue_light, comfort.blueLight, 0f, blueLightText(comfort.blueLight)) {
             onChange(comfort.copy(blueLight = it))
         }
-    }
-    SettingsCard(Modifier.padding(top = 8.dp, bottom = 16.dp)) {
         SwitchRow(R.string.reader_keep_awake, comfort.keepAwake) { onChange(comfort.copy(keepAwake = it)) }
         SwitchRow(R.string.reader_hide_bars, comfort.hideBars) { onChange(comfort.copy(hideBars = it)) }
     }
@@ -121,16 +123,23 @@ private fun blueLightText(value: Float): String =
 @Composable
 private fun SliderRow(label: Int, value: Float, min: Float, valueText: String, onValue: (Float) -> Unit) {
     val name = stringResource(label)
-    Column(Modifier.padding(vertical = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Text(valueText, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-        }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = SWITCH_ROW_MIN_HEIGHT.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Slider(
             value = value,
             onValueChange = onValue,
             valueRange = min..1f,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = name },
+            modifier = Modifier.weight(SLIDER_WEIGHT).semantics { contentDescription = name },
+        )
+        Text(
+            valueText,
+            Modifier.widthIn(min = VALUE_MIN_WIDTH.dp),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
         )
     }
 }

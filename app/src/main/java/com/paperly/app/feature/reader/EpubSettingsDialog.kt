@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -39,10 +38,9 @@ import com.paperly.app.domain.reader.EpubFont
 import com.paperly.app.domain.reader.EpubTypography
 import com.paperly.app.domain.reader.ReaderTheme
 
-private const val FONTS_PER_ROW = 3
-private const val FONT_GAP = 8
+private const val FONT_GAP = 6
 private const val FONT_RADIUS = 16
-private const val FONT_CARD_MIN_HEIGHT = 72
+private const val FONT_CARD_MIN_HEIGHT = 56
 
 /** EPUB reading settings in a bottom sheet (page stays visible behind it). Changes apply and persist immediately. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +55,7 @@ fun EpubSettingsSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             EpubSettingsRows(typography, theme, onTypography, onTheme, showMode = false)
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
@@ -76,15 +74,10 @@ internal fun ColumnScope.EpubSettingsRows(
     onTheme: (ReaderTheme) -> Unit,
     showMode: Boolean,
 ) {
-    if (showMode) {
-        BlockLabel(R.string.epub_mode)
-        PillSegmented(listOf(R.string.epub_mode_paged, R.string.epub_mode_scroll), if (typography.scroll) 1 else 0) {
-            onTypography(typography.copy(scroll = it == 1))
-        }
-    }
+    ModeAndAlignment(typography, showMode, onTypography)
     BlockLabel(R.string.epub_font)
-    FontGrid(typography.font) { onTypography(typography.copy(font = it)) }
-    SettingsCard(Modifier.padding(top = 16.dp)) {
+    FontRow(typography.font) { onTypography(typography.copy(font = it)) }
+    SettingsCard(Modifier.padding(top = 8.dp)) {
         StepperRow(R.string.epub_font_size, "%.1f×".format(typography.fontScale)) {
             onTypography(typography.stepScale(it))
         }
@@ -95,25 +88,39 @@ internal fun ColumnScope.EpubSettingsRows(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         StepperRow(R.string.epub_margin, "%.2f×".format(typography.margin)) { onTypography(typography.stepMargin(it)) }
     }
-    BlockLabel(R.string.epub_align)
-    PillSegmented(listOf(R.string.epub_align_left, R.string.epub_align_justify), if (typography.justify) 1 else 0) {
-        onTypography(typography.copy(justify = it == 1))
-    }
     BlockLabel(R.string.reader_theme)
     ThemeRow(theme, onTheme)
 }
 
-/** Fonts as a 3-column grid of cards, each previewing "অ Aa" in its own font. */
+/** Reading mode (Paged/Scroll, EPUB only) and text alignment side by side; alone, alignment takes the full width. */
 @Composable
-private fun FontGrid(selected: EpubFont, onFont: (EpubFont) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(FONT_GAP.dp)) {
-        EpubFont.entries.chunked(FONTS_PER_ROW).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(FONT_GAP.dp)) {
-                row.forEach { font ->
-                    FontCard(font, font == selected, Modifier.weight(1f)) { onFont(font) }
-                }
-                repeat(FONTS_PER_ROW - row.size) { Spacer(Modifier.weight(1f)) }
+private fun ModeAndAlignment(typography: EpubTypography, showMode: Boolean, onTypography: (EpubTypography) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (showMode) {
+            Column(Modifier.weight(1f)) {
+                BlockLabel(R.string.epub_mode)
+                PillSegmented(
+                    listOf(R.string.epub_mode_paged, R.string.epub_mode_scroll),
+                    if (typography.scroll) 1 else 0,
+                ) { onTypography(typography.copy(scroll = it == 1)) }
             }
+        }
+        Column(Modifier.weight(1f)) {
+            BlockLabel(R.string.epub_align)
+            PillSegmented(
+                listOf(R.string.epub_align_left, R.string.epub_align_justify),
+                if (typography.justify) 1 else 0,
+            ) { onTypography(typography.copy(justify = it == 1)) }
+        }
+    }
+}
+
+/** All fonts in one row of small cards, each previewing "অ Aa" in its own font. */
+@Composable
+private fun FontRow(selected: EpubFont, onFont: (EpubFont) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(FONT_GAP.dp)) {
+        EpubFont.entries.forEach { font ->
+            FontCard(font, font == selected, Modifier.weight(1f)) { onFont(font) }
         }
     }
 }
@@ -130,18 +137,18 @@ private fun FontCard(font: EpubFont, selected: Boolean, modifier: Modifier, onCl
         border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primary else colors.outline),
     ) {
         Column(
-            Modifier.heightIn(min = FONT_CARD_MIN_HEIGHT.dp).padding(vertical = 12.dp, horizontal = 4.dp),
+            Modifier.heightIn(min = FONT_CARD_MIN_HEIGHT.dp).padding(vertical = 6.dp, horizontal = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("অ Aa", style = MaterialTheme.typography.titleLarge.copy(fontFamily = family))
+            Text("অ Aa", style = MaterialTheme.typography.titleMedium.copy(fontFamily = family))
             Text(
                 stringResource(fontName(font)),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
+                maxLines = 1,
             )
         }
     }
