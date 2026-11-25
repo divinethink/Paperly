@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,7 @@ import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
 
 private const val MENU_RADIUS = 24
+private const val SEARCH_SLOT_DP = 48
 private const val THEME_BLOCK_WIDTH = 328
 private const val UNMARKED_ALPHA = 0.6f
 
@@ -67,6 +69,9 @@ internal fun ReaderTopBar(viewModel: ReaderViewModel, listState: LazyListState, 
             IconButton(onClick = viewModel.search::toggle) {
                 Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.reader_search))
             }
+        } else if (!search.probed) {
+            // Keeps the slot until the pages are sampled, so the icons on the right do not jump when Search appears.
+            Spacer(Modifier.size(SEARCH_SLOT_DP.dp))
         }
         if (state.pageCount > 0) {
             ReaderActions(viewModel, listState.firstVisibleItemIndex, fit.fitHeight, fit.onToggle)

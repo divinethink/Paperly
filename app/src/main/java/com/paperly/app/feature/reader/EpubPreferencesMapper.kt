@@ -11,6 +11,7 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.FontFamily
+import org.readium.r2.navigator.preferences.TextAlign
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 
@@ -22,6 +23,8 @@ internal fun EpubTypography.toReadium(theme: ReaderTheme, systemDark: Boolean) =
     lineHeight = lineSpacing.toDouble(),
     pageMargins = margin.toDouble(),
     publisherStyles = false,
+    // Left-aligned: justify opens huge word gaps at larger text sizes.
+    textAlign = TextAlign.START,
     scroll = scroll,
     backgroundColor = ReadiumColor(epubPageColor(theme, systemDark)),
     theme = when (theme) {
