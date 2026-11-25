@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -39,6 +40,7 @@ import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 
 private val MarkButton = 42.dp
+private val CompactMark = 36.dp // five icons (PDF, with Box) must fit the bar on a narrow phone
 private val DotSize = 22.dp
 private val StrokeCell = 64.dp
 private val StrokePreview = 36.dp
@@ -60,6 +62,9 @@ internal val MARK_TYPES = listOf(
     AnnotationType.STRIKETHROUGH,
 )
 
+/** PDF adds Box (a frame round the text) after the four. */
+internal val PDF_MARK_TYPES = MARK_TYPES + AnnotationType.BOX
+
 /**
  * One-tap mark buttons (Highlight, Underline, Squiggly, Strikethrough): a letter "A" drawn with the mark in the
  * [color] it will get, so the toolbar previews the result. [selected] outlines the type an annotation already has.
@@ -73,17 +78,18 @@ internal fun MarkIconRow(
     onPick: (AnnotationType) -> Unit,
 ) {
     Row(modifier, horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        types.forEach { type -> MarkIcon(type, color.argb(), type == selected) { onPick(type) } }
+        val compact = types.size > MARK_TYPES.size
+        types.forEach { type -> MarkIcon(type, color.argb(), type == selected, compact) { onPick(type) } }
     }
 }
 
 @Composable
-private fun MarkIcon(type: AnnotationType, tint: Color, selected: Boolean, onClick: () -> Unit) {
+private fun MarkIcon(type: AnnotationType, tint: Color, selected: Boolean, compact: Boolean, onClick: () -> Unit) {
     val label = stringResource(typeLabel(type))
     val background = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
     Box(
         Modifier
-            .size(MarkButton)
+            .size(if (compact) CompactMark else MarkButton)
             .clip(CircleShape)
             .background(background)
             .clickable(onClickLabel = label, role = Role.Button, onClick = onClick)
@@ -102,6 +108,7 @@ private fun DrawScope.drawMark(type: AnnotationType, tint: Color) {
         AnnotationType.HIGHLIGHT -> drawRect(tint.copy(alpha = FILL_ALPHA))
         AnnotationType.SQUIGGLY -> drawSquiggle(tint, 0f, size.height * UNDER_AT, size.width, stroke / 2)
         AnnotationType.STRIKETHROUGH -> line(MIDDLE_AT)
+        AnnotationType.BOX -> drawRect(tint, style = Stroke(stroke))
         else -> line(UNDER_AT)
     }
 }

@@ -45,6 +45,7 @@ internal class SelectionActions(
     val onStroke: (AnnotationStroke) -> Unit,
     val onMark: (AnnotationType) -> Unit,
     val onCopy: () -> Unit,
+    val types: List<AnnotationType> = MARK_TYPES,
 )
 
 /**
@@ -131,6 +132,7 @@ private fun selectionActions(
             copyText(ctx.context, ctx.picked.text)
             ctx.viewModel.textSelect.clear()
         },
+        types = PDF_MARK_TYPES,
     )
 }
 

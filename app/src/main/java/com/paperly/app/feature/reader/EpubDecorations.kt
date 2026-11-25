@@ -26,7 +26,7 @@ internal fun EpubAnnotation.toDecoration(): Decoration? {
         .toArgb()
     val style = when (type) {
         AnnotationType.HIGHLIGHT, AnnotationType.NOTE -> Decoration.Style.Highlight(tint)
-        AnnotationType.UNDERLINE -> EpubLineStyle(EpubLineKind.UNDERLINE, tint, weightDp())
+        AnnotationType.UNDERLINE, AnnotationType.BOX -> EpubLineStyle(EpubLineKind.UNDERLINE, tint, weightDp())
         AnnotationType.SQUIGGLY -> EpubLineStyle(EpubLineKind.SQUIGGLY, tint, weightDp())
         AnnotationType.STRIKETHROUGH -> EpubLineStyle(EpubLineKind.STRIKETHROUGH, tint, weightDp())
     }

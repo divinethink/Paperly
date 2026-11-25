@@ -8,6 +8,7 @@ enum class AnnotationType(val key: String) {
     UNDERLINE("underline"),
     SQUIGGLY("squiggly"),
     STRIKETHROUGH("strikethrough"),
+    BOX("box"),
     NOTE("note"),
     ;
 
@@ -33,10 +34,10 @@ enum class AnnotationStroke(val key: String, val dp: Float) {
     companion object {
         fun fromKey(key: String?): AnnotationStroke? = entries.firstOrNull { it.key == key }
 
-        /** Only line-type marks have a thickness; highlights and notes ignore it. */
+        /** Only line-type marks (and the box frame) have a thickness; highlights and notes ignore it. */
         fun appliesTo(type: AnnotationType): Boolean =
             type == AnnotationType.UNDERLINE || type == AnnotationType.SQUIGGLY ||
-                type == AnnotationType.STRIKETHROUGH
+                type == AnnotationType.STRIKETHROUGH || type == AnnotationType.BOX
     }
 }
 

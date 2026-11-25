@@ -35,5 +35,6 @@ internal fun typeLabel(type: AnnotationType): Int = when (type) {
     AnnotationType.UNDERLINE -> R.string.reader_annotation_underline
     AnnotationType.SQUIGGLY -> R.string.reader_annotation_squiggly
     AnnotationType.STRIKETHROUGH -> R.string.reader_annotation_strikethrough
+    AnnotationType.BOX -> R.string.reader_annotation_box
     AnnotationType.NOTE -> R.string.reader_annotation_note
 }

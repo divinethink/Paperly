@@ -26,6 +26,7 @@ import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
 import com.tom_roush.pdfbox.pdmodel.graphics.color.PDColor
 import com.tom_roush.pdfbox.pdmodel.graphics.color.PDDeviceRGB
 import com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotation
+import com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationSquare
 import com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationText
 import com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationTextMarkup
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -143,6 +144,8 @@ class PdfBoxAnnotationWriter @Inject constructor(
                 setName(PDAnnotationText.NAME_NOTE)
                 setRectangle(rectOf(bounds.minX, bounds.maxY - NOTE_ICON, bounds.minX + NOTE_ICON, bounds.maxY))
             }
+        } else if (item.type == AnnotationType.BOX) {
+            PDAnnotationSquare().apply { setRectangle(rectOf(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY)) }
         } else {
             PDAnnotationTextMarkup(subtypeOf(item.type)).apply {
                 setQuadPoints(quads.flatMap { it.quadPoints().asList() }.toFloatArray())
@@ -235,6 +238,7 @@ private fun subtypeOf(type: AnnotationType): String = when (type) {
     AnnotationType.UNDERLINE -> PDAnnotationTextMarkup.SUB_TYPE_UNDERLINE
     AnnotationType.SQUIGGLY -> PDAnnotationTextMarkup.SUB_TYPE_SQUIGGLY
     AnnotationType.STRIKETHROUGH -> PDAnnotationTextMarkup.SUB_TYPE_STRIKEOUT
+    AnnotationType.BOX -> PDAnnotationSquare.SUB_TYPE
     else -> PDAnnotationTextMarkup.SUB_TYPE_HIGHLIGHT
 }
 

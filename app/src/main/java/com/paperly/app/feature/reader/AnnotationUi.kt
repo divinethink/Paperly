@@ -131,13 +131,22 @@ internal fun Modifier.annotationGestures(
         }
 }
 
+/** The smallest rectangle that holds all [parts] (page fractions); null when there are none. */
+internal fun frameOf(parts: List<MatchRect>): MatchRect? =
+    if (parts.isEmpty()) {
+        null
+    } else {
+        MatchRect(parts.minOf { it.left }, parts.minOf { it.top }, parts.maxOf { it.right }, parts.maxOf { it.bottom })
+    }
+
 fun DrawScope.drawAnnotations(items: List<Annotation>, zoom: Float) {
     val lineWidth = LineWidth.toPx() / maxOf(zoom, MIN_ZOOM)
     items.forEach { a ->
         val base = (a.color ?: AnnotationColor.defaultFor(a.type)).argb()
         val width = lineWidth * (a.stroke ?: AnnotationStroke.MEDIUM).dp / AnnotationStroke.MEDIUM.dp
-        // one quad per line (like Xodo/Apryse TextMarkup): never the bounding box of all parts
-        a.rects.forEach { drawPart(a.type, it, base, width) }
+        // one quad per line (like Xodo/Apryse TextMarkup); a box is one frame round all the lines
+        val parts = if (a.type == AnnotationType.BOX) listOfNotNull(frameOf(a.rects)) else a.rects
+        parts.forEach { drawPart(a.type, it, base, width) }
     }
 }
 
@@ -154,6 +163,12 @@ private fun DrawScope.drawPart(type: AnnotationType, r: MatchRect, base: Color, 
             drawRect(NoteStroke, topLeft, area, style = Stroke(lineWidth))
         }
         AnnotationType.SQUIGGLY -> drawSquiggle(base, topLeft.x, lineY, area.width, lineWidth)
+        AnnotationType.BOX -> drawRect(
+            base,
+            Offset(topLeft.x - lineWidth, topLeft.y - lineWidth),
+            Size(area.width + 2 * lineWidth, area.height + 2 * lineWidth),
+            style = Stroke(lineWidth),
+        )
         else -> drawLine(base, Offset(topLeft.x, lineY), Offset(topLeft.x + area.width, lineY), lineWidth)
     }
 }
@@ -221,7 +236,7 @@ internal fun AnnotationEditorDialog(
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                AnnotationType.entries.forEach { option ->
+                AnnotationType.entries.filter { it != AnnotationType.BOX || existing?.type == it }.forEach { option ->
                     TypeOption(option, selected = option == type) { type = option }
                 }
                 if (!isNote) {

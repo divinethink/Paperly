@@ -91,7 +91,7 @@ class PdfBoxAnnotationReader @Inject constructor(
 
     /** Markup: one part per `/QuadPoints` group of 8 numbers. Note: its `/Rect`. Bad data = no parts. */
     private fun quadsOf(dict: COSDictionary, type: AnnotationType): List<PdfQuad> =
-        if (type == AnnotationType.NOTE) {
+        if (type == AnnotationType.NOTE || type == AnnotationType.BOX) {
             listOfNotNull(rectQuad(floatsOf(dict, COSName.RECT)))
         } else {
             floatsOf(dict, COSName.QUADPOINTS).chunked(QUAD_VALUES).filter { it.size == QUAD_VALUES }
@@ -123,6 +123,7 @@ private fun typeOf(subtype: String?): AnnotationType? = when (subtype) {
     "Underline" -> AnnotationType.UNDERLINE
     "Squiggly" -> AnnotationType.SQUIGGLY
     "StrikeOut" -> AnnotationType.STRIKETHROUGH
+    "Square" -> AnnotationType.BOX
     "Text" -> AnnotationType.NOTE
     else -> null
 }

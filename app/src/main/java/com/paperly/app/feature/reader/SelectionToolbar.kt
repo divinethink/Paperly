@@ -71,7 +71,7 @@ private fun SelectionBarRow(
     Row(Modifier.padding(horizontal = BarSide), verticalAlignment = Alignment.CenterVertically) {
         ColorDot(style.color, panelOpen, onDot)
         BarDivider()
-        MarkIconRow(selected = marked, color = style.color, onPick = actions.onMark)
+        MarkIconRow(selected = marked, color = style.color, types = actions.types, onPick = actions.onMark)
         BarDivider()
         TextAction(R.string.reader_annotation_note) { actions.onMark(AnnotationType.NOTE) }
         BarDivider()

@@ -164,6 +164,7 @@ internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, o
         onStroke = { controller.setStyle(look.copy(stroke = it)) },
         onMark = { type -> controller.commitQuick(type)?.let(onEditor) },
         onCopy = { copyPage(parts.page) },
+        types = PDF_MARK_TYPES,
     )
     val where = PdfSelection.single(parts.page, parts.rects, "")
     SelectionToolbar(look, null, actions) { bar, _ ->

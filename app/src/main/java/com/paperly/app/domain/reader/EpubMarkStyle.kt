@@ -40,5 +40,6 @@ internal fun epubMarkStyle(type: AnnotationType, color: AnnotationColor?, stroke
         AnnotationType.UNDERLINE -> "text-decoration:underline;$line"
         AnnotationType.SQUIGGLY -> "text-decoration:underline wavy;$line"
         AnnotationType.STRIKETHROUGH -> "text-decoration:line-through;$line"
+        AnnotationType.BOX -> "outline:${(stroke ?: AnnotationStroke.MEDIUM).dp}px solid ${hex(tint)}"
     }
 }
