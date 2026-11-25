@@ -99,6 +99,12 @@ internal fun Modifier.pinchZoom(
 class GestureLock {
     @Volatile
     var held: Boolean = false
+
+    /** A dragged box/handle owns the finger like a selection does: the page must not pan under it. */
+    fun around(setFinger: (Offset?) -> Unit): (Offset?) -> Unit = { touch ->
+        setFinger(touch)
+        held = touch != null
+    }
 }
 
 internal val LocalGestureLock = staticCompositionLocalOf { GestureLock() }

@@ -68,14 +68,17 @@ internal suspend fun AwaitPointerEventScope.quickPressGesture(edit: () -> Pendin
     onQuick(quickBoxRect(startX, startY, null))
     current.onFinger(pressed.position)
     val slop = viewConfiguration.touchSlop * QUICK_SLOP_FACTOR
-    drag(down.id) { change ->
-        change.consume()
-        if ((change.position - down.position).getDistance() > slop) {
-            onQuick(quickBoxRect(startX, startY, (change.position.x / size.width).coerceIn(0f, 1f)))
+    try {
+        drag(down.id) { change ->
+            change.consume()
+            if ((change.position - down.position).getDistance() > slop) {
+                onQuick(quickBoxRect(startX, startY, (change.position.x / size.width).coerceIn(0f, 1f)))
+            }
+            current.onFinger(change.position)
         }
-        current.onFinger(change.position)
+    } finally {
+        current.onFinger(null)
     }
-    current.onFinger(null)
     // the lift is ours too: otherwise the tap handler sees a plain tap and drops the selection/box
     currentEvent.changes.forEach { it.consume() }
 }

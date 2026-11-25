@@ -355,7 +355,8 @@ private fun PageItem(viewModel: ReaderViewModel, index: Int, renderPx: Int, spec
     var draft by remember(index) { mutableStateOf<MatchRect?>(null) }
     var finger by remember(index) { mutableStateOf<Offset?>(null) }
     val zoomOf = LocalPageZoom.current
-    val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = { finger = it })
+    val lock = LocalGestureLock.current
+    val edit = pendingEdit(index, spec.hooks, onDraft = { draft = it }, onFinger = lock.around { finger = it })
     val select = pageSelectEdit(index, spec.hooks.select) { finger = it }
     val gestures = Modifier.annotationGestures(spec.annotations, spec.hooks.annotate, edit, select, spec.hooks.onTap)
     val picture = remember(current) { current?.asImageBitmap() }

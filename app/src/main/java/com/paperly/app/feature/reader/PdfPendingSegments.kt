@@ -98,20 +98,24 @@ private fun MatchRect.shifted(dx: Float, dy: Float): MatchRect {
 private suspend fun AwaitPointerEventScope.dragExisting(down: PointerInputChange, hit: PendingHit, edit: PendingEdit) {
     down.consume()
     val start = edit.rects[hit.index]
-    drag(down.id) { change ->
-        change.consume()
-        edit.onFinger(change.position)
-        val next = when (hit.kind) {
-            HitKind.RESIZE -> dragRect(hit.fixed, change.position, size)
-            HitKind.RESIZE_X -> dragSide(hit.fixed.x, change.position.x, start, size)
-            else -> start.shifted(
-                (change.position.x - down.position.x) / size.width,
-                (change.position.y - down.position.y) / size.height,
-            )
+    edit.onFinger(down.position) // holds the page still from the first move on
+    try {
+        drag(down.id) { change ->
+            change.consume()
+            edit.onFinger(change.position)
+            val next = when (hit.kind) {
+                HitKind.RESIZE -> dragRect(hit.fixed, change.position, size)
+                HitKind.RESIZE_X -> dragSide(hit.fixed.x, change.position.x, start, size)
+                else -> start.shifted(
+                    (change.position.x - down.position.x) / size.width,
+                    (change.position.y - down.position.y) / size.height,
+                )
+            }
+            next?.let { edit.pending.onChange(hit.index, it) }
         }
-        next?.let { edit.pending.onChange(hit.index, it) }
+    } finally {
+        edit.onFinger(null)
     }
-    edit.onFinger(null)
 }
 
 /** Touch-slop, then drag from the touch-down point; a cancelled drag (e.g. second finger) adds nothing. */
