@@ -40,7 +40,7 @@ import com.paperly.app.domain.reader.AnnotationStroke
 import com.paperly.app.domain.reader.AnnotationType
 
 private val MarkButton = 42.dp
-private val CompactMark = 36.dp // five icons (PDF, with Box) must fit the bar on a narrow phone
+private val CompactMark = 32.dp // five icons (PDF, with Box) must fit the bar on a narrow phone
 private val DotSize = 22.dp
 private val StrokeCell = 64.dp
 private val StrokePreview = 36.dp
@@ -97,7 +97,10 @@ private fun MarkIcon(type: AnnotationType, tint: Color, selected: Boolean, compa
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(MarkGlyph)) { drawMark(type, tint) }
-        Text("A", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+        // the box is just the empty frame; the other marks show their effect on a letter
+        if (type != AnnotationType.BOX) {
+            Text("A", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 

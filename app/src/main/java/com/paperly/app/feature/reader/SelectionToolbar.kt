@@ -117,6 +117,8 @@ private fun TextAction(
             stringResource(label),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }
