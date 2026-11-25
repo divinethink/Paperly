@@ -1,5 +1,7 @@
 package com.paperly.app.navigation
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -24,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -281,7 +284,7 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
     composable(
         Routes.READER,
         arguments = listOf(navArgument("documentId") { type = NavType.StringType }),
-    ) {
+    ) { entry ->
         // Editing replaces the file, so the Reader (which holds it open) is popped first.
         val openEditor: (String) -> Unit = { id ->
             navController.navigate(Routes.scanEdit(id)) { popUpTo(Routes.READER) { inclusive = true } }
@@ -291,8 +294,17 @@ private fun NavGraphBuilder.paperlyDestinations(navController: NavHostController
             val route = Routes.scanEditAt(id, page, crop = crop, delete = start == ScanEditStart.DELETE)
             navController.navigate(route) { popUpTo(Routes.READER) { inclusive = true } }
         }
+        // A file opened from another app (Open-With) closes this Activity on leaving, so the Library never flashes.
+        val quickOpen: QuickOpenViewModel = hiltViewModel()
+        val readerId = entry.arguments?.getString("documentId")
+        val closeOnLeave = rememberSaveable(readerId) { readerId != null && quickOpen.takeCloseOnLeave(readerId) }
+        val activity = LocalActivity.current
+        val leave: () -> Unit = {
+            if (closeOnLeave && activity != null) activity.finish() else navController.popBackStack()
+        }
+        BackHandler(enabled = closeOnLeave, onBack = leave)
         CompositionLocalProvider(LocalOpenScanEditor provides openEditor, LocalOpenScanEditorAt provides openEditorAt) {
-            ReaderRoute(onBack = { navController.popBackStack() })
+            ReaderRoute(onBack = leave)
         }
     }
 }

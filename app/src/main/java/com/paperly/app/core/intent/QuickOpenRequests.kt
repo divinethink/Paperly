@@ -25,8 +25,30 @@ class QuickOpenRequests @Inject constructor() {
     private val _pending = MutableStateFlow<String?>(null)
     val pending: StateFlow<String?> = _pending.asStateFlow()
 
-    fun post(uri: String) {
+    // True when this request is what started the Activity (not a new file arriving in an Activity that is open).
+    @Volatile
+    var startedActivity: Boolean = false
+        private set
+
+    // Reader id opened by such a request: leaving it closes the Activity, back to the app the file came from.
+    @Volatile
+    private var closeOnLeaveId: String? = null
+
+    fun post(uri: String, startedActivity: Boolean = false) {
+        this.startedActivity = startedActivity
+        closeOnLeaveId = null
         _pending.value = uri
+    }
+
+    fun markCloseOnLeave(readerId: String) {
+        closeOnLeaveId = readerId
+    }
+
+    /** Single use: asked once when the Reader first appears, so a later normal open of the same file is unaffected. */
+    fun takeCloseOnLeave(readerId: String): Boolean {
+        val match = closeOnLeaveId == readerId
+        if (match) closeOnLeaveId = null
+        return match
     }
 
     /** Clears only if [uri] is still the pending one (a newer request is never dropped). */

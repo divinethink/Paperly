@@ -24,21 +24,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
-private const val BADGE_ALPHA = 0.85f
+private const val BADGE_ALPHA = 0.6f
 private const val BADGE_HIDE_MS = 1500L
 
-/** "5 / 15" badge: while the bars are shown it stays; with bars hidden it appears on a page change, then fades away. */
+/** "5 / 15" badge: appears on a page change or when the bars toggle, then fades away. */
 @Composable
 internal fun PdfPageBadge(listState: LazyListState, pageCount: Int, barsShown: Boolean, enabled: Boolean) {
     if (!enabled || pageCount <= 0) return
     val page = listState.firstVisibleItemIndex
     var recent by remember { mutableStateOf(false) }
-    LaunchedEffect(page) {
+    LaunchedEffect(page, barsShown) {
         recent = true
         delay(BADGE_HIDE_MS)
         recent = false
     }
-    if (!barsShown && !recent) return
+    if (!recent) return
     // Below the top bar while it is shown (its height is fixed), otherwise at the very top.
     val top = if (barsShown) TOP_BAR_HEIGHT else 0.dp
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)) {
@@ -50,7 +50,7 @@ internal fun PdfPageBadge(listState: LazyListState, pageCount: Int, barsShown: B
             Text(
                 "${page + 1} / $pageCount",
                 Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }

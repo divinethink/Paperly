@@ -47,7 +47,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Only a fresh launch: after rotation/process restore the same intent must not import again.
-        if (savedInstanceState == null) postIntent(intent)
+        if (savedInstanceState == null) postIntent(intent, startedActivity = true)
         setContent {
             val appearance: AppearanceViewModel = hiltViewModel()
             val dynamicColor by appearance.dynamicColor.collectAsStateWithLifecycle()
@@ -84,13 +84,17 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        postIntent(intent)
+        postIntent(intent, startedActivity = false)
     }
 
-    private fun postIntent(intent: Intent?) {
+    private fun postIntent(intent: Intent?, startedActivity: Boolean) {
         extractImportUri(intent)?.let { uri ->
             // Open-With of a PDF is read directly (Quick view); Share and EPUB keep the import flow.
-            if (isQuickOpen(intent, contentResolver)) quickOpen.post(uri) else incomingImports.post(uri)
+            if (isQuickOpen(intent, contentResolver)) {
+                quickOpen.post(uri, startedActivity)
+            } else {
+                incomingImports.post(uri)
+            }
         }
         if (isContinueReading(intent)) continueReading.post()
     }

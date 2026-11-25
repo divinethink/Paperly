@@ -34,6 +34,7 @@ private val SelectionFill = Color(0x5542A5F5)
 private val SelectHandleColor = Color(0xFF1E88E5)
 private val SelectHandleRadius = 12.dp // big drop-shaped handle, easy to grab (Xodo-like)
 private val SelectHandleReach = 36.dp // touch reach around a handle
+private const val HANDLE_EDGE_GAP = 1.5f // handle centre's minimum distance from the page edge, in radii
 private const val EDGE_INSET = 0.002f // anchors sit just inside the line ends, so the end characters stay selected
 private const val HALF = 0.5f
 private const val MAX_SELECT_PAGES = 10 // a drag across more pages is ignored (keeps the last selection)
@@ -325,9 +326,12 @@ private fun handleCenters(rects: List<MatchRect>, w: Float, h: Float, radius: Fl
     val last = rects.last()
     // Pushed outward by one radius so the two handles never sit on top of each other (a one-word selection).
     // Kept inside the page: text at a page edge must not push a handle off screen where it cannot be grabbed.
-    val maxX = (w - radius).coerceAtLeast(radius)
-    return Offset((first.left * w - radius).coerceIn(radius, maxX), first.bottom * h + radius) to
-        Offset((last.right * w + radius).coerceIn(radius, maxX), last.bottom * h + radius)
+    // One extra half-radius gap from the screen edge: a handle flush with the edge is clipped by the eye and sits
+    // in the system back-gesture zone, where it is hard to grab.
+    val minX = radius * HANDLE_EDGE_GAP
+    val maxX = (w - minX).coerceAtLeast(minX)
+    return Offset((first.left * w - radius).coerceIn(minX, maxX), first.bottom * h + radius) to
+        Offset((last.right * w + radius).coerceIn(minX, maxX), last.bottom * h + radius)
 }
 
 /**

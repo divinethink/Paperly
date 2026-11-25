@@ -36,4 +36,10 @@ class QuickOpenViewModel @Inject constructor(
     }
 
     fun consume(uri: String) = requests.consume(uri)
+
+    fun markOpened(readerId: String) {
+        if (requests.startedActivity) requests.markCloseOnLeave(readerId)
+    }
+
+    fun takeCloseOnLeave(readerId: String): Boolean = requests.takeCloseOnLeave(readerId)
 }

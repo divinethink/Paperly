@@ -15,7 +15,10 @@ internal fun QuickOpenEffect(navController: NavHostController, viewModel: QuickO
         val uri = pending ?: return@LaunchedEffect
         val id = viewModel.stage(uri)
         viewModel.consume(uri)
-        if (id != null) navController.navigate(Routes.reader(id))
+        if (id != null) {
+            viewModel.markOpened(id)
+            navController.navigate(Routes.reader(id))
+        }
     }
     val redirect by viewModel.redirect.collectAsStateWithLifecycle()
     LaunchedEffect(redirect) {

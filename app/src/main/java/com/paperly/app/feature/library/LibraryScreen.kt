@@ -106,7 +106,12 @@ fun LibraryScreen(
         if (batch.active) {
             Box(Modifier.statusBarsPadding()) { BatchBar(batch, state.documents, state.folders) }
         } else {
-            val header = HeaderInfo(libraryTitle, state.totalCount, state.isImporting, viewModel.type)
+            val header = HeaderInfo(
+                libraryTitle,
+                state.totalCount.takeIf { state.load == LibraryLoad.Ready },
+                state.isImporting,
+                viewModel.type,
+            )
             val canAddFolder = state.folderPath.size < MAX_FOLDER_DEPTH
             val newFolder = { dialog = LibraryDialog.NewFolder(state.selectedFolderId) }
             LibraryHeader(header, navigation, canAddFolder, newFolder, startImport)
@@ -170,7 +175,7 @@ private fun LibraryEmpty(state: LibraryUiState, type: LibraryType, listActions: 
 }
 
 /** What the header shows, grouped so [LibraryHeader] stays under the parameter-count limit. */
-private class HeaderInfo(val title: String, val count: Int, val isImporting: Boolean, val type: LibraryType)
+private class HeaderInfo(val title: String, val count: Int?, val isImporting: Boolean, val type: LibraryType)
 
 @Composable
 private fun LibraryHeader(
@@ -192,7 +197,7 @@ private fun LibraryHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                info.title + " (" + info.count + ")",
+                info.title + (info.count?.let { " ($it)" } ?: ""),
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

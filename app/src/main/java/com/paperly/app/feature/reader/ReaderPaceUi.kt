@@ -22,7 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import org.readium.r2.shared.publication.Locator
 
-private const val LABEL_ALPHA = 0.8f
+private const val LABEL_ALPHA = 0.6f
 
 /** "N pages left · ~M min" label for the PDF page view. Pass-through for touches (plain Box, no click handling). */
 @Composable
@@ -50,7 +50,7 @@ internal fun PdfPaceOverlay(
             Text(
                 text,
                 Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }

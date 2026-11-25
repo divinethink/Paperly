@@ -55,7 +55,7 @@ import com.paperly.app.feature.library.DocumentExport
 import com.paperly.app.feature.library.rememberDocumentExport
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
 
-private const val BAR_ALPHA = 0.94f
+private const val BAR_ALPHA = 1f
 private const val LIGHT_BAR_LUMINANCE = 0.5f
 
 /**
