@@ -22,7 +22,11 @@ private const val BELOW_FACTOR = 0.5f // below the box there are no handle dots 
  * Same bar as the text-selection menu; changes apply to the mark itself. Hidden in annotate mode and Reflow.
  */
 @Composable
-internal fun PdfMarkEditMenu(viewModel: ReaderViewModel, port: SelectionViewport, onEditor: (AnnotationEditor) -> Unit) {
+internal fun PdfMarkEditMenu(
+    viewModel: ReaderViewModel,
+    port: SelectionViewport,
+    onEditor: (AnnotationEditor) -> Unit,
+) {
     val controller = viewModel.annotations
     val editing by controller.editing.collectAsStateWithLifecycle()
     val pending by controller.pending.collectAsStateWithLifecycle()
@@ -35,7 +39,8 @@ internal fun PdfMarkEditMenu(viewModel: ReaderViewModel, port: SelectionViewport
     // the mark vanished (deleted from another place): drop the box with it
     LaunchedEffect(mark == null) { if (mark == null) controller.cancelPending() }
     val frame = pending?.takeIf { it.editing }?.rects?.singleOrNull()
-    if (mark == null || frame == null || annotate || reflow) return
+    val hidden = annotate || reflow
+    if (mark == null || frame == null || hidden) return
     val gap = with(LocalDensity.current) { EditGap.toPx() }
     val own = AnnotateStyle(
         mark.type,

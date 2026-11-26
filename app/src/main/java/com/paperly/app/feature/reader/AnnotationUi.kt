@@ -91,7 +91,6 @@ internal fun Modifier.annotationGestures(
 ): Modifier {
     val current by rememberUpdatedState(edit)
     val tap by rememberUpdatedState(onTap)
-    val clearSelect by rememberUpdatedState(select?.hooks?.onClear)
     val currentSelect by rememberUpdatedState(select)
     val annotateNow by rememberUpdatedState(annotate)
     val quick = quickState(edit, annotate, select != null)
@@ -101,17 +100,8 @@ internal fun Modifier.annotationGestures(
     return this
         .pointerInput(annotations) {
             detectTapGestures { pos ->
-                val fx = pos.x / size.width
-                val fy = pos.y / size.height
-                annotations.lastOrNull { a ->
-                    a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
-                }?.let { tap(it) } ?: run {
-                    val blank = !annotateNow && currentSelect?.hooks?.selection == null && current.rects.isEmpty()
-                    clearSelect?.invoke()
-                    current.cancelQuick(annotateNow) // a tap beside the quick box drops it
-                    if (current.pending.editing) current.pending.onDeselect() // ...and lets go of a picked mark
-                    if (blank) current.pending.onBlankTap() // nothing was open: toggle the bars
-                }
+                hitMark(annotations, pos, size)?.let { tap(it) }
+                    ?: handleEmptyTap(current, annotateNow, currentSelect)
             }
         }
         .pointerInput(annotate) {
@@ -131,6 +121,24 @@ internal fun Modifier.annotationGestures(
         .pointerInput(select != null) {
             if (select != null) awaitEachGesture { selectHandleGesture({ currentSelect }, zoomOf) }
         }
+}
+
+/** The top-most saved mark under [pos] (pixels inside a page of [size]); null when the tap hit none. */
+private fun hitMark(annotations: List<Annotation>, pos: Offset, size: IntSize): Annotation? {
+    val fx = pos.x / size.width
+    val fy = pos.y / size.height
+    return annotations.lastOrNull { a ->
+        a.rects.any { fx in it.left..it.right && fy in it.top..it.bottom }
+    }
+}
+
+/** A tap on no mark: drop the quick box and any picked mark or selection; if nothing was open, toggle the bars. */
+private fun handleEmptyTap(edit: PendingEdit, annotate: Boolean, select: SelectEdit?) {
+    val blank = !annotate && select?.hooks?.selection == null && edit.rects.isEmpty()
+    select?.hooks?.onClear?.invoke()
+    edit.cancelQuick(annotate) // a tap beside the quick box drops it
+    if (edit.pending.editing) edit.pending.onDeselect() // ...and lets go of a picked mark
+    if (blank) edit.pending.onBlankTap() // nothing was open: toggle the bars
 }
 
 /** The smallest rectangle that holds all [parts] (page fractions); null when there are none. */

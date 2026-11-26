@@ -93,7 +93,10 @@ class AnnotationController(
         return true
     }
 
-    /** A drag of the picked mark's box ended: the mark's parts follow the box (stored; the PDF file is updated later). */
+    /**
+     * A drag of the picked mark's box ended: the mark's parts follow the box (stored; the PDF file is updated
+     * later).
+     */
     fun finishEditDrag() {
         val edit = editingState.value ?: return
         val now = pendingState.value?.takeIf { it.editing }?.rects?.singleOrNull() ?: return
