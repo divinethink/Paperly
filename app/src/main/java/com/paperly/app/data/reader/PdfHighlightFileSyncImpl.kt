@@ -5,7 +5,6 @@ import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.LibraryPdfFiles
 import com.paperly.app.domain.reader.PdfAnnotationItem
 import com.paperly.app.domain.reader.PdfAnnotationWriter
-import com.paperly.app.domain.reader.PdfHighlightFileSync
 import com.paperly.app.domain.reader.PdfOpenCheck
 import com.paperly.app.domain.reader.PdfWriteResult
 import com.paperly.app.domain.settings.PdfFileWriteSettings
@@ -30,12 +29,16 @@ class PdfHighlightFileSyncImpl @Inject constructor(
     private val writer: PdfAnnotationWriter,
     private val openCheck: PdfOpenCheck,
     private val settings: PdfFileWriteSettings,
-) : PdfHighlightFileSync {
+) {
     private val lock = Mutex()
 
-    override fun schedule(documentId: String, removedIds: Set<String>) {
+    /** Fire and forget; [onResult] gets the outcome (null = not attempted; a failure arrives as `Failed`). */
+    fun schedule(documentId: String, removedIds: Set<String>, onResult: (PdfWriteResult?) -> Unit) {
         if (documentId.isEmpty()) return
-        scope.launch { runCatching { writeNow(documentId, removedIds) } }
+        scope.launch {
+            val result = runCatching { writeNow(documentId, removedIds) }.getOrElse { PdfWriteResult.Failed(it) }
+            onResult(result)
+        }
     }
 
     /** Null = not attempted (setting off, or not a writable Library PDF). */

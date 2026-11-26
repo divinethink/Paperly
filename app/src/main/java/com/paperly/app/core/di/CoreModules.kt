@@ -26,7 +26,9 @@ import com.paperly.app.core.database.TrashDao
 import com.paperly.app.core.file.AppPrivateDocumentFileStore
 import com.paperly.app.core.file.DocumentFileStore
 import com.paperly.app.data.cover.CoverRepositoryImpl
+import com.paperly.app.data.reader.ToastFileWriteNotice
 import com.paperly.app.domain.cover.CoverRepository
+import com.paperly.app.domain.reader.FileWriteNotice
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -110,4 +112,7 @@ abstract class FileModule {
 
     @Binds
     abstract fun bindCoverRepository(impl: CoverRepositoryImpl): CoverRepository
+
+    @Binds
+    abstract fun bindFileWriteNotice(impl: ToastFileWriteNotice): FileWriteNotice
 }

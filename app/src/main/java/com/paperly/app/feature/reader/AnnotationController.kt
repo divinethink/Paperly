@@ -50,6 +50,12 @@ class AnnotationController(
         (if (documentId.isEmpty()) emptyFlow() else repository.observe(documentId))
             .stateIn(scope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
+    private val history = AnnotationHistory(scope, repository, documentId)
+
+    /** Whether a saved-mark change can be taken back / done again (see [undo], [redo]). */
+    val canUndo: StateFlow<Boolean> = history.canUndo
+    val canRedo: StateFlow<Boolean> = history.canRedo
+
     private val annotateOn = MutableStateFlow(false)
 
     /** Annotate mode: one-finger drag draws an area (page scroll is off); off = normal reading. */
@@ -104,6 +110,18 @@ class AnnotationController(
         val moved = remapRects(edit.rects, edit.frame, now)
         editingState.value = edit.copy(rects = moved, frame = now)
         scope.launch { repository.setRects(edit.id, moved) }
+    }
+
+    /** Takes back the last saved-mark change; unsaved drawn parts, if any, are dropped instead (that step first). */
+    fun undo() {
+        val draft = pendingState.value?.takeUnless { it.editing }
+        cancelPending()
+        if (draft == null) history.undo()
+    }
+
+    fun redo() {
+        cancelPending()
+        history.redo()
     }
 
     /** Type + color chosen in the pencil strip; persisted, so no per-annotation color prompt. */

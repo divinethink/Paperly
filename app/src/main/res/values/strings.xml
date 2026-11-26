@@ -483,6 +483,13 @@
     <string name="reader_display_settings">Theme and brightness</string>
     <string name="reader_more">More options</string>
     <string name="reader_annotate_mode">Annotate mode</string>
+    <string name="reader_go_to_page">Go to page</string>
+    <string name="reader_go_to_page_range">Page number (1 to %1$d)</string>
+    <string name="reader_go_to_page_go">Go</string>
+    <string name="reader_undo">Undo</string>
+    <string name="reader_redo">Redo</string>
+    <string name="pdf_write_ok">Highlights saved into the PDF file</string>
+    <string name="pdf_write_failed">Could not save highlights into the PDF file; they are kept in the app</string>
     <string name="reader_annotation_new">New annotation</string>
     <string name="reader_annotation_edit">Edit annotation</string>
     <string name="reader_annotation_highlight">Highlight</string>

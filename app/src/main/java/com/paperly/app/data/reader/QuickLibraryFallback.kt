@@ -37,7 +37,7 @@ class QuickLibraryFallback @Inject constructor(
             val rect = a.rects.firstOrNull() ?: return@forEach
             annotations.add(id, a.page, rect, AnnotationContent(a.type, a.color, a.noteText, a.stroke), a.rects)
         }
-        fileSync.schedule(id)
+        fileSync.schedule(id, notify = false) // the caller already shows its own message
         recent.hide(token) // the Library holds it now
         return true
     }

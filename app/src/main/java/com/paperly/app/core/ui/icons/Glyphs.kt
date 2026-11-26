@@ -49,6 +49,11 @@ private const val MOVE_PATH = "M20,6h-8l-2,-2H4c-1.1,0 -1.99,0.9 -1.99,2L2,18c0,
 private const val COPY_PATH = "M16,1H4c-1.1,0 -2,0.9 -2,2v14h2V3h12V1zM19,5H8c-1.1,0 -2,0.9 -2,2v14" +
     "c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7c0,-1.1 -0.9,-2 -2,-2zM19,21H8V7h11v14z"
 
+private const val UNDO_PATH = "M12.5,8c-2.65,0 -5.05,0.99 -6.9,2.6L2,7v9h9l-3.62,-3.62" +
+    "c1.39,-1.16 3.16,-1.88 5.12,-1.88 3.54,0 6.55,2.31 7.6,5.5l2.37,-0.78C21.08,11.03 17.15,8 12.5,8z"
+private const val REDO_PATH = "M18.4,10.6C16.55,8.99 14.15,8 11.5,8c-4.65,0 -8.58,3.03 -9.96,7.22L3.9,16" +
+    "c1.05,-3.19 4.05,-5.5 7.6,-5.5 1.95,0 3.73,0.72 5.12,1.88L13,16h9V7l-3.6,3.6z"
+
 private fun glyph(name: String, pathData: String): ImageVector =
     ImageVector.Builder(
         name = name,
@@ -76,3 +81,5 @@ val GridGlyph: ImageVector by lazy { glyph("Grid", GRID_PATH) }
 val ListGlyph: ImageVector by lazy { glyph("List", LIST_PATH) }
 val MoveGlyph: ImageVector by lazy { glyph("Move", MOVE_PATH) }
 val CopyGlyph: ImageVector by lazy { glyph("Copy", COPY_PATH) }
+val UndoGlyph: ImageVector by lazy { glyph("Undo", UNDO_PATH) }
+val RedoGlyph: ImageVector by lazy { glyph("Redo", REDO_PATH) }

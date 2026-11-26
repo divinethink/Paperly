@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,9 +36,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
 import com.paperly.app.core.ui.icons.FitHeightGlyph
 import com.paperly.app.core.ui.icons.FitWidthGlyph
+import com.paperly.app.core.ui.icons.RedoGlyph
 import com.paperly.app.core.ui.icons.ReflowGlyph
+import com.paperly.app.core.ui.icons.UndoGlyph
 import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.scanner.LocalOpenScanEditor
+import kotlinx.coroutines.launch
 
 private const val MENU_RADIUS = 24
 private const val SEARCH_SLOT_DP = 48
@@ -52,6 +57,18 @@ internal fun ReaderTopBar(viewModel: ReaderViewModel, listState: LazyListState, 
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var goToPage by remember { mutableStateOf(false) }
+    if (goToPage) {
+        GoToPageDialog(
+            pageCount = state.pageCount,
+            onGo = { page ->
+                goToPage = false
+                scope.launch { listState.scrollToItem(page - 1) }
+            },
+            onDismiss = { goToPage = false },
+        )
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reader_back))
@@ -70,14 +87,20 @@ internal fun ReaderTopBar(viewModel: ReaderViewModel, listState: LazyListState, 
             Spacer(Modifier.size(SEARCH_SLOT_DP.dp))
         }
         if (state.pageCount > 0) {
-            ReaderActions(viewModel, listState.firstVisibleItemIndex, fit.fitHeight, fit.onToggle)
+            ReaderActions(viewModel, listState.firstVisibleItemIndex, fit.fitHeight, fit.onToggle) { goToPage = true }
         }
     }
 }
 
 /** Reader top-bar actions: Bookmark, Annotate toggle, ⚙ (Theme + Comfort), ⋮ menu (Fit, Reflow, file actions). */
 @Composable
-fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
+fun ReaderActions(
+    viewModel: ReaderViewModel,
+    page: Int,
+    fitHeight: Boolean,
+    onToggleFit: () -> Unit,
+    onGoToPage: () -> Unit,
+) {
     BookmarkAndAnnotate(viewModel, page)
     var showComfort by remember { mutableStateOf(false) }
     if (showComfort) {
@@ -87,7 +110,7 @@ fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onT
     IconButton(onClick = { showComfort = true }) {
         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.reader_display_settings))
     }
-    OverflowMenu(viewModel, page, fitHeight, onToggleFit)
+    OverflowMenu(viewModel, page, fitHeight, onToggleFit, onGoToPage)
 }
 
 @Composable
@@ -118,6 +141,12 @@ private fun BookmarkAndAnnotate(viewModel: ReaderViewModel, page: Int) {
     ) {
         Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.reader_annotate_mode))
     }
+    val canUndo by viewModel.annotations.canUndo.collectAsStateWithLifecycle()
+    if (canUndo) {
+        IconButton(onClick = viewModel.annotations::undo) {
+            Icon(UndoGlyph, contentDescription = stringResource(R.string.reader_undo))
+        }
+    }
 }
 
 @Composable
@@ -126,6 +155,7 @@ private fun OverflowMenu(
     page: Int,
     fitHeight: Boolean,
     onToggleFit: () -> Unit,
+    onGoToPage: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
@@ -146,6 +176,8 @@ private fun OverflowMenu(
         shape = RoundedCornerShape(MENU_RADIUS.dp),
         containerColor = MaterialTheme.colorScheme.surfaceBright,
     ) {
+        RedoMenuItem(viewModel) { open = false }
+        if (!reflow) GoToPageMenuItem(onGoToPage) { open = false }
         // Readable text layers use the text; scans/Bengali/broken text layers are read by OCR (P10). Once sampled.
         if (search.probed) {
             MenuRow(if (reflow) R.string.reader_view_original else R.string.reader_view_reflow, ReflowGlyph) {
@@ -168,6 +200,26 @@ private fun OverflowMenu(
         files?.let { FileMenuItems(it) { open = false } }
         SharePdfAnnotationsItem(viewModel) { open = false }
         SelectLogMenuItem { open = false }
+    }
+}
+
+/** Opens the page-number dialog (the page list is hidden in Reflow, so the caller leaves this out there). */
+@Composable
+private fun GoToPageMenuItem(onGoToPage: () -> Unit, onDone: () -> Unit) {
+    MenuRow(R.string.reader_go_to_page, Icons.AutoMirrored.Filled.ArrowForward) {
+        onGoToPage()
+        onDone()
+    }
+}
+
+/** Does again what Undo took back; only shown after an Undo. */
+@Composable
+private fun RedoMenuItem(viewModel: ReaderViewModel, onDone: () -> Unit) {
+    val canRedo by viewModel.annotations.canRedo.collectAsStateWithLifecycle()
+    if (!canRedo) return
+    MenuRow(R.string.reader_redo, RedoGlyph) {
+        viewModel.annotations.redo()
+        onDone()
     }
 }
 

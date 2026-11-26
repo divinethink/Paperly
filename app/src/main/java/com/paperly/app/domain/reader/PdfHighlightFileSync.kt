@@ -7,8 +7,16 @@ import java.io.File
  * in the app (moved, resized, restyled) reach the file too; [schedule]'s `removedIds` are marks deleted in the app.
  */
 interface PdfHighlightFileSync {
-    /** Fire and forget (app scope, survives the Reader closing). The Reader must have closed the file first. */
-    fun schedule(documentId: String, removedIds: Set<String> = emptySet())
+    /**
+     * Fire and forget (app scope, survives the Reader closing). The Reader must have closed the file first.
+     * [notify] = tell the person whether the file was written (off where the caller already shows its own message).
+     */
+    fun schedule(documentId: String, removedIds: Set<String> = emptySet(), notify: Boolean = true)
+}
+
+/** Tells the person how a background write into their PDF ended (a short on-screen message). */
+fun interface FileWriteNotice {
+    fun show(written: Boolean)
 }
 
 /** The Library side of the write: which file may be written, and what to record once its bytes changed. */
