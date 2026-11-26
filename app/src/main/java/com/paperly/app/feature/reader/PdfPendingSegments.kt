@@ -34,6 +34,12 @@ data class PendingHooks(
     val onBlankTap: () -> Unit = {},
     /** Set on image pages in annotate mode: a drag draws this type directly (see PdfDirectMark.kt). */
     val directType: AnnotationType? = null,
+    /** A saved mark is picked: its box (the only pending part) is moved / resized and lets go on a tap beside it. */
+    val editing: Boolean = false,
+    /** A drag of a pending box ended (the picked mark then stores its new place). */
+    val onEditEnd: () -> Unit = {},
+    /** A tap beside the picked mark's box. */
+    val onDeselect: () -> Unit = {},
 )
 
 /** Everything the annotate-mode gesture of one page needs; [rects] = this page's pending parts. */
@@ -115,6 +121,7 @@ private suspend fun AwaitPointerEventScope.dragExisting(down: PointerInputChange
         }
     } finally {
         edit.onFinger(null)
+        edit.pending.onEditEnd()
     }
 }
 

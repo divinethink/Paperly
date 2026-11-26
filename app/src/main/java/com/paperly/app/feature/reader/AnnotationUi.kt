@@ -95,6 +95,7 @@ internal fun Modifier.annotationGestures(
     val currentSelect by rememberUpdatedState(select)
     val annotateNow by rememberUpdatedState(annotate)
     val quick = quickState(edit, annotate, select != null)
+    val grabBox = quick.live || (edit.pending.editing && edit.rects.isNotEmpty()) // quick box or picked mark
     val zoomOf = LocalPageZoom.current
     val reachBase = with(LocalDensity.current) { HandleReach.toPx() }
     return this
@@ -108,6 +109,7 @@ internal fun Modifier.annotationGestures(
                     val blank = !annotateNow && currentSelect?.hooks?.selection == null && current.rects.isEmpty()
                     clearSelect?.invoke()
                     current.cancelQuick(annotateNow) // a tap beside the quick box drops it
+                    if (current.pending.editing) current.pending.onDeselect() // ...and lets go of a picked mark
                     if (blank) current.pending.onBlankTap() // nothing was open: toggle the bars
                 }
             }
@@ -122,8 +124,8 @@ internal fun Modifier.annotationGestures(
             if (quick.press) awaitEachGesture { quickPressGesture { current } }
         }
         // declared after quickPressGesture, so a grab of the box wins over a new long-press
-        .pointerInput(quick.live) {
-            if (quick.live) awaitEachGesture { pendingGesture(reachBase, zoomOf, drawNew = false) { current } }
+        .pointerInput(grabBox) {
+            if (grabBox) awaitEachGesture { pendingGesture(reachBase, zoomOf, drawNew = false) { current } }
         }
         // declared last = first to see a touch, so a handle wins over long-press
         .pointerInput(select != null) {

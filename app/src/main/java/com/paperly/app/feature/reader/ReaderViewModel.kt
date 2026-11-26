@@ -97,6 +97,7 @@ class ReaderViewModel @Inject constructor(
 
     /** L3: a highlight changed in this session, so on close it is offered to the PDF-file writer. */
     private var annotationsChanged = false
+    private val deletedMarkIds = HashSet<String>() // marks deleted during this session (their file copy goes too)
 
     /** Step 4: Library copy made by "Save to Library"; its highlights go into the file once this Reader closes. */
     private var savedTargetId: String? = null
@@ -359,7 +360,7 @@ class ReaderViewModel @Inject constructor(
             quickWriteBack.finish(documentId, if (writeOnClose) quickItems() else emptyList(), savedTargetId != null)
         }
         // After the engine closed the file: writes the highlights into it if the setting is on (app scope).
-        if (annotationsChanged) highlightFileSync.schedule(documentId)
+        if (annotationsChanged) highlightFileSync.schedule(documentId, deletedMarkIds.toSet())
         savedTargetId?.let(highlightFileSync::schedule) // no-op when the setting is off; /NM keeps repeats idempotent
     }
 
@@ -377,7 +378,12 @@ class ReaderViewModel @Inject constructor(
                 val before = baseline
                 when {
                     before == null -> baseline = now
-                    now != before -> annotationsChanged = true
+                    now != before -> {
+                        annotationsChanged = true
+                        val ids = now.mapTo(HashSet()) { it.id }
+                        before.orEmpty().forEach { if (it.id !in ids) deletedMarkIds.add(it.id) }
+                        baseline = now
+                    }
                 }
             }
         }

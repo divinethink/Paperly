@@ -3,6 +3,7 @@ package com.paperly.app.feature.reader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,6 +13,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.paperly.app.R
 import com.paperly.app.domain.reader.AnnotateStyle
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationColor
@@ -46,6 +48,8 @@ internal class SelectionActions(
     val onMark: (AnnotationType) -> Unit,
     val onCopy: () -> Unit,
     val types: List<AnnotationType> = MARK_TYPES,
+    /** Label of the last button of the bar ([onCopy] runs it): Copy for selected text, Delete for a picked mark. */
+    @StringRes val lastLabel: Int = R.string.reader_select_copy,
 )
 
 /**

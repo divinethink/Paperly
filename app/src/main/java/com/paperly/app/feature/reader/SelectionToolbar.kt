@@ -75,7 +75,7 @@ private fun SelectionBarRow(
         BarDivider()
         TextAction(R.string.reader_annotation_note) { actions.onMark(AnnotationType.NOTE) }
         BarDivider()
-        TextAction(R.string.reader_select_copy, actions.onCopy)
+        TextAction(actions.lastLabel, actions.onCopy)
     }
 }
 

@@ -2,6 +2,7 @@ package com.paperly.app.data.reader
 
 import com.paperly.app.core.database.AnnotationDao
 import com.paperly.app.core.database.AnnotationEntity
+import com.paperly.app.core.database.AnnotationRectsUpdate
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.AnnotationColor
 import com.paperly.app.domain.reader.AnnotationContent
@@ -61,6 +62,23 @@ class AnnotationRepositoryImpl @Inject constructor(
     override suspend fun update(id: String, content: AnnotationContent) {
         dao.update(id, content.type.key, content.storedColor(), content.storedNote(), System.currentTimeMillis())
         dao.setStroke(id, content.storedStroke())
+    }
+
+    override suspend fun setRects(id: String, rects: List<MatchRect>) {
+        val parts = rects.take(AnnotationRects.MAX_RECTS).map { it.clamped() }
+        if (parts.isEmpty()) return
+        val box = AnnotationRects.bounding(parts)
+        dao.setRects(
+            AnnotationRectsUpdate(
+                id,
+                box.left,
+                box.top,
+                box.right,
+                box.bottom,
+                AnnotationRects.encode(parts),
+                System.currentTimeMillis(),
+            ),
+        )
     }
 
     override suspend fun delete(id: String) {

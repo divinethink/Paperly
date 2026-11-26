@@ -41,4 +41,17 @@ interface PdfAnnotationWriter {
         items: List<PdfAnnotationItem>,
         verify: suspend (File) -> Boolean = { true },
     ): PdfWriteResult
+
+    /**
+     * Like [write], but also keeps the file in step with edits: a mark of [items] that is already in the file and
+     * changed (moved, resized, new colour/type/thickness/note) is replaced, and a mark whose id is in [removed]
+     * (deleted in the app) is taken out. Any other mark in the file (other apps, or marks the app never knew) is
+     * never touched. Only for the Library copy.
+     */
+    suspend fun mirror(
+        file: File,
+        items: List<PdfAnnotationItem>,
+        removed: Set<String>,
+        verify: suspend (File) -> Boolean = { true },
+    ): PdfWriteResult = write(file, items, verify)
 }

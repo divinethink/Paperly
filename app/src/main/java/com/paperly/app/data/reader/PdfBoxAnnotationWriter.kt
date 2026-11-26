@@ -54,8 +54,8 @@ class PdfBoxAnnotationWriter @Inject constructor(
 
     private val backupDir: File by lazy { File(context.filesDir, BACKUP_DIR).apply { mkdirs() } }
 
-    /** Pages + ids that were really added in the temp file. */
-    private class Staged(val pages: Int, val ids: List<String>)
+    /** Pages + ids that were really added (or replaced) in the temp file + names taken out of it. */
+    private class Staged(val pages: Int, val ids: List<String>, val gone: List<String>)
 
     private class Unsupported(val reason: PdfSkipReason) : Exception()
 
@@ -63,25 +63,41 @@ class PdfBoxAnnotationWriter @Inject constructor(
         file: File,
         items: List<PdfAnnotationItem>,
         verify: suspend (File) -> Boolean,
+    ): PdfWriteResult = process(file, items, null, verify)
+
+    override suspend fun mirror(
+        file: File,
+        items: List<PdfAnnotationItem>,
+        removed: Set<String>,
+        verify: suspend (File) -> Boolean,
+    ): PdfWriteResult = process(file, items, removed, verify)
+
+    /** [removed] == null = add-only ([write]); otherwise [mirror]: changed marks are replaced, [removed] taken out. */
+    private suspend fun process(
+        file: File,
+        items: List<PdfAnnotationItem>,
+        removed: Set<String>?,
+        verify: suspend (File) -> Boolean,
     ): PdfWriteResult = withContext(Dispatchers.IO) {
         when {
             !file.isFile -> PdfWriteResult.Skipped(PdfSkipReason.NOT_FOUND)
             file.length() > MAX_BYTES -> PdfWriteResult.Skipped(PdfSkipReason.TOO_LARGE)
-            items.isEmpty() -> PdfWriteResult.NothingToWrite
-            else -> guarded(file, items, verify)
+            items.isEmpty() && removed.isNullOrEmpty() -> PdfWriteResult.NothingToWrite
+            else -> guarded(file, items, removed, verify)
         }
     }
 
     private suspend fun guarded(
         file: File,
         items: List<PdfAnnotationItem>,
+        removed: Set<String>?,
         verify: suspend (File) -> Boolean,
     ): PdfWriteResult =
         File(file.parentFile, "${file.name}$TMP_SUFFIX").let { tmp ->
             try {
                 PDFBoxResourceLoader.init(context)
                 pruneBackups()
-                attempt(file, tmp, items, verify)
+                attempt(file, tmp, items, removed, verify)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Unsupported) {
@@ -101,10 +117,11 @@ class PdfBoxAnnotationWriter @Inject constructor(
         file: File,
         tmp: File,
         items: List<PdfAnnotationItem>,
+        removed: Set<String>?,
         verify: suspend (File) -> Boolean,
     ): PdfWriteResult {
-        val staged = annotateToTemp(file, tmp, items)
-        if (staged.ids.isEmpty()) return PdfWriteResult.NothingToWrite
+        val staged = annotateToTemp(file, tmp, items, removed)
+        if (staged.ids.isEmpty() && staged.gone.isEmpty()) return PdfWriteResult.NothingToWrite
         if (!structureOk(tmp, staged) || !verify(tmp)) throw IOException("Verification of the new PDF failed")
         val checksum = sha256Hex(tmp)
         val size = tmp.length()
@@ -113,27 +130,39 @@ class PdfBoxAnnotationWriter @Inject constructor(
         return PdfWriteResult.Written(staged.ids.size, checksum, size)
     }
 
-    private fun annotateToTemp(file: File, tmp: File, items: List<PdfAnnotationItem>): Staged =
+    private fun annotateToTemp(file: File, tmp: File, items: List<PdfAnnotationItem>, removed: Set<String>?): Staged =
         PDDocument.load(file, MemoryUsageSetting.setupTempFileOnly()).use { doc ->
             if (doc.isEncrypted) throw Unsupported(PdfSkipReason.ENCRYPTED)
-            val ids = items.filter { addOne(doc, it) }.map { it.id }
-            if (ids.isNotEmpty()) doc.save(tmp)
-            Staged(doc.numberOfPages, ids)
+            val keep = items.mapTo(HashSet()) { it.id }
+            val gone = removed?.let { removeNamedMarks(doc, it - keep) }.orEmpty()
+            val ids = items.filter { addOne(doc, it, mirror = removed != null) }.map { it.id }
+            if (ids.isNotEmpty() || gone.isNotEmpty()) doc.save(tmp)
+            Staged(doc.numberOfPages, ids, gone)
         }
 
     /**
      * True if added. Skips (false): bad page, no rects, degenerate page box, our `/NM` already on the page, or the
      * same kind of mark already on exactly that spot (e.g. read back from the file and saved to the Library).
+     * [mirror]: our `/NM` already on the page but different from [item] is replaced (true), not skipped.
      */
-    private fun addOne(doc: PDDocument, item: PdfAnnotationItem): Boolean {
+    private fun addOne(doc: PDDocument, item: PdfAnnotationItem, mirror: Boolean): Boolean {
         if (item.page !in 0 until doc.numberOfPages || item.rects.isEmpty()) return false
         val page = doc.getPage(item.page)
         val box = pageBox(page)
         val annots = annotsOf(page)
         if (box.width <= 0f || box.height <= 0f) return false
         val quads = item.rects.take(AnnotationRects.MAX_RECTS).map { PdfAnnotationGeometry.toQuad(it, box) }
-        val skip = hasName(annots, item.id) || hasSameMark(annots, item.type, PdfAnnotationGeometry.bounds(quads))
-        if (!skip) annots.add(build(item, quads))
+        val bounds = PdfAnnotationGeometry.bounds(quads)
+        val at = indexOfName(annots, item.id)
+        val skip = if (at < 0) {
+            hasSameMark(annots, item.type, bounds)
+        } else {
+            !mirror || markMatches(annots.getObject(at) as COSDictionary, item, bounds)
+        }
+        if (!skip) {
+            if (at >= 0) annots.remove(at) // mirror: the old copy of this mark is replaced
+            annots.add(build(item, quads))
+        }
         return !skip
     }
 
@@ -182,7 +211,7 @@ class PdfBoxAnnotationWriter @Inject constructor(
                     (annots.getObject(j) as? COSDictionary)?.getString(COSName.NM)?.let(names::add)
                 }
             }
-            doc.numberOfPages == staged.pages && names.containsAll(staged.ids)
+            doc.numberOfPages == staged.pages && names.containsAll(staged.ids) && staged.gone.none { it in names }
         }
 
     private fun pruneBackups() {
@@ -212,9 +241,6 @@ private fun annotsOf(page: PDPage): COSArray {
         ?: COSArray().also { dict.setItem(COSName.ANNOTS, it) }
 }
 
-private fun hasName(annots: COSArray, id: String): Boolean =
-    (0 until annots.size()).any { (annots.getObject(it) as? COSDictionary)?.getString(COSName.NM) == id }
-
 /** Same subtype and the same `/Rect` (within [SAME_SPOT]): this mark is already in the file. Notes never match. */
 private fun hasSameMark(annots: COSArray, type: AnnotationType, bounds: PdfQuad): Boolean =
     type != AnnotationType.NOTE && (0 until annots.size()).any { i ->
@@ -222,19 +248,23 @@ private fun hasSameMark(annots: COSArray, type: AnnotationType, bounds: PdfQuad)
         dict != null && dict.getNameAsString(COSName.SUBTYPE) == subtypeOf(type) && sameSpot(dict, bounds)
     }
 
-private fun sameSpot(dict: COSDictionary, bounds: PdfQuad): Boolean =
-    sameBox(dict, COSName.RECT, bounds, RECT_VALUES) || sameBox(dict, COSName.QUADPOINTS, bounds, QUAD_VALUES)
+internal fun sameSpot(dict: COSDictionary, bounds: PdfQuad, tolerance: Float = SAME_SPOT): Boolean =
+    sameBox(dict, COSName.RECT, bounds, RECT_VALUES, tolerance) ||
+        sameBox(dict, COSName.QUADPOINTS, bounds, QUAD_VALUES, tolerance)
 
 /** PdfBox may resize `/Rect` while drawing the appearance; `/QuadPoints` stay as written, so check both. */
-private fun sameBox(dict: COSDictionary, key: COSName, bounds: PdfQuad, step: Int): Boolean {
+private fun sameBox(dict: COSDictionary, key: COSName, bounds: PdfQuad, step: Int, tolerance: Float): Boolean {
     val array = dict.getDictionaryObject(key) as? COSArray ?: return false
     val v = (0 until array.size()).mapNotNull { (array.getObject(it) as? COSNumber)?.floatValue() }
     if (v.size < RECT_VALUES || v.size % step != 0) return false
     val xs = v.filterIndexed { i, _ -> i % 2 == 0 }
     val ys = v.filterIndexed { i, _ -> i % 2 == 1 }
-    return abs(xs.min() - bounds.minX) < SAME_SPOT && abs(ys.min() - bounds.minY) < SAME_SPOT &&
-        abs(xs.max() - bounds.maxX) < SAME_SPOT && abs(ys.max() - bounds.maxY) < SAME_SPOT
+    return abs(xs.min() - bounds.minX) < tolerance && abs(ys.min() - bounds.minY) < tolerance &&
+        abs(xs.max() - bounds.maxX) < tolerance && abs(ys.max() - bounds.maxY) < tolerance
 }
+
+/** The PDF `/Subtype` this app writes for [type] (a Note is a `/Text` annotation). */
+internal fun fileSubtype(type: AnnotationType): String = if (type == AnnotationType.NOTE) "Text" else subtypeOf(type)
 
 private fun subtypeOf(type: AnnotationType): String = when (type) {
     AnnotationType.UNDERLINE -> PDAnnotationTextMarkup.SUB_TYPE_UNDERLINE

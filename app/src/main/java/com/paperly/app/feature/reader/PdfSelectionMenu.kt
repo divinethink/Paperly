@@ -6,7 +6,8 @@ import androidx.compose.ui.platform.LocalDensity
 
 /**
  * Both floating menus of the page area, placed next to what they act on with the same rule ([popupPlacement]):
- * the text-selection menu ([PdfSelectionPopup]) and the quick-box menu for scan pages ([PdfQuickMenu]).
+ * the text-selection menu ([PdfSelectionPopup]), the quick-box menu for scan pages ([PdfQuickMenu]) and the menu
+ * of a picked saved mark ([PdfMarkEditMenu]).
  */
 @Composable
 internal fun PdfSelectionMenu(
@@ -16,6 +17,7 @@ internal fun PdfSelectionMenu(
 ) {
     PdfSelectionPopup(viewModel, port, onEditor)
     PdfQuickMenu(viewModel, port, onEditor)
+    PdfMarkEditMenu(viewModel, port, onEditor)
 }
 
 /** The area the menus may use: below the top bar and above the navigation bar. */

@@ -8,6 +8,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -45,6 +46,17 @@ data class AnnotationEntity(
     val stroke: String? = null,
 )
 
+/** The columns that change when a mark is moved or resized, plus its id (partial row for [AnnotationDao.setRects]). */
+data class AnnotationRectsUpdate(
+    val annotationId: String,
+    val rectLeft: Float,
+    val rectTop: Float,
+    val rectRight: Float,
+    val rectBottom: Float,
+    val rects: String?,
+    val updatedAt: Long,
+)
+
 @Dao
 interface AnnotationDao {
     @Query("SELECT * FROM annotations WHERE documentId = :id ORDER BY createdAt")
@@ -62,6 +74,10 @@ interface AnnotationDao {
 
     @Query("UPDATE annotations SET stroke = :stroke WHERE annotationId = :id")
     suspend fun setStroke(id: String, stroke: String?): Int
+
+    /** A mark was moved / resized: only its place changes (the row is matched by `annotationId`). */
+    @Update(entity = AnnotationEntity::class)
+    suspend fun setRects(update: AnnotationRectsUpdate): Int
 
     @Query("DELETE FROM annotations WHERE annotationId = :id")
     suspend fun delete(id: String): Int

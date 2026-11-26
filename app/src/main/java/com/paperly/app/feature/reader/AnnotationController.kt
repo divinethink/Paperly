@@ -7,6 +7,7 @@ import com.paperly.app.domain.reader.AnnotationContent
 import com.paperly.app.domain.reader.AnnotationRepository
 import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
+import com.paperly.app.domain.reader.isFileMark
 import com.paperly.app.domain.reader.lookFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,11 +32,14 @@ data class AnnotationEditor(
     val rects: List<MatchRect> = listOf(rect),
 )
 
-/** Parts drawn on one [page] but not yet saved; committed together as one annotation. */
-data class PendingParts(val page: Int, val rects: List<MatchRect>)
+/**
+ * Parts drawn on one [page] but not yet saved; committed together as one annotation. [editing] = instead the box of
+ * a saved mark picked for moving / resizing (see [EditingMark]); nothing is committed from it.
+ */
+data class PendingParts(val page: Int, val rects: List<MatchRect>, val editing: Boolean = false)
 
 /** Reader-side annotation state for one document; persistence goes through [AnnotationRepository]. */
-@Suppress("TooManyFunctions") // small state handlers for pending parts, selection marks and saved items
+@Suppress("TooManyFunctions") // small state handlers for pending parts, picked marks, selection marks, saved items
 class AnnotationController(
     private val scope: CoroutineScope,
     private val repository: AnnotationRepository,
@@ -61,15 +65,42 @@ class AnnotationController(
     /** Image pages, annotate mode: a drag draws one resizable box with the floating mark menu (off = direct marks). */
     val boxMode: StateFlow<Boolean> = boxOn.asStateFlow()
 
+    private val editingState = MutableStateFlow<EditingMark?>(null)
+
+    /** The saved mark picked for editing (tap on it, not in annotate mode); null = none. */
+    val editing: StateFlow<EditingMark?> = editingState.asStateFlow()
+
     fun toggleMode() {
-        pendingState.value = null // also drops a quick box (long-press on an image page) when entering annotate mode
+        cancelPending() // also drops a quick box (long-press on an image page) or a picked mark
         boxOn.value = false
         annotateOn.update { !it }
     }
 
     fun toggleBox() {
-        pendingState.value = null
+        cancelPending()
         boxOn.update { !it }
+    }
+
+    /**
+     * Picks saved [mark]: its box (with handles) becomes the only pending part of its page. False = not pickable
+     * (annotate mode, or a mark that already lives in a Quick-view file, which is never rewritten): use the dialog.
+     */
+    fun beginEdit(mark: Annotation): Boolean {
+        val frame = frameOf(mark.rects)
+        if (annotateOn.value || frame == null || isFileMark(mark.id)) return false
+        editingState.value = EditingMark(mark.id, mark.page, mark.rects, frame)
+        pendingState.value = PendingParts(mark.page, listOf(frame), editing = true)
+        return true
+    }
+
+    /** A drag of the picked mark's box ended: the mark's parts follow the box (stored; the PDF file is updated later). */
+    fun finishEditDrag() {
+        val edit = editingState.value ?: return
+        val now = pendingState.value?.takeIf { it.editing }?.rects?.singleOrNull() ?: return
+        if (now == edit.frame) return
+        val moved = remapRects(edit.rects, edit.frame, now)
+        editingState.value = edit.copy(rects = moved, frame = now)
+        scope.launch { repository.setRects(edit.id, moved) }
     }
 
     /** Type + color chosen in the pencil strip; persisted, so no per-annotation color prompt. */
@@ -110,9 +141,11 @@ class AnnotationController(
         pendingState.update { cur ->
             cur?.copy(rects = cur.rects.filterIndexed { i, _ -> i != index })?.takeIf { it.rects.isNotEmpty() }
         }
+        if (pendingState.value == null) editingState.value = null // the red cross also lets go of a picked mark
     }
 
     fun cancelPending() {
+        editingState.value = null
         pendingState.value = null
     }
 
@@ -181,11 +214,13 @@ class AnnotationController(
                 pendingState.value = null
             } else {
                 repository.update(existing.id, content)
+                if (editingState.value?.id == existing.id) cancelPending()
             }
         }
     }
 
     fun delete(id: String) {
+        if (editingState.value?.id == id) cancelPending()
         scope.launch { repository.delete(id) }
     }
 

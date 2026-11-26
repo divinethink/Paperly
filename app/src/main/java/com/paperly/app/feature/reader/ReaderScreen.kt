@@ -58,6 +58,7 @@ import com.paperly.app.R
 import com.paperly.app.core.ui.theme.ReadingFontFamily
 import com.paperly.app.core.ui.theme.readerPalette
 import com.paperly.app.domain.reader.Annotation
+import com.paperly.app.domain.reader.AnnotationType
 import com.paperly.app.domain.reader.MatchRect
 import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.common.documentMeta
@@ -169,7 +170,8 @@ private fun ReaderContent(
             doc == null -> Text(stringResource(R.string.reader_missing))
             state.pageCount > 0 -> {
                 val highlights = if (search.open && search.submitted) search.rects else emptyMap()
-                val hooks = annotationHooks(annotations, annotate, viewModel.annotations, pending) { editor = it }
+                val shown = rememberShownMarks(viewModel.annotations, annotations, pending)
+                val hooks = annotationHooks(shown, annotate, viewModel.annotations, pending) { editor = it }
                     .withSelect(viewModel, enabled = !annotate) { barsVisible = !barsVisible }
                     .withDirectMark(viewModel, annotate && search.probed && !search.available) { editor = it }
                 val look = PageLook(fitHeight, pageFilter, highlights, hooks, showBars) { editor = it }
@@ -207,8 +209,19 @@ private fun annotationHooks(
     items = items.groupBy { it.page },
     annotate = annotate,
     onCreate = controller::addPending,
-    onTap = { openEditor(AnnotationEditor(it.page, it.rect, it)) },
-    pending = PendingHooks(pending, controller::changePending, controller::removePending),
+    // annotate mode and notes: the dialog; any other saved mark is picked (box + handles, like Xodo)
+    onTap = { mark ->
+        val picked = !annotate && mark.type != AnnotationType.NOTE && controller.beginEdit(mark)
+        if (!picked) openEditor(AnnotationEditor(mark.page, mark.rect, mark))
+    },
+    pending = PendingHooks(
+        state = pending,
+        onChange = controller::changePending,
+        onRemove = controller::removePending,
+        editing = pending?.editing == true,
+        onEditEnd = controller::finishEditDrag,
+        onDeselect = controller::cancelPending,
+    ),
 )
 
 /** Page images (default) or the text Reflow view (P3-G); Reflow is its own path and never alters PDF progress. */

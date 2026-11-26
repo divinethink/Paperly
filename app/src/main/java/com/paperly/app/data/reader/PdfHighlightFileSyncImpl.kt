@@ -33,20 +33,21 @@ class PdfHighlightFileSyncImpl @Inject constructor(
 ) : PdfHighlightFileSync {
     private val lock = Mutex()
 
-    override fun schedule(documentId: String) {
+    override fun schedule(documentId: String, removedIds: Set<String>) {
         if (documentId.isEmpty()) return
-        scope.launch { runCatching { writeNow(documentId) } }
+        scope.launch { runCatching { writeNow(documentId, removedIds) } }
     }
 
     /** Null = not attempted (setting off, or not a writable Library PDF). */
-    internal suspend fun writeNow(documentId: String): PdfWriteResult? = lock.withLock { attempt(documentId) }
+    internal suspend fun writeNow(documentId: String, removed: Set<String> = emptySet()): PdfWriteResult? =
+        lock.withLock { attempt(documentId, removed) }
 
-    private suspend fun attempt(documentId: String): PdfWriteResult? {
+    private suspend fun attempt(documentId: String, removed: Set<String>): PdfWriteResult? {
         if (!settings.writeHighlights.first()) return null
         val file = files.writableFile(documentId) ?: return null
         val items = annotations.observe(documentId).first()
             .map { PdfAnnotationItem(it.id, it.page, it.type, it.color, it.rects, it.noteText, it.stroke) }
-        val result = writer.write(file, items) { openCheck.opens(it) }
+        val result = writer.mirror(file, items, removed) { openCheck.opens(it) }
         if (result is PdfWriteResult.Written) files.replaced(documentId, result.checksum, result.sizeBytes)
         return result
     }

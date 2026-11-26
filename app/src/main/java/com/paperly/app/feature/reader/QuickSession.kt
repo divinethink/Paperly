@@ -66,6 +66,17 @@ internal class QuickAnnotationRepository : AnnotationRepository {
         }
     }
 
+    override suspend fun setRects(id: String, rects: List<MatchRect>) {
+        val parts = rects.take(MAX_PARTS).ifEmpty { return }
+        val box = MatchRect(
+            parts.minOf { it.left },
+            parts.minOf { it.top },
+            parts.maxOf { it.right },
+            parts.maxOf { it.bottom },
+        )
+        state.update { list -> list.map { if (it.id == id) it.copy(rect = box, rects = parts) else it } }
+    }
+
     override suspend fun delete(id: String) {
         state.update { list -> list.filter { it.id != id } }
     }

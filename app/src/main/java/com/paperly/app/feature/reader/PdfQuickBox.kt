@@ -85,7 +85,7 @@ internal suspend fun AwaitPointerEventScope.quickPressGesture(edit: () -> Pendin
 
 /** Starts (or replaces) the single quick box; a box left on another page is dropped first. */
 internal fun AnnotationController.quickStart(page: Int, rect: MatchRect) {
-    if (pending.value?.page == page) {
+    if (pending.value?.takeIf { it.editing } == null && pending.value?.page == page) {
         changePending(0, rect)
     } else {
         cancelPending()
@@ -152,7 +152,7 @@ internal fun PdfQuickMenu(viewModel: ReaderViewModel, port: SelectionViewport, o
     val style by controller.style.collectAsStateWithLifecycle()
     val tools by controller.tools.collectAsStateWithLifecycle()
     val box by controller.boxMode.collectAsStateWithLifecycle()
-    val parts = pending ?: return
+    val parts = pending?.takeUnless { it.editing } ?: return // a picked saved mark has its own menu
     val hidden = (annotate && !box) || reflow
     if (hidden || parts.rects.isEmpty()) return
     val copyPage = rememberOcrCopy(viewModel)

@@ -2,10 +2,13 @@ package com.paperly.app.domain.reader
 
 import java.io.File
 
-/** L3: asks for the app's highlights of a Library PDF to be written into the file (if the setting is on). */
+/**
+ * L3: asks for the app's highlights of a Library PDF to be written into the file (if the setting is on). Edits made
+ * in the app (moved, resized, restyled) reach the file too; [schedule]'s `removedIds` are marks deleted in the app.
+ */
 interface PdfHighlightFileSync {
     /** Fire and forget (app scope, survives the Reader closing). The Reader must have closed the file first. */
-    fun schedule(documentId: String)
+    fun schedule(documentId: String, removedIds: Set<String> = emptySet())
 }
 
 /** The Library side of the write: which file may be written, and what to record once its bytes changed. */

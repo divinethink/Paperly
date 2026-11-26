@@ -94,5 +94,8 @@ interface AnnotationRepository {
 
     suspend fun update(id: String, content: AnnotationContent)
 
+    /** Moves / resizes a saved mark: new parts (page fractions, 1..50); no-op when [rects] is empty. */
+    suspend fun setRects(id: String, rects: List<MatchRect>) = Unit
+
     suspend fun delete(id: String)
 }
