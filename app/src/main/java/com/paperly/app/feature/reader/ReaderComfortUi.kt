@@ -45,9 +45,9 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
-import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.domain.reader.MIN_BRIGHTNESS
 import com.paperly.app.domain.reader.ReaderComfort
+import com.paperly.app.domain.reader.ReaderTheme
 import kotlin.math.roundToInt
 
 private const val DEFAULT_BRIGHTNESS = 0.6f
