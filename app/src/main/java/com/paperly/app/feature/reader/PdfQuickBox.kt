@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,7 +57,7 @@ internal fun quickBoxRect(x: Float, y: Float, endX: Float?): MatchRect {
  */
 internal suspend fun AwaitPointerEventScope.quickPressGesture(edit: () -> PendingEdit) {
     val down = awaitFirstDown(requireUnconsumed = true) // a grabbed box/handle already consumed its down
-    val pressed = awaitLongPressOrCancellation(down.id) ?: return
+    val pressed = awaitHoldPress(down) ?: return
     val current = edit()
     val onQuick = current.onQuick
     if (size.width <= 0 || size.height <= 0 || onQuick == null) return

@@ -1,7 +1,6 @@
 package com.paperly.app.feature.reader
 
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -266,7 +265,7 @@ private fun fraction(p: Offset, size: IntSize) =
 internal suspend fun AwaitPointerEventScope.textSelectGesture(edit: SelectEdit) {
     val down = awaitFirstDown(requireUnconsumed = true) // a grabbed handle already consumed its down
     log("LP down p${edit.page} ${pt(down.position)}")
-    val pressed = awaitLongPressOrCancellation(down.id) ?: run {
+    val pressed = awaitHoldPress(down) ?: run {
         log("LP cancelled")
         return
     }
