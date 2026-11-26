@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.paperly.app.R
 import com.paperly.app.domain.document.Document
 
-private const val SCRIM_ALPHA = 0.45f
+private const val SCRIM_ALPHA = 0.6f
 
 /** "More" button with the document menu; [onCover] adds a dark round backing (visible on covers). */
 @Composable
@@ -42,7 +42,7 @@ internal fun CardMenu(
     Box(modifier) {
         IconButton(
             onClick = { open = true },
-            modifier = if (onCover) Modifier.size(32.dp) else Modifier,
+            modifier = if (onCover) Modifier.size(36.dp) else Modifier,
         ) {
             Icon(
                 Icons.Filled.MoreVert,
@@ -50,10 +50,10 @@ internal fun CardMenu(
                 tint = if (onCover) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = if (onCover) {
                     Modifier
-                        .size(20.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = SCRIM_ALPHA))
-                        .padding(2.dp)
+                        .padding(4.dp)
                 } else {
                     Modifier
                 },

@@ -45,7 +45,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paperly.app.R
-import com.paperly.app.core.ui.icons.BrightnessGlyph
+import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.domain.reader.MIN_BRIGHTNESS
 import com.paperly.app.domain.reader.ReaderComfort
 import kotlin.math.roundToInt
@@ -166,21 +166,18 @@ internal fun ColumnScope.ComfortRowsHost(viewModel: ReaderComfortViewModel = hil
 /** PDF reader entry: no dim scrim, so brightness and tint changes are visible on the page while adjusting. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ComfortSheet(onDismiss: () -> Unit) {
+internal fun ComfortSheet(theme: ReaderTheme, onTheme: (ReaderTheme) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, scrimColor = Color.Transparent) {
         Column(
             Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            BlockLabel(R.string.reader_theme)
+            ThemeRow(theme, onTheme)
             ComfortRowsHost()
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
                 Text(stringResource(R.string.epub_done))
             }
         }
     }
-}
-
-@Composable
-internal fun ComfortMenuItem(onClick: () -> Unit) {
-    MenuRow(R.string.reader_comfort, BrightnessGlyph, onClick)
 }

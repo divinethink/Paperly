@@ -59,6 +59,7 @@ import com.paperly.app.core.ui.theme.ReadingFontFamily
 import com.paperly.app.core.ui.theme.readerPalette
 import com.paperly.app.domain.reader.Annotation
 import com.paperly.app.domain.reader.MatchRect
+import com.paperly.app.domain.reader.ReaderTheme
 import com.paperly.app.feature.common.documentMeta
 import kotlin.math.ceil
 
@@ -92,12 +93,13 @@ fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltViewModel(
     val scanPages: ScanPageViewModel = hiltViewModel()
     val isScan by scanPages.isScan.collectAsStateWithLifecycle()
     if (isScan) {
-        // Scanned documents: soft grey desk behind white sheets, with the app's bars.
-        // Reading themes stay for PDF/EPUB.
+        // Scanned documents: soft grey desk behind white sheets in Light/Auto-light; other themes tint the sheets.
         val dark = MaterialTheme.colorScheme.background.luminance() < DARK_LUMINANCE_THRESHOLD
-        val desk = if (dark) ScanDeskDark else ScanDeskLight
-        Surface(Modifier.fillMaxSize(), color = desk, contentColor = if (dark) Color.White else Color.Black) {
-            ReaderContent(state, viewModel, listState, null, leave)
+        val plain = theme == ReaderTheme.LIGHT || (theme == ReaderTheme.AUTO && !isSystemInDarkTheme())
+        val desk = if (plain) (if (dark) ScanDeskDark else ScanDeskLight) else palette.background
+        val onDesk = if (plain) (if (dark) Color.White else Color.Black) else palette.content
+        Surface(Modifier.fillMaxSize(), color = desk, contentColor = onDesk) {
+            ReaderContent(state, viewModel, listState, if (plain) null else palette.pageFilter, leave)
         }
     } else {
         MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(primary = palette.content)) {
@@ -224,7 +226,7 @@ private fun PdfOrReflow(viewModel: ReaderViewModel, state: ReaderUiState, listSt
         // Scans are viewed one page per screen (swipe left / right); marking and search keep the scrolling list.
         val paged = isScan && !look.hooks.annotate && !search.open
         if (paged) {
-            ScanPages(viewModel, listState, state.pageCount, look.hooks)
+            ScanPages(viewModel, listState, state.pageCount, look.hooks, look.filter)
         } else {
             PdfPages(viewModel, listState, state.pageCount, state.pageAspect, look)
         }

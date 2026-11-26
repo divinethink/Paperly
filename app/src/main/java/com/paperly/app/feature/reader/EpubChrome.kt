@@ -44,7 +44,7 @@ import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 
-private const val BAR_ALPHA = 0.95f
+private const val BAR_ALPHA = 1f
 private const val PERCENT = 100
 private const val NAV_BUTTON_DP = 48
 private const val CONTENTS_PULL_DP = 6

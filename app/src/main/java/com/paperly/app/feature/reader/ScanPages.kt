@@ -20,10 +20,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +39,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
@@ -63,19 +66,30 @@ private val SHEET_SHADOW = 3.dp
  * Pinch / double-tap zooms inside the page; while zoomed the page pans and the swipe is paused.
  */
 @Composable
-internal fun ScanPages(viewModel: ReaderViewModel, listState: LazyListState, pageCount: Int, hooks: AnnotationHooks) {
+internal fun ScanPages(
+    viewModel: ReaderViewModel,
+    listState: LazyListState,
+    pageCount: Int,
+    hooks: AnnotationHooks,
+    filter: ColorFilter?,
+) {
     var zoomed by remember { mutableStateOf(false) }
-    LazyRow(
-        modifier = Modifier.fillMaxSize(),
-        state = listState,
-        userScrollEnabled = !zoomed,
-        flingBehavior = rememberSnapFlingBehavior(listState),
-    ) {
-        items(count = pageCount, key = { it }) { index ->
-            ScanPage(viewModel, index, pageCount, hooks) { zoomed = it }
+    CompositionLocalProvider(LocalScanFilter provides filter) {
+        LazyRow(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            userScrollEnabled = !zoomed,
+            flingBehavior = rememberSnapFlingBehavior(listState),
+        ) {
+            items(count = pageCount, key = { it }) { index ->
+                ScanPage(viewModel, index, pageCount, hooks) { zoomed = it }
+            }
         }
     }
 }
+
+/** Reading-theme tint for the scanned sheets (null = none); read by each page instead of a seventh parameter. */
+private val LocalScanFilter = compositionLocalOf<ColorFilter?> { null }
 
 @Composable
 private fun LazyItemScope.ScanPage(
@@ -119,6 +133,7 @@ private fun LazyItemScope.ScanPage(
                     bitmap = remember(page) { page.asImageBitmap() },
                     contentDescription = stringResource(R.string.reader_page_description, index + 1, pageCount),
                     filterQuality = FilterQuality.High,
+                    colorFilter = LocalScanFilter.current,
                     modifier = Modifier.size(fitWidth, fitWidth / ratio).graphicsLayer {
                         scaleX = zoom.scale
                         scaleY = zoom.scale

@@ -1,13 +1,9 @@
 package com.paperly.app.feature.reader
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -43,7 +40,6 @@ import com.paperly.app.feature.scanner.LocalOpenScanEditor
 
 private const val MENU_RADIUS = 24
 private const val SEARCH_SLOT_DP = 48
-private const val THEME_BLOCK_WIDTH = 328
 private const val UNMARKED_ALPHA = 0.6f
 
 /** What the top bar needs to flip Fit-width / Fit-height. */
@@ -79,13 +75,19 @@ internal fun ReaderTopBar(viewModel: ReaderViewModel, listState: LazyListState, 
     }
 }
 
-/** Reader top-bar actions: Bookmark button, one-tap Annotate toggle, ⋮ menu (Fit mode, Comfort, Theme). */
+/** Reader top-bar actions: Bookmark, Annotate toggle, ⚙ (Theme + Comfort), ⋮ menu (Fit, Reflow, file actions). */
 @Composable
 fun ReaderActions(viewModel: ReaderViewModel, page: Int, fitHeight: Boolean, onToggleFit: () -> Unit) {
     BookmarkAndAnnotate(viewModel, page)
     var showComfort by remember { mutableStateOf(false) }
-    if (showComfort) ComfortSheet { showComfort = false }
-    OverflowMenu(viewModel, page, fitHeight, onToggleFit) { showComfort = true }
+    if (showComfort) {
+        val theme by viewModel.theme.collectAsStateWithLifecycle()
+        ComfortSheet(theme, viewModel::setTheme) { showComfort = false }
+    }
+    IconButton(onClick = { showComfort = true }) {
+        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.reader_display_settings))
+    }
+    OverflowMenu(viewModel, page, fitHeight, onToggleFit)
 }
 
 @Composable
@@ -124,9 +126,7 @@ private fun OverflowMenu(
     page: Int,
     fitHeight: Boolean,
     onToggleFit: () -> Unit,
-    onComfort: () -> Unit,
 ) {
-    val current by viewModel.theme.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.reader_more))
@@ -158,19 +158,6 @@ private fun OverflowMenu(
             if (fitHeight) FitWidthGlyph else FitHeightGlyph,
         ) {
             onToggleFit()
-            open = false
-        }
-        Column(Modifier.width(THEME_BLOCK_WIDTH.dp).padding(horizontal = 12.dp, vertical = 4.dp)) {
-            BlockLabel(R.string.reader_theme)
-            Spacer(Modifier.height(8.dp))
-            ThemeRow(current) {
-                viewModel.setTheme(it)
-                open = false
-            }
-        }
-        MenuDivider()
-        ComfortMenuItem {
-            onComfort()
             open = false
         }
         if (isScan) {
